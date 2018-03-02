@@ -1,2 +1,2 @@
-# dwSampleFramework
-A simple framework for building graphics applications
+# dwFramework
+A simple framework for building sample graphics applications
