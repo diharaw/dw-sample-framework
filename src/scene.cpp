@@ -1,5 +1,5 @@
-#include "scene.h"
-#include "utility.h"
+#include <scene.h>
+#include <utility.h>
 
 #include <json.hpp>
 #include <gtc/matrix_transform.hpp>

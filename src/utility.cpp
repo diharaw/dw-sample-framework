@@ -1,5 +1,4 @@
-#include "utility.h"
-
+#include <utility.h>
 #include <fstream>
 
 namespace Utility
@@ -22,8 +21,3 @@ namespace Utility
 			return false;
 	}
 }
-
-
-
-
-
