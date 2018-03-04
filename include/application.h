@@ -7,6 +7,7 @@
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
+#include <render_device.h>
 
 #include "logger.h"
 #include "timer.h"
@@ -75,6 +76,7 @@ namespace dw
         std::array<bool, MAX_MOUSE_BUTTONS> m_mouse_buttons;
         GLFWwindow*                         m_window;
         Timer                               m_timer;
+		RenderDevice						m_device;
         
     private:
         bool init_base();

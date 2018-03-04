@@ -140,6 +140,9 @@ namespace dw
         glfwGetFramebufferSize(m_window, &display_w, &display_h);
         m_width = display_w;
         m_height = display_h;
+
+		if (!m_device.init())
+			return false;
         
         if(!init())
             return false;
