@@ -134,7 +134,9 @@ namespace dw
         
         LOG_INFO("Successfully initialized platform!");
         
+		ImGui::CreateContext();
         ImGui_ImplGlfwGL3_Init(m_window, false);
+		ImGui::StyleColorsDark();
         
         int display_w, display_h;
         glfwGetFramebufferSize(m_window, &display_w, &display_h);
@@ -161,7 +163,8 @@ namespace dw
     {
         shutdown();
         
-        ImGui_ImplGlfwGL3_Shutdown();
+		ImGui_ImplGlfwGL3_Shutdown();
+		ImGui::DestroyContext();
         glfwDestroyWindow(m_window);
         glfwTerminate();
         
