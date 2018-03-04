@@ -5,13 +5,11 @@
 #include <array>
 #include <string>
 
-#include "gl_core_4_5.h"
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 
 #include "logger.h"
 #include "timer.h"
-#include "RenderDevice.h"
 
 #define DW_DECLARE_MAIN(class_name)  \
 int main()                           \
@@ -77,7 +75,6 @@ namespace dw
         std::array<bool, MAX_MOUSE_BUTTONS> m_mouse_buttons;
         GLFWwindow*                         m_window;
         Timer                               m_timer;
-        RenderDevice                        m_device;
         
     private:
         bool init_base();

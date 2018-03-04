@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include <examples/opengl3_example/imgui_impl_glfw_gl3.h>
+#include <imgui_impl_glfw_gl3.h>
 #include <json.hpp>
 
 #include "utility.h"
@@ -140,9 +140,6 @@ namespace dw
         glfwGetFramebufferSize(m_window, &display_w, &display_h);
         m_width = display_w;
         m_height = display_h;
-        
-        if(!m_device.init())
-            return false;
         
         if(!init())
             return false;
@@ -286,7 +283,7 @@ namespace dw
     
     void Application::key_callback_glfw(GLFWwindow* window, int key, int scancode, int action, int mode)
     {
-        ImGui_ImplGlfwGL3_KeyCallback(window, key, scancode, action, mode);
+		ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mode);
         Application* app = (Application*)glfwGetWindowUserPointer(window);
         app->key_callback(window, key, scancode, action, mode);
     }
@@ -299,21 +296,21 @@ namespace dw
     
     void Application::scroll_callback_glfw(GLFWwindow* window, double xoffset, double yoffset)
     {
-        ImGui_ImplGlfwGL3_ScrollCallback(window, xoffset, yoffset);
+		ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
         Application* app = (Application*)glfwGetWindowUserPointer(window);
         app->scroll_callback(window, xoffset, yoffset);
     }
     
     void Application::mouse_button_callback_glfw(GLFWwindow*window, int button, int action, int mods)
     {
-        ImGui_ImplGlfwGL3_MouseButtonCallback(window, button, action, mods);
+		ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
         Application* app = (Application*)glfwGetWindowUserPointer(window);
         app->mouse_button_callback(window, button, action, mods);
     }
     
     void Application::char_callback_glfw(GLFWwindow* window, unsigned int c)
     {
-        ImGui_ImplGlfwGL3_CharCallback(window, c);
+		ImGui_ImplGlfw_CharCallback(window, c);
     }
     
     void Application::window_size_callback_glfw(GLFWwindow* window, int width, int height)
