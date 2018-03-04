@@ -25,8 +25,7 @@ set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 				  ${PROJECT_SOURCE_DIR}/include/timer.h
 				  ${PROJECT_SOURCE_DIR}/include/application.h
 				  ${PROJECT_SOURCE_DIR}/include/logger.h
-				  ${PROJECT_SOURCE_DIR}/include/utility.h
-				  ${PROJECT_SOURCE_DIR}/src/gl_core_4_5.h)
+				  ${PROJECT_SOURCE_DIR}/include/utility.h)
 
 add_library(dwSampleFramework ${DWSFW_HEADERS} ${DWSFW_SOURCE})				
 
@@ -36,5 +35,5 @@ set_target_properties( dwSampleFramework
     				   LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/lib"
     				   RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin" )
 
-# target_link_libraries(dwSampleFramework ${OPENGL_LIBRARIES})
+target_link_libraries(dwSampleFramework Terminus-GFX)
 target_link_libraries(dwSampleFramework glfw)
