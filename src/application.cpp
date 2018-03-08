@@ -189,6 +189,7 @@ namespace dw
     void Application::end_frame()
     {
         ImGui::Render();
+		ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(m_window);
         
         m_timer.stop();
