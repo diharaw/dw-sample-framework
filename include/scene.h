@@ -11,17 +11,18 @@ namespace dw
 	class Scene
 	{
 	public:
-		static Scene* Load(const std::string& file, RenderDevice* device);
+		static Scene* load(const std::string& file, RenderDevice* device);
 		
 		Scene();
 		~Scene();
 
-		inline void AddEntity(Entity* entity) { m_Entities.push_back(entity); }
-		inline uint32_t EntityCount() { return m_Entities.size(); }
-		inline Entity** Entities() { return &m_Entities[0]; }
+		inline void add_entity(Entity* entity) { m_entities.push_back(entity); }
+		inline uint32_t entity_count() { return m_entities.size(); }
+		inline Entity** entities() { return &m_entities[0]; }
+		inline const char* name() { return m_name.c_str(); }
 
 	private:
-		std::string			 m_Name;
-		std::vector<Entity*> m_Entities;
+		std::string			 m_name;
+		std::vector<Entity*> m_entities;
 	};
 }

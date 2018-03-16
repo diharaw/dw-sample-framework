@@ -9,39 +9,39 @@
 
 namespace dw
 {
-	std::unordered_map<std::string, Mesh*> Mesh::m_Cache;
+	std::unordered_map<std::string, Mesh*> Mesh::m_cache;
 
-	Mesh* Mesh::Load(const std::string& path, RenderDevice* device, Material* overrideMat)
+	Mesh* Mesh::load(const std::string& path, RenderDevice* device, Material* overrideMat)
 	{
-		if (m_Cache.find(path) == m_Cache.end())
+		if (m_cache.find(path) == m_cache.end())
 		{
 			LOG_INFO("Mesh Asset not in cache. Loading from disk.");
 
 			Mesh* mesh = new Mesh(path, device, overrideMat);
-			m_Cache[path] = mesh;
+			m_cache[path] = mesh;
 			return mesh;
 		}
 		else
 		{
 			LOG_INFO("Mesh Asset already loaded. Retrieving from cache.");
-			return m_Cache[path];
+			return m_cache[path];
 		}
 	}
 
-	void Mesh::Unload(Mesh*& mesh)
+	void Mesh::unload(Mesh*& mesh)
 	{
-		for (auto itr : m_Cache)
+		for (auto itr : m_cache)
 		{
 			if (itr.second == mesh)
 			{
-				m_Cache.erase(itr.first);
+				m_cache.erase(itr.first);
 				DW_SAFE_DELETE(mesh);
 				return;
 			}
 		}
 	}
 
-	void Mesh::LoadFromDisk(const std::string & path)
+	void Mesh::load_from_disk(const std::string & path)
 	{
 		char* data = nullptr;
 		FILE *file = fopen(path.c_str(), "rb");
@@ -58,20 +58,20 @@ namespace dw
 		memcpy(&header, data, sizeof(TSM_FileHeader));
 		offset += sizeof(TSM_FileHeader);
 
-		m_SubMeshCount = header.meshCount;
-		m_SubMeshes = new SubMesh[m_SubMeshCount];
-		m_Vertices = new TSM_Vertex[header.vertexCount];
-		m_Indices = new uint32_t[header.indexCount];
+		m_sub_mesh_count = header.meshCount;
+		m_sub_meshes = new SubMesh[m_sub_mesh_count];
+		m_vertices = new TSM_Vertex[header.vertexCount];
+		m_indices = new uint32_t[header.indexCount];
 		TSM_Material_Json* mats = new TSM_Material_Json[header.materialCount];
 		TSM_MeshHeader* meshHeaders = new TSM_MeshHeader[header.meshCount];
 
-		m_VertexCount = header.vertexCount;
-		m_IndexCount = header.indexCount;
+		m_vertex_count = header.vertexCount;
+		m_index_count = header.indexCount;
 
-		memcpy(m_Vertices, data + offset, sizeof(TSM_Vertex) * header.vertexCount);
+		memcpy(m_vertices, data + offset, sizeof(TSM_Vertex) * header.vertexCount);
 		offset += sizeof(TSM_Vertex) * header.vertexCount;
 
-		memcpy(m_Indices, data + offset, sizeof(uint32_t) * header.indexCount);
+		memcpy(m_indices, data + offset, sizeof(uint32_t) * header.indexCount);
 		offset += sizeof(uint32_t) * header.indexCount;
 
 		memcpy(meshHeaders, data + offset, sizeof(TSM_MeshHeader) * header.meshCount);
@@ -81,23 +81,23 @@ namespace dw
 
 		for (uint32_t i = 0; i < header.meshCount; i++)
 		{
-			m_SubMeshes[i].baseIndex = meshHeaders[i].baseIndex;
-			m_SubMeshes[i].baseVertex = meshHeaders[i].baseVertex;
-			m_SubMeshes[i].indexCount = meshHeaders[i].indexCount;
-			m_SubMeshes[i].maxExtents = meshHeaders[i].maxExtents;
-			m_SubMeshes[i].minExtents = meshHeaders[i].minExtents;
+			m_sub_meshes[i].baseIndex = meshHeaders[i].baseIndex;
+			m_sub_meshes[i].baseVertex = meshHeaders[i].baseVertex;
+			m_sub_meshes[i].indexCount = meshHeaders[i].indexCount;
+			m_sub_meshes[i].maxExtents = meshHeaders[i].maxExtents;
+			m_sub_meshes[i].minExtents = meshHeaders[i].minExtents;
 
 			if (header.materialCount > 0 && meshHeaders[i].materialIndex < header.materialCount)
 			{
 				std::string matName = mats[meshHeaders[i].materialIndex].material;
 
 				if (!matName.empty() && matName != " ")
-					m_SubMeshes[i].mat = Material::Load(matName, m_Device);
+					m_sub_meshes[i].mat = Material::load(matName, m_device);
 				else
-					m_SubMeshes[i].mat = nullptr;
+					m_sub_meshes[i].mat = nullptr;
 			}
 			else
-				m_SubMeshes[i].mat = nullptr;
+				m_sub_meshes[i].mat = nullptr;
 		}
 
 		delete[] mats;
@@ -107,31 +107,31 @@ namespace dw
 		fclose(file);
 	}
 
-	void Mesh::CreateGPUObjects()
+	void Mesh::create_gpu_objects()
 	{
 		BufferCreateDesc bc;
 		DW_ZERO_MEMORY(bc);
-		bc.data = m_Vertices;
+		bc.data = m_vertices;
 		bc.data_type = DataType::FLOAT;
-		bc.size = sizeof(TSM_Vertex) * m_VertexCount;
+		bc.size = sizeof(TSM_Vertex) * m_vertex_count;
 		bc.usage_type = BufferUsageType::STATIC;
 
-		m_VBO = m_Device->create_vertex_buffer(bc);
+		m_vbo = m_device->create_vertex_buffer(bc);
 
-		if (!m_VBO)
+		if (!m_vbo)
 		{
 			LOG_ERROR("Failed to create Vertex Buffer");
 		}
 
 		DW_ZERO_MEMORY(bc);
-		bc.data = m_Indices;
+		bc.data = m_indices;
 		bc.data_type = DataType::UINT32;
-		bc.size = sizeof(uint32_t) * m_IndexCount;
+		bc.size = sizeof(uint32_t) * m_index_count;
 		bc.usage_type = BufferUsageType::STATIC;
 
-		m_IBO = m_Device->create_index_buffer(bc);
+		m_ibo = m_device->create_index_buffer(bc);
 
-		if (!m_IBO)
+		if (!m_ibo)
 		{
 			LOG_ERROR("Failed to create Index Buffer");
 		}
@@ -150,46 +150,46 @@ namespace dw
 		ilcd.num_elements = 4;
 		ilcd.vertex_size = sizeof(TSM_Vertex);
 
-		m_IL = m_Device->create_input_layout(ilcd);
+		m_il = m_device->create_input_layout(ilcd);
 
 		VertexArrayCreateDesc vcd;
 		DW_ZERO_MEMORY(vcd);
-		vcd.index_buffer = m_IBO;
-		vcd.vertex_buffer = m_VBO;
-		vcd.layout = m_IL;
+		vcd.index_buffer = m_ibo;
+		vcd.vertex_buffer = m_vbo;
+		vcd.layout = m_il;
 
-		m_VAO = m_Device->create_vertex_array(vcd);
+		m_vao = m_device->create_vertex_array(vcd);
 
-		if (!m_VAO)
+		if (!m_vao)
 		{
 			LOG_ERROR("Failed to create Vertex Array");
 		}
 	}
 
-	Mesh::Mesh(const std::string& path, RenderDevice* device, Material* overrideMat) : m_OverrideMat(overrideMat), m_Device(device)
+	Mesh::Mesh(const std::string& path, RenderDevice* device, Material* overrideMat) : m_override_mat(overrideMat), m_device(device)
 	{
-		LoadFromDisk(path);
-		CreateGPUObjects();
+		load_from_disk(path);
+		create_gpu_objects();
 	}
 
 	Mesh::~Mesh()
 	{
-		if (m_Device)
+		if (m_device)
 		{
-			DW_SAFE_DELETE(m_IL);
-			m_Device->destroy(m_VAO);
-			m_Device->destroy(m_VBO);
-			m_Device->destroy(m_IBO);
+			DW_SAFE_DELETE(m_il);
+			m_device->destroy(m_vao);
+			m_device->destroy(m_vbo);
+			m_device->destroy(m_ibo);
 		}
 
-		for (uint32_t i = 0; i < m_SubMeshCount; i++)
+		for (uint32_t i = 0; i < m_sub_mesh_count; i++)
 		{
-			if (m_SubMeshes[i].mat)
-				Material::Unload(m_SubMeshes[i].mat);
+			if (m_sub_meshes[i].mat)
+				Material::unload(m_sub_meshes[i].mat);
 		}
 
-		DW_SAFE_DELETE_ARRAY(m_SubMeshes);
-		DW_SAFE_DELETE_ARRAY(m_Vertices);
-		DW_SAFE_DELETE_ARRAY(m_Indices);
+		DW_SAFE_DELETE_ARRAY(m_sub_meshes);
+		DW_SAFE_DELETE_ARRAY(m_vertices);
+		DW_SAFE_DELETE_ARRAY(m_indices);
 	}
 }

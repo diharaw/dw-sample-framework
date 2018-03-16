@@ -7,7 +7,7 @@
 
 namespace dw
 {
-	Scene* Scene::Load(const std::string& file, RenderDevice* device)
+	Scene* Scene::load(const std::string& file, RenderDevice* device)
 	{
 		std::string sceneJson;
 		assert(Utility::ReadText(file, sceneJson));
@@ -16,7 +16,7 @@ namespace dw
 		Scene* scene = new Scene();
 
 		std::string sceneName = json["name"];
-		scene->m_Name = sceneName;
+		scene->m_name = sceneName;
 
 		auto entities = json["entities"].array();
 
@@ -34,13 +34,24 @@ namespace dw
 			auto rotationJson = entity["rotation"].array();
 			glm::vec3 rotation = glm::vec3(rotationJson[0], rotationJson[1], rotationJson[2]);
 
-			Mesh* mesh = Mesh::Load(model, device);
-			Entity* newEntity = new Entity(name, mesh, position);
+			Mesh* mesh = Mesh::load(model, device);
+			Entity* newEntity = new Entity();
 
-			//newEntity->Position = position;
-			//newEntity->Transform = glm::translate(glm::mat4(1.0f), position);
+			newEntity->m_position = position;
+			newEntity->m_rotation = rotation;
+			newEntity->m_scale = scale;
 
-			scene->m_Entities.push_back(newEntity);
+			glm::mat4 H = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.x), glm::vec3(0.0f, 1.0f, 0.0f));
+			glm::mat4 P = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.y), glm::vec3(1.0f, 0.0f, 0.0f));
+			glm::mat4 B = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+
+			glm::mat4 R = H * P * B;
+			glm::mat4 S = glm::scale(glm::mat4(1.0f), scale);
+			glm::mat4 T = glm::translate(glm::mat4(1.0f), position);
+
+			newEntity->m_transform = T * R * S;
+
+			scene->m_entities.push_back(newEntity);
 		}
 
 		return scene;
@@ -52,7 +63,7 @@ namespace dw
 
 	Scene::~Scene()
 	{
-		for (auto entity : m_Entities)
+		for (auto entity : m_entities)
 		{
 			if (entity)
 				delete entity;

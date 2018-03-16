@@ -11,39 +11,39 @@
 
 namespace dw
 {
-	std::unordered_map<std::string, Material*> Material::m_Cache;
+	std::unordered_map<std::string, Material*> Material::m_cache;
 
-	Material* Material::Load(const std::string& path, RenderDevice* device)
+	Material* Material::load(const std::string& path, RenderDevice* device)
 	{
-		if (m_Cache.find(path) == m_Cache.end())
+		if (m_cache.find(path) == m_cache.end())
 		{
 			LOG_INFO("Material Asset not in cache. Loading from disk.");
 
 			Material* mat = new Material(path, device);
-			m_Cache[path] = mat;
+			m_cache[path] = mat;
 			return mat;
 		}
 		else
 		{
 			LOG_INFO("Material Asset already loaded. Retrieving from cache.");
-			return m_Cache[path];
+			return m_cache[path];
 		}	
 	}
 
-	void Material::Unload(Material*& mat)
+	void Material::unload(Material*& mat)
 	{
-		for (auto itr : m_Cache)
+		for (auto itr : m_cache)
 		{
 			if (itr.second == mat)
 			{
-				m_Cache.erase(itr.first);	
+				m_cache.erase(itr.first);	
 				DW_SAFE_DELETE(mat);
 				return;
 			}
 		}
 	}
 
-	Material::Material(const std::string& path, RenderDevice* device) : m_Device(device)
+	Material::Material(const std::string& path, RenderDevice* device) : m_device(device), m_alpha(false)
 	{
 		std::string matJson;
 		assert(Utility::ReadText(path, matJson));
@@ -63,8 +63,11 @@ namespace dw
 
 			desc.data = data;
 
-			if(n == 4)
+			if (n == 4)
+			{
 				desc.format = TextureFormat::R8G8B8A8_UNORM_SRGB;
+				m_alpha = true;
+			}
 			else if (n == 3)
 				desc.format = TextureFormat::R8G8B8_UNORM_SRGB;
 			else if (n == 1)
@@ -74,19 +77,19 @@ namespace dw
 			desc.height = y;
 			desc.mipmap_levels = 10;
 
-			m_AlbedoT = device->create_texture_2d(desc);
+			m_albedo_tex = device->create_texture_2d(desc);
 
-			if (!m_AlbedoT)
+			if (!m_albedo_tex)
 			{
 				LOG_ERROR("Failed to load Albedo Map");
 			}
 		}
 		else if (json.find("diffuse_value") != json.end())
 		{
-			m_AlbedoV.x = json["diffuse_value"]["r"];
-			m_AlbedoV.y = json["diffuse_value"]["g"];
-			m_AlbedoV.z = json["diffuse_value"]["b"];
-			m_AlbedoV.w = json["diffuse_value"]["a"];
+			m_albedo_val.x = json["diffuse_value"]["r"];
+			m_albedo_val.y = json["diffuse_value"]["g"];
+			m_albedo_val.z = json["diffuse_value"]["b"];
+			m_albedo_val.w = json["diffuse_value"]["a"];
 		}
 
 		if (json.find("normal_map") != json.end())
@@ -112,9 +115,9 @@ namespace dw
 			desc.height = y;
 			desc.mipmap_levels = 10;
 
-			m_NormalT = device->create_texture_2d(desc);
+			m_normal_tex = device->create_texture_2d(desc);
 
-			if (!m_NormalT)
+			if (!m_normal_tex)
 			{
 				LOG_ERROR("Failed to load Normal Map");
 			}
@@ -143,16 +146,16 @@ namespace dw
 			desc.height = y;
 			desc.mipmap_levels = 10;
 
-			m_MetalnessT = device->create_texture_2d(desc);
+			m_metalness_tex = device->create_texture_2d(desc);
 
-			if (!m_MetalnessT)
+			if (!m_metalness_tex)
 			{
 				LOG_ERROR("Failed to load Metalness Map");
 			}
 		}
 		if (json.find("metalness_value") != json.end())
 		{
-			m_MetalnessF = json["metalness_value"];
+			m_metalness_val = json["metalness_value"];
 		}
 
 		if (json.find("roughness_map") != json.end())
@@ -178,31 +181,31 @@ namespace dw
 			desc.height = y;
 			desc.mipmap_levels = 10;
 
-			m_RoughnessT = device->create_texture_2d(desc);
+			m_roughness_tex = device->create_texture_2d(desc);
 
-			if (!m_RoughnessT)
+			if (!m_roughness_tex)
 			{
 				LOG_ERROR("Failed to load Roughness Map");
 			}
 		}
 		if (json.find("roughness_value") != json.end())
 		{
-			m_RoughnessF = json["roughness_value"];
+			m_roughness_val = json["roughness_value"];
 		}
 	}
 
 	Material::~Material()
 	{
-		if (m_AlbedoT)
-			m_Device->destroy(m_AlbedoT);
+		if (m_albedo_tex)
+			m_device->destroy(m_albedo_tex);
 
-		if (m_NormalT)
-			m_Device->destroy(m_NormalT);
+		if (m_normal_tex)
+			m_device->destroy(m_normal_tex);
 
-		if (m_MetalnessT)
-			m_Device->destroy(m_MetalnessT);
+		if (m_metalness_tex)
+			m_device->destroy(m_metalness_tex);
 
-		if (m_RoughnessT)
-			m_Device->destroy(m_RoughnessT);
+		if (m_roughness_tex)
+			m_device->destroy(m_roughness_tex);
 	}
 }

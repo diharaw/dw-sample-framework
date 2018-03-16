@@ -31,32 +31,32 @@ namespace dw
 	{
 	private:
 		Mesh(const std::string& path, RenderDevice* device, Material* overrideMat = nullptr);
-		void LoadFromDisk(const std::string& path);
-		void CreateGPUObjects();
+		void load_from_disk(const std::string& path);
+		void create_gpu_objects();
 
 	public:
-		static Mesh* Load(const std::string& path, RenderDevice* device, Material* overrideMat = nullptr);
-		static void Unload(Mesh*& mesh);
+		static Mesh* load(const std::string& path, RenderDevice* device, Material* overrideMat = nullptr);
+		static void unload(Mesh*& mesh);
 		~Mesh();
 
-		inline Material* OverrideMaterial()	  { return m_OverrideMat;  }
-		inline VertexArray* MeshVertexArray() { return m_VAO; }
-		inline uint32_t SubMeshCount()		  { return m_SubMeshCount; }
-		inline SubMesh* SubMeshes()			  { return m_SubMeshes;	 }
+		inline Material* override_material()	  { return m_override_mat;   }
+		inline VertexArray* mesh_vertex_array()	  { return m_vao;			 }
+		inline uint32_t sub_mesh_count()		  { return m_sub_mesh_count; }
+		inline SubMesh* sub_meshes()			  { return m_sub_meshes;	 }
 
 	private:
-		static std::unordered_map<std::string, Mesh*> m_Cache;
-		uint32_t m_VertexCount;
-		uint32_t m_IndexCount;
-		VertexArray * m_VAO = nullptr;
-		VertexBuffer* m_VBO = nullptr;
-		IndexBuffer* m_IBO = nullptr;
-		InputLayout* m_IL = nullptr;
-		Material* m_OverrideMat = nullptr;
-		uint32_t m_SubMeshCount;
-		SubMesh* m_SubMeshes;
-		RenderDevice* m_Device = nullptr; // Temp
-		TSM_Vertex* m_Vertices = nullptr;
-		uint32_t* m_Indices = nullptr;
+		static std::unordered_map<std::string, Mesh*> m_cache;
+		uint32_t m_vertex_count;
+		uint32_t m_index_count;
+		VertexArray * m_vao = nullptr;
+		VertexBuffer* m_vbo = nullptr;
+		IndexBuffer* m_ibo = nullptr;
+		InputLayout* m_il = nullptr;
+		Material* m_override_mat = nullptr;
+		uint32_t m_sub_mesh_count;
+		SubMesh* m_sub_meshes;
+		RenderDevice* m_device = nullptr; // Temp
+		TSM_Vertex* m_vertices = nullptr;
+		uint32_t* m_indices = nullptr;
 	};
 }
