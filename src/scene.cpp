@@ -4,6 +4,10 @@
 #include <json.hpp>
 #include <gtc/matrix_transform.hpp>
 #include <render_device.h>
+#include <material.h>
+#include <macros.h>
+
+#include <stb_image.h>
 
 namespace dw
 {
@@ -18,12 +22,23 @@ namespace dw
 		std::string sceneName = json["name"];
 		scene->m_name = sceneName;
 
+		std::string envMap = json["environment_map"];
+		scene->load_env_map(envMap, device);
+
 		auto entities = json["entities"].array();
 
 		for (auto& entity : entities)
 		{
+			Material* mat_override = nullptr;
+
 			std::string name = entity["name"];
 			std::string model = entity["model"];
+			
+			if (!entity["material"].is_null())
+			{
+				std::string material = entity["material"];
+				mat_override = Material::load(material, device);
+			}
 
 			auto positionJson = entity["position"].array();
 			glm::vec3 position = glm::vec3(positionJson[0], positionJson[1], positionJson[2]);
@@ -34,7 +49,7 @@ namespace dw
 			auto rotationJson = entity["rotation"].array();
 			glm::vec3 rotation = glm::vec3(rotationJson[0], rotationJson[1], rotationJson[2]);
 
-			Mesh* mesh = Mesh::load(model, device);
+			Mesh* mesh = Mesh::load(model, device, mat_override);
 			Entity* newEntity = new Entity();
 
 			newEntity->m_name = name;
@@ -69,5 +84,25 @@ namespace dw
 			if (entity)
 				delete entity;
 		}
+	}
+
+	void Scene::load_env_map(std::string file, RenderDevice* device)
+	{
+		stbi_set_flip_vertically_on_load(true);
+		int width, height, nrComponents;
+		float* data = stbi_loadf(file.c_str(), &width, &height, &nrComponents, 0);
+
+		Texture2DCreateDesc desc;
+		DW_ZERO_MEMORY(desc);
+
+		desc.width = width;
+		desc.height = height;
+		desc.format = TextureFormat::R16G16B16_FLOAT;
+		desc.mipmap_levels = 10;
+		desc.data = data;
+
+		m_env_map = device->create_texture_2d(desc);
+
+		stbi_image_free(data);
 	}
 }
