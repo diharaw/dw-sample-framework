@@ -37,6 +37,7 @@ namespace dw
 			Mesh* mesh = Mesh::load(model, device);
 			Entity* newEntity = new Entity();
 
+			newEntity->m_name = name;
 			newEntity->m_position = position;
 			newEntity->m_rotation = rotation;
 			newEntity->m_scale = scale;
