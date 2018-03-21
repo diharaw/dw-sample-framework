@@ -12,6 +12,7 @@ namespace dw
 		glm::vec3 m_rotation;
 		glm::vec3 m_scale;
 		glm::mat4 m_transform;
+		uint64_t m_material_key;
 		Mesh* m_mesh;
 	};
 }

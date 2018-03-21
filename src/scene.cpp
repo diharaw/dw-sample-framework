@@ -101,8 +101,6 @@ namespace dw
 		desc.mipmap_levels = 10;
 		desc.data = data;
 
-		m_env_map = device->create_texture_2d(desc);
-
 		stbi_image_free(data);
 	}
 }
