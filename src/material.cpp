@@ -105,9 +105,9 @@ namespace dw
 			desc.data = data;
 
 			if (n == 4)
-				desc.format = TextureFormat::R8G8B8A8_UNORM_SRGB;
+				desc.format = TextureFormat::R8G8B8A8_UNORM;
 			else if (n == 3)
-				desc.format = TextureFormat::R8G8B8_UNORM_SRGB;
+				desc.format = TextureFormat::R8G8B8_UNORM;
 			else if (n == 1)
 				desc.format = TextureFormat::R8_UNORM;
 
@@ -136,9 +136,9 @@ namespace dw
 			desc.data = data;
 			
 			if (n == 4)
-				desc.format = TextureFormat::R8G8B8A8_UNORM_SRGB;
+				desc.format = TextureFormat::R8G8B8A8_UNORM;
 			else if (n == 3)
-				desc.format = TextureFormat::R8G8B8_UNORM_SRGB;
+				desc.format = TextureFormat::R8G8B8_UNORM;
 			else if (n == 1)
 				desc.format = TextureFormat::R8_UNORM;
 
@@ -171,9 +171,9 @@ namespace dw
 			desc.data = data;
 			
 			if (n == 4)
-				desc.format = TextureFormat::R8G8B8A8_UNORM_SRGB;
+				desc.format = TextureFormat::R8G8B8A8_UNORM;
 			else if (n == 3)
-				desc.format = TextureFormat::R8G8B8_UNORM_SRGB;
+				desc.format = TextureFormat::R8G8B8_UNORM;
 			else if (n == 1)
 				desc.format = TextureFormat::R8_UNORM;
 
