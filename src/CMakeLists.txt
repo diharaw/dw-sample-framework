@@ -35,7 +35,7 @@ set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 				  ${PROJECT_SOURCE_DIR}/include/camera.h
 				  ${PROJECT_SOURCE_DIR}/include/entity.h
 				  ${PROJECT_SOURCE_DIR}/include/trm_loader.h
-				  ${PROJECT_SOURCE_DIR}/include/rendere.h
+				  ${PROJECT_SOURCE_DIR}/include/renderer.h
 				  ${PROJECT_SOURCE_DIR}/include/timer.h
 				  ${PROJECT_SOURCE_DIR}/include/application.h
 				  ${PROJECT_SOURCE_DIR}/include/logger.h
