@@ -6,24 +6,36 @@
 #include <render_device.h>
 #include <material.h>
 #include <macros.h>
+#include <trm_loader.h>
+#include <renderer.h>
 
 #include <stb_image.h>
 
 namespace dw
 {
-	Scene* Scene::load(const std::string& file, RenderDevice* device)
+	Scene* Scene::load(const std::string& file, RenderDevice* device, Renderer* renderer)
 	{
 		std::string sceneJson;
 		assert(Utility::ReadText(file, sceneJson));
 		nlohmann::json json = nlohmann::json::parse(sceneJson.c_str());
 
 		Scene* scene = new Scene();
+		scene->m_device = device;
 
 		std::string sceneName = json["name"];
 		scene->m_name = sceneName;
 
 		std::string envMap = json["environment_map"];
-		scene->load_env_map(envMap, device);
+		TextureCube* cube = (TextureCube*)trm::load_image(envMap, TextureFormat::R16G16B16_FLOAT, device);
+		scene->m_env_map = cube;
+
+		std::string irradianceMap = json["irradiance_map"];
+		cube = (TextureCube*)trm::load_image(envMap, TextureFormat::R16G16B16_FLOAT, device);
+		scene->m_irradiance_map = cube;
+
+		std::string prefilteredMap = json["prefiltered_map"];
+		cube = (TextureCube*)trm::load_image(envMap, TextureFormat::R16G16B16_FLOAT, device);
+		scene->m_prefiltered_map = cube;
 
 		auto entities = json["entities"].array();
 
@@ -67,6 +79,19 @@ namespace dw
 
 			newEntity->m_transform = T * R * S;
 
+			auto shaderJson = entity["shader"];
+
+			Shader* shaders[2];
+
+			std::string vsFile = shaderJson["vs"];
+			shaders[0] = renderer->load_shader(ShaderType::VERTEX, vsFile, nullptr);
+
+			std::string fsFile = shaderJson["fs"];
+			shaders[1] = renderer->load_shader(ShaderType::VERTEX, vsFile, nullptr);
+
+			std::string combName = vsFile + fsFile;
+			newEntity->m_program = renderer->load_program(combName, 2, &shaders[0]);
+
 			scene->m_entities.push_back(newEntity);
 		}
 
@@ -79,28 +104,22 @@ namespace dw
 
 	Scene::~Scene()
 	{
+		m_device->destroy(m_env_map);
+		m_device->destroy(m_irradiance_map);
+		m_device->destroy(m_prefiltered_map);
+
 		for (auto entity : m_entities)
 		{
 			if (entity)
+			{
+				Mesh::unload(entity->m_mesh);
 				delete entity;
+			}
 		}
 	}
 
-	void Scene::load_env_map(std::string file, RenderDevice* device)
+	void Scene::save(std::string path)
 	{
-		stbi_set_flip_vertically_on_load(true);
-		int width, height, nrComponents;
-		float* data = stbi_loadf(file.c_str(), &width, &height, &nrComponents, 0);
 
-		Texture2DCreateDesc desc;
-		DW_ZERO_MEMORY(desc);
-
-		desc.width = width;
-		desc.height = height;
-		desc.format = TextureFormat::R16G16B16_FLOAT;
-		desc.mipmap_levels = 10;
-		desc.data = data;
-
-		stbi_image_free(data);
 	}
 }

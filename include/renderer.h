@@ -2,6 +2,7 @@
 
 #include <macros.h>
 #include <glm.hpp>
+#include <unordered_map>
 
 class Camera;
 class RenderDevice;
@@ -9,13 +10,17 @@ struct SamplerState;
 struct UniformBuffer;
 struct RasterizerState;
 struct DepthStencilState;
+struct ShaderProgram;
+struct Shader;
 struct VertexArray;
 struct VertexBuffer;
 struct InputLayout;
+struct Texture2D;
 
 namespace dw
 { 
 #define MAX_POINT_LIGHTS 32
+	class Material;
 
 	struct PointLight
 	{
@@ -45,6 +50,7 @@ namespace dw
 		glm::mat4 mvpMat;
 		glm::mat4 modalMat;
 		glm::vec4 worldPos;
+		uint8_t padding[112];
 	};
 
 	struct DW_ALIGNED(16) PerSceneUniforms
@@ -57,8 +63,6 @@ namespace dw
 	struct DW_ALIGNED(16) PerMaterialUniforms
 	{
 		glm::vec4  albedoValue;
-		float roughnessValue;
-		float metalnessValue;
 	};
 
 	class Scene;
@@ -67,9 +71,12 @@ namespace dw
 	{
 	public:
 		Renderer(RenderDevice* device);
+		~Renderer();
 		void set_scene(Scene* scene);
 		Scene* scene();
 		void render(Camera* camera);
+		Shader* load_shader(int type, std::string& path, Material* mat);
+		ShaderProgram* load_program(std::string& combined_name, uint32_t count, Shader** shaders);
 
 	private:
 		void render_shadow_maps();
@@ -94,7 +101,10 @@ namespace dw
 		InputLayout* m_quad_layout;
 		PerFrameUniforms m_per_frame_uniforms;
 		PerSceneUniforms m_per_scene_uniforms;
-		PerEntityUniforms* m_per_entity_uniforms;
-		PerMaterialUniforms* m_per_material_uniforms;
+		PerEntityUniforms m_per_entity_uniforms[1024];
+		PerMaterialUniforms m_per_material_uniforms[1024];
+		Texture2D* m_brdfLUT;
+		std::unordered_map<std::string, ShaderProgram*> m_program_cache;
+		std::unordered_map<std::string, Shader*> m_shader_cache;
 	};
 }
