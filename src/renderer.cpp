@@ -7,6 +7,7 @@
 #include <Scene.h>
 #include <entity.h>
 #include <trm_loader.h>
+#include <utility.h>
 
 namespace dw
 {
@@ -264,11 +265,19 @@ namespace dw
 
 	Shader* Renderer::load_shader(int type, std::string& path, Material* mat)
 	{
+		std::string source; 
+
+		if (!Utility::ReadText(path, source))
+		{
+			LOG_ERROR("Failed to read shader source");
+			return nullptr;
+		}
+
 		if (m_shader_cache.find(path) == m_shader_cache.end())
 		{
 			LOG_INFO("Shader Asset not in cache. Loading from disk.");
 
-			Shader* shader = m_device->create_shader(path.c_str(), type);
+			Shader* shader = m_device->create_shader(source.c_str(), type);
 			m_shader_cache[path] = shader;
 			return shader;
 		}
