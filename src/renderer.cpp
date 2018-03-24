@@ -6,10 +6,13 @@
 #include <logger.h>
 #include <Scene.h>
 #include <entity.h>
+#include <trm_loader.h>
 
 namespace dw
 {
-	Renderer::Renderer(RenderDevice* device)
+	const float clear_color[] = { 0.1f, 0.1f, 0.1f, 1.0f };
+
+	Renderer::Renderer(RenderDevice* device, uint16_t width, uint16_t height) : m_width(width), m_height(height)
 	{
 		m_device = device;
 
@@ -80,10 +83,22 @@ namespace dw
 		ssDesc.wrap_mode_w = TextureWrapMode::REPEAT;
 
 		m_trilinear_sampler = m_device->create_sampler_state(ssDesc);
+
+		m_brdfLUT = (Texture2D*)trm::load_image("texture/brdfLUT.trm", TextureFormat::R16G16_FLOAT, m_device);
+
+		create_cube();
+		create_quad();
 	}
 
 	Renderer::~Renderer()
 	{
+		m_device->destroy(m_quad_vao);
+		m_device->destroy(m_quad_vbo);
+		delete m_quad_layout;
+		m_device->destroy(m_cube_vao);
+		m_device->destroy(m_cube_vbo);
+		delete m_cube_layout;
+		m_device->destroy(m_brdfLUT);
 		m_device->destroy(m_trilinear_sampler);
 		m_device->destroy(m_bilinear_sampler);
 		m_device->destroy(m_atmosphere_ds);
@@ -104,6 +119,139 @@ namespace dw
 		}
 	}
 
+	void Renderer::create_cube()
+	{
+		float cubeVertices[] = {
+			// back face
+			-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+			1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+			1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
+			1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+			-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+			-1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
+			// front face
+			-1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+			1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
+			1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+			1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+			-1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
+			-1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+			// left face
+			-1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+			-1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
+			-1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+			-1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+			-1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+			-1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+			// right face
+			1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+			1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+			1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
+			1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+			1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+			1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
+			// bottom face
+			-1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+			1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
+			1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+			1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+			-1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+			-1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+			// top face
+			-1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+			1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+			1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
+			1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+			-1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+			-1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
+		};
+
+		BufferCreateDesc bc;
+		InputLayoutCreateDesc ilcd;
+		VertexArrayCreateDesc vcd;
+
+		DW_ZERO_MEMORY(bc);
+		bc.data = (float*)&cubeVertices[0];
+		bc.data_type = DataType::FLOAT;
+		bc.size = sizeof(cubeVertices);
+		bc.usage_type = BufferUsageType::STATIC;
+
+		m_cube_vbo = m_device->create_vertex_buffer(bc);
+
+		InputElement elements[] =
+		{
+			{ 3, DataType::FLOAT, false, 0, "POSITION" },
+		{ 3, DataType::FLOAT, false, sizeof(float) * 3, "NORMAL" },
+		{ 2, DataType::FLOAT, false, sizeof(float) * 6, "TEXCOORD" }
+		};
+
+		DW_ZERO_MEMORY(ilcd);
+		ilcd.elements = elements;
+		ilcd.num_elements = 3;
+		ilcd.vertex_size = sizeof(float) * 8;
+
+		m_cube_layout = m_device->create_input_layout(ilcd);
+
+		DW_ZERO_MEMORY(vcd);
+		vcd.index_buffer = nullptr;
+		vcd.vertex_buffer = m_cube_vbo;
+		vcd.layout = m_cube_layout;
+
+		m_cube_vao = m_device->create_vertex_array(vcd);
+
+		if (!m_cube_vbo || !m_cube_vao)
+		{
+			LOG_FATAL("Failed to create Vertex Buffers/Arrays");
+		}
+	}
+
+	void Renderer::create_quad()
+	{
+		const float vertices[] = {
+			-1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+			-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+			1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+			1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+		};
+
+		BufferCreateDesc bc;
+		InputLayoutCreateDesc ilcd;
+		VertexArrayCreateDesc vcd;
+
+		DW_ZERO_MEMORY(bc);
+		bc.data = (float*)&vertices[0];
+		bc.data_type = DataType::FLOAT;
+		bc.size = sizeof(vertices);
+		bc.usage_type = BufferUsageType::STATIC;
+
+		m_quad_vbo = m_device->create_vertex_buffer(bc);
+
+		InputElement quadElements[] =
+		{
+			{ 3, DataType::FLOAT, false, 0, "POSITION" },
+			{ 2, DataType::FLOAT, false, sizeof(float) * 3, "TEXCOORD" }
+		};
+
+		DW_ZERO_MEMORY(ilcd);
+		ilcd.elements = quadElements;
+		ilcd.num_elements = 2;
+		ilcd.vertex_size = sizeof(float) * 5;
+
+		m_quad_layout = m_device->create_input_layout(ilcd);
+
+		DW_ZERO_MEMORY(vcd);
+		vcd.index_buffer = nullptr; //ibo;
+		vcd.vertex_buffer = m_quad_vbo;
+		vcd.layout = m_quad_layout;
+
+		m_quad_vao = m_device->create_vertex_array(vcd);
+
+		if (!m_quad_vbo || !m_quad_vao)
+		{
+			LOG_FATAL("Failed to create Vertex Buffers/Arrays");
+		}
+	}
+
 	void Renderer::set_scene(Scene* scene)
 	{
 		m_scene = scene;
@@ -118,7 +266,7 @@ namespace dw
 	{
 		if (m_shader_cache.find(path) == m_shader_cache.end())
 		{
-			LOG_INFO("Material Asset not in cache. Loading from disk.");
+			LOG_INFO("Shader Asset not in cache. Loading from disk.");
 
 			Shader* shader = m_device->create_shader(path.c_str(), type);
 			m_shader_cache[path] = shader;
@@ -126,7 +274,7 @@ namespace dw
 		}
 		else
 		{
-			LOG_INFO("Material Asset already loaded. Retrieving from cache.");
+			LOG_INFO("Shader Asset already loaded. Retrieving from cache.");
 			return m_shader_cache[path];
 		}
 	}
@@ -135,7 +283,7 @@ namespace dw
 	{
 		if (m_program_cache.find(combined_name) == m_program_cache.end())
 		{
-			LOG_INFO("Material Asset not in cache. Loading from disk.");
+			LOG_INFO("Shader Program Asset not in cache. Loading from disk.");
 
 			ShaderProgram* program = m_device->create_shader_program(shaders, count);
 			m_program_cache[combined_name] = program;
@@ -144,7 +292,7 @@ namespace dw
 		}
 		else
 		{
-			LOG_INFO("Material Asset already loaded. Retrieving from cache.");
+			LOG_INFO("Shader Program Asset already loaded. Retrieving from cache.");
 			return m_program_cache[combined_name];
 		}
 	}
@@ -191,6 +339,35 @@ namespace dw
 			m_device->unmap_buffer(m_per_entity);
 		}
 
+		render_scene();
+		render_atmosphere();
+	}
+
+	void Renderer::render_shadow_maps()
+	{
+
+	}
+
+	void Renderer::render_atmosphere()
+	{
+		m_device->bind_shader_program(m_cube_map_program);
+		m_device->bind_uniform_buffer(m_per_frame, ShaderType::VERTEX, 0);
+		m_device->bind_sampler_state(m_bilinear_sampler, ShaderType::FRAGMENT, 0);
+		m_device->bind_texture(m_scene->env_map(), ShaderType::FRAGMENT, 0);
+		m_device->bind_vertex_array(m_cube_vao);
+		m_device->set_primitive_type(PrimitiveType::TRIANGLES);
+		m_device->draw(0, 36);
+	}
+
+	void Renderer::render_scene()
+	{
+		m_device->bind_framebuffer(nullptr);
+		m_device->set_viewport(m_width, m_height, 0, 0);
+		m_device->clear_framebuffer(ClearTarget::ALL, (float*)clear_color);
+
+		Entity** entities = m_scene->entities();
+		int entity_count = m_scene->entity_count();
+
 		for (int i = 0; i < entity_count; i++)
 		{
 			Entity* entity = entities[i];
@@ -201,18 +378,18 @@ namespace dw
 			m_device->bind_uniform_buffer(m_per_frame, ShaderType::VERTEX, 0);
 			m_device->bind_uniform_buffer(m_per_scene, ShaderType::FRAGMENT, 2);
 
-	
+
 			dw::SubMesh* submeshes = entity->m_mesh->sub_meshes();
 
 			m_device->bind_sampler_state(m_bilinear_sampler, ShaderType::FRAGMENT, 4);
 			m_device->bind_texture(m_scene->irradiance_map(), ShaderType::FRAGMENT, 4);
-					
+
 			m_device->bind_sampler_state(m_trilinear_sampler, ShaderType::FRAGMENT, 5);
 			m_device->bind_texture(m_scene->prefiltered_map(), ShaderType::FRAGMENT, 5);
-					
+
 			m_device->bind_sampler_state(m_bilinear_sampler, ShaderType::FRAGMENT, 6);
 			m_device->bind_texture(m_brdfLUT, ShaderType::FRAGMENT, 6);
-					
+
 			m_device->set_primitive_type(PrimitiveType::TRIANGLES);
 
 			for (uint32_t j = 0; j < entity->m_mesh->sub_mesh_count(); j++)
@@ -267,23 +444,10 @@ namespace dw
 		}
 	}
 
-	void Renderer::render_shadow_maps()
-	{
-
-	}
-
-	void Renderer::render_atmosphere()
-	{
-
-	}
-
-	void Renderer::render_scene()
-	{
-
-	}
-
 	void Renderer::render_post_process()
 	{
-
+		m_device->bind_vertex_array(m_quad_vao);
+		m_device->set_primitive_type(PrimitiveType::TRIANGLES);
+		m_device->draw(0, 6);
 	}
 }

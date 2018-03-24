@@ -70,7 +70,7 @@ namespace dw
 	class Renderer
 	{
 	public:
-		Renderer(RenderDevice* device);
+		Renderer(RenderDevice* device, uint16_t width, uint16_t height);
 		~Renderer();
 		void set_scene(Scene* scene);
 		Scene* scene();
@@ -79,12 +79,16 @@ namespace dw
 		ShaderProgram* load_program(std::string& combined_name, uint32_t count, Shader** shaders);
 
 	private:
+		void create_cube();
+		void create_quad();
 		void render_shadow_maps();
 		void render_atmosphere();
 		void render_scene();
 		void render_post_process();
 
 	private:
+		uint16_t m_width;
+		uint16_t m_height;
 		Scene* m_scene;
 		RenderDevice* m_device;
 		SamplerState* m_trilinear_sampler;
@@ -96,13 +100,19 @@ namespace dw
 		RasterizerState* m_standard_rs;
 		DepthStencilState* m_standard_ds;
 		DepthStencilState* m_atmosphere_ds;
-		VertexArray* m_quad_vao;
+		VertexArray*  m_quad_vao;
 		VertexBuffer* m_quad_vbo;
-		InputLayout* m_quad_layout;
+		InputLayout*  m_quad_layout;
+		VertexArray*  m_cube_vao;
+		VertexBuffer* m_cube_vbo;
+		InputLayout*  m_cube_layout;
 		PerFrameUniforms m_per_frame_uniforms;
 		PerSceneUniforms m_per_scene_uniforms;
 		PerEntityUniforms m_per_entity_uniforms[1024];
 		PerMaterialUniforms m_per_material_uniforms[1024];
+		Shader* m_cube_map_vs;
+		Shader* m_cube_map_fs;
+		ShaderProgram* m_cube_map_program;
 		Texture2D* m_brdfLUT;
 		std::unordered_map<std::string, ShaderProgram*> m_program_cache;
 		std::unordered_map<std::string, Shader*> m_shader_cache;
