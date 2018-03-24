@@ -54,7 +54,7 @@ namespace dw
 		if (json.find("diffuse_map") != json.end())
 		{
 			std::string texPath = json["diffuse_map"];
-			stbi_set_flip_vertically_on_load(true);
+			//stbi_set_flip_vertically_on_load(true);
 			int x, y, n;
 
 			stbi_uc* data = stbi_load(texPath.c_str(), &x, &y, &n, 0);
@@ -95,7 +95,7 @@ namespace dw
 		if (json.find("normal_map") != json.end())
 		{
 			std::string texPath = json["normal_map"];
-			stbi_set_flip_vertically_on_load(true);
+			//stbi_set_flip_vertically_on_load(true);
 			int x, y, n;
 
 			stbi_uc* data = stbi_load(texPath.c_str(), &x, &y, &n, 0);
@@ -126,7 +126,7 @@ namespace dw
 		if (json.find("metalness_map") != json.end())
 		{
 			std::string texPath = json["metalness_map"];
-			stbi_set_flip_vertically_on_load(true);
+			//stbi_set_flip_vertically_on_load(true);
 			int x, y, n;
 
 			stbi_uc* data = stbi_load(texPath.c_str(), &x, &y, &n, 0);
@@ -161,7 +161,7 @@ namespace dw
 		if (json.find("roughness_map") != json.end())
 		{
 			std::string texPath = json["roughness_map"];
-			stbi_set_flip_vertically_on_load(true);
+			//stbi_set_flip_vertically_on_load(true);
 			int x, y, n;
 
 			stbi_uc* data = stbi_load(texPath.c_str(), &x, &y, &n, 0);
