@@ -110,8 +110,8 @@ namespace dw
 		PerSceneUniforms m_per_scene_uniforms;
 		PerEntityUniforms m_per_entity_uniforms[1024];
 		PerMaterialUniforms m_per_material_uniforms[1024];
-		Shader* m_cube_map_vs;
-		Shader* m_cube_map_fs;
+		Shader*		   m_cube_map_vs;
+		Shader*		   m_cube_map_fs;
 		ShaderProgram* m_cube_map_program;
 		Texture2D* m_brdfLUT;
 		std::unordered_map<std::string, ShaderProgram*> m_program_cache;

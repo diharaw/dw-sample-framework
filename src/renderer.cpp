@@ -89,10 +89,28 @@ namespace dw
 
 		create_cube();
 		create_quad();
+
+		std::string path = "shader/cubemap_vs.glsl";
+		m_cube_map_vs = load_shader(ShaderType::VERTEX, path, nullptr);
+		path = "shader/cubemap_fs.glsl";
+		m_cube_map_fs = load_shader(ShaderType::FRAGMENT, path, nullptr);
+
+		Shader* shaders[] = { m_cube_map_vs, m_cube_map_fs };
+
+		path = "cubemap_vs.glslcubemap_fs.glsl";
+		m_cube_map_program = load_program(path, 2, &shaders[0]);
+
+		if (!m_cube_map_vs || !m_cube_map_fs || !m_cube_map_program)
+		{
+			LOG_ERROR("Failed to load cubemap shaders");
+		}
 	}
 
 	Renderer::~Renderer()
 	{
+		m_device->destroy(m_cube_map_program);
+		m_device->destroy(m_cube_map_vs);
+		m_device->destroy(m_cube_map_fs);
 		m_device->destroy(m_quad_vao);
 		m_device->destroy(m_quad_vbo);
 		delete m_quad_layout;
