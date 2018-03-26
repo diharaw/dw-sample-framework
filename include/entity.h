@@ -15,6 +15,7 @@ namespace dw
 		glm::vec3 m_scale;
 		glm::mat4 m_transform;
 		ShaderProgram* m_program;
+		Material* m_override_mat;
 		Mesh* m_mesh;
 	};
 }

@@ -3,7 +3,7 @@
 #include <fstream>
 #include <macros.h>
 
-#define READ_AND_OFFSET(stream, dest, size, offset) stream.read((char*)dest, size); offset += size; stream.seekp(offset);
+#define READ_AND_OFFSET(stream, dest, size, offset) stream.read((char*)dest, size); offset += size; stream.seekg(offset);
 
 namespace trm
 {
@@ -118,20 +118,19 @@ namespace trm
 #endif
 
 				imageData = (char*)malloc(mipHeader.size);
-
 				READ_AND_OFFSET(f, imageData, mipHeader.size, offset);
 
-				int array_slice = arraySlice;
+				int array_slice = TextureType::TEXTURE2D;
 
-				if(imageHeader.numArraySlices == 6)
-					array_slice =TextureType::TEXTURECUBE + arraySlice + 1,
-
+				if (imageHeader.numArraySlices == 6)
+					array_slice = TextureType::TEXTURECUBE + arraySlice + 1;
+					
 				device->set_texture_data(texture,
-					mipSlice,
-					array_slice,
-					mipHeader.width,
-					mipHeader.height,
-					imageData);
+						mipSlice,
+						array_slice,
+						mipHeader.width,
+						mipHeader.height,
+						imageData);
 
 				free(imageData);
 			}

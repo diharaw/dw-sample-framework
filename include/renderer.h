@@ -98,6 +98,7 @@ namespace dw
 		UniformBuffer* m_per_material;
 		UniformBuffer* m_per_entity;
 		RasterizerState* m_standard_rs;
+		RasterizerState* m_atmosphere_rs;
 		DepthStencilState* m_standard_ds;
 		DepthStencilState* m_atmosphere_ds;
 		VertexArray*  m_quad_vao;

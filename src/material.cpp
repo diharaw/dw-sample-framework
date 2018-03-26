@@ -46,7 +46,8 @@ namespace dw
 	Material::Material(const std::string& path, RenderDevice* device) : m_device(device), m_alpha(false)
 	{
 		std::string matJson;
-		assert(Utility::ReadText(path, matJson));
+		bool result = Utility::ReadText(path, matJson);
+		assert(result);
 		nlohmann::json json = nlohmann::json::parse(matJson.c_str());
 
 		Texture2DCreateDesc desc;
@@ -54,6 +55,7 @@ namespace dw
 		if (json.find("diffuse_map") != json.end())
 		{
 			std::string texPath = json["diffuse_map"];
+			texPath = "texture/" + texPath;
 			//stbi_set_flip_vertically_on_load(true);
 			int x, y, n;
 
@@ -95,6 +97,7 @@ namespace dw
 		if (json.find("normal_map") != json.end())
 		{
 			std::string texPath = json["normal_map"];
+			texPath = "texture/" + texPath;
 			//stbi_set_flip_vertically_on_load(true);
 			int x, y, n;
 
@@ -126,6 +129,7 @@ namespace dw
 		if (json.find("metalness_map") != json.end())
 		{
 			std::string texPath = json["metalness_map"];
+			texPath = "texture/" + texPath;
 			//stbi_set_flip_vertically_on_load(true);
 			int x, y, n;
 
@@ -161,6 +165,7 @@ namespace dw
 		if (json.find("roughness_map") != json.end())
 		{
 			std::string texPath = json["roughness_map"];
+			texPath = "texture/" + texPath;
 			//stbi_set_flip_vertically_on_load(true);
 			int x, y, n;
 

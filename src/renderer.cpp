@@ -8,6 +8,7 @@
 #include <entity.h>
 #include <trm_loader.h>
 #include <utility.h>
+#include <fstream>
 
 namespace dw
 {
@@ -51,6 +52,10 @@ namespace dw
 		rs_desc.scissor = false;
 
 		m_standard_rs = m_device->create_rasterizer_state(rs_desc);
+
+		rs_desc.front_winding_ccw = false;
+
+		m_atmosphere_rs = m_device->create_rasterizer_state(rs_desc);
 
 		DepthStencilStateCreateDesc ds_desc;
 		DW_ZERO_MEMORY(ds_desc);
@@ -104,13 +109,20 @@ namespace dw
 		{
 			LOG_ERROR("Failed to load cubemap shaders");
 		}
+
+		m_per_scene_uniforms.pointLightCount = 4;
+		m_per_scene_uniforms.pointLights[0].position = glm::vec4(-10.0f, 20.0f, 10.0f, 1.0f);
+		m_per_scene_uniforms.pointLights[0].color = glm::vec4(300.0f);
+		m_per_scene_uniforms.pointLights[1].position = glm::vec4(10.0f, 20.0f, 10.0f, 1.0f);
+		m_per_scene_uniforms.pointLights[1].color = glm::vec4(300.0f);
+		m_per_scene_uniforms.pointLights[2].position = glm::vec4(-10.0f, -20.0f, 10.0f, 1.0f);
+		m_per_scene_uniforms.pointLights[2].color = glm::vec4(300.0f);
+		m_per_scene_uniforms.pointLights[3].position = glm::vec4(10.0f, -20.0f, 10.0f, 1.0f);
+		m_per_scene_uniforms.pointLights[3].color = glm::vec4(300.0f);
 	}
 
 	Renderer::~Renderer()
 	{
-		m_device->destroy(m_cube_map_program);
-		m_device->destroy(m_cube_map_vs);
-		m_device->destroy(m_cube_map_fs);
 		m_device->destroy(m_quad_vao);
 		m_device->destroy(m_quad_vbo);
 		delete m_quad_layout;
@@ -333,6 +345,7 @@ namespace dw
 		m_per_frame_uniforms.viewMat = camera->m_view;
 		m_per_frame_uniforms.viewProj = camera->m_view_projection;
 		m_per_frame_uniforms.viewDir = glm::vec4(camera->m_forward.x, camera->m_forward.y, camera->m_forward.z, 0.0f);
+		m_per_frame_uniforms.viewPos = glm::vec4(camera->m_position.x, camera->m_position.y, camera->m_position.z, 0.0f);
 
 		for (int i = 0; i < entity_count; i++)
 		{
@@ -346,7 +359,7 @@ namespace dw
 
 		if (mem)
 		{
-			memcpy(mem, &m_per_frame, sizeof(PerFrameUniforms));
+			memcpy(mem, &m_per_frame_uniforms, sizeof(PerFrameUniforms));
 			m_device->unmap_buffer(m_per_frame);
 		}
 
@@ -354,7 +367,7 @@ namespace dw
 
 		if (mem)
 		{
-			memcpy(mem, &m_per_scene, sizeof(PerSceneUniforms));
+			memcpy(mem, &m_per_scene_uniforms, sizeof(PerSceneUniforms));
 			m_device->unmap_buffer(m_per_scene);
 		}
 
@@ -377,6 +390,8 @@ namespace dw
 
 	void Renderer::render_atmosphere()
 	{
+		m_device->bind_rasterizer_state(m_atmosphere_rs);
+		m_device->bind_depth_stencil_state(m_atmosphere_ds);
 		m_device->bind_shader_program(m_cube_map_program);
 		m_device->bind_uniform_buffer(m_per_frame, ShaderType::VERTEX, 0);
 		m_device->bind_sampler_state(m_bilinear_sampler, ShaderType::FRAGMENT, 0);
@@ -399,12 +414,13 @@ namespace dw
 		{
 			Entity* entity = entities[i];
 
+			m_device->bind_shader_program(entity->m_program);
+
 			m_device->bind_rasterizer_state(m_standard_rs);
 			m_device->bind_depth_stencil_state(m_standard_ds);
 
 			m_device->bind_uniform_buffer(m_per_frame, ShaderType::VERTEX, 0);
 			m_device->bind_uniform_buffer(m_per_scene, ShaderType::FRAGMENT, 2);
-
 
 			dw::SubMesh* submeshes = entity->m_mesh->sub_meshes();
 
@@ -424,10 +440,9 @@ namespace dw
 				dw::Material* mat = submeshes[j].mat;
 
 				if (!mat)
-					mat = entity->m_mesh->override_material();
+					mat = entity->m_override_mat;
 
 				m_device->bind_vertex_array(entity->m_mesh->mesh_vertex_array());
-				m_device->bind_shader_program(entity->m_program);
 
 				if (mat)
 				{
@@ -464,8 +479,7 @@ namespace dw
 					}
 				}
 
-				m_device->bind_uniform_buffer_range(m_per_entity, ShaderType::VERTEX, 1, j * sizeof(PerEntityUniforms), sizeof(PerEntityUniforms));
-
+				m_device->bind_uniform_buffer_range(m_per_entity, ShaderType::VERTEX, 1, i * sizeof(PerEntityUniforms), sizeof(PerEntityUniforms));
 				m_device->draw_indexed_base_vertex(submeshes[j].indexCount, submeshes[j].baseIndex, submeshes[j].baseVertex);
 			}
 		}

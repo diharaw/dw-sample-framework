@@ -11,13 +11,13 @@ namespace dw
 {
 	std::unordered_map<std::string, Mesh*> Mesh::m_cache;
 
-	Mesh* Mesh::load(const std::string& path, RenderDevice* device, Material* overrideMat)
+	Mesh* Mesh::load(const std::string& path, RenderDevice* device)
 	{
 		if (m_cache.find(path) == m_cache.end())
 		{
 			LOG_INFO("Mesh Asset not in cache. Loading from disk.");
 
-			Mesh* mesh = new Mesh(path, device, overrideMat);
+			Mesh* mesh = new Mesh(path, device);
 			m_cache[path] = mesh;
 			return mesh;
 		}
@@ -166,7 +166,7 @@ namespace dw
 		}
 	}
 
-	Mesh::Mesh(const std::string& path, RenderDevice* device, Material* overrideMat) : m_override_mat(overrideMat), m_device(device)
+	Mesh::Mesh(const std::string& path, RenderDevice* device) : m_device(device)
 	{
 		load_from_disk(path);
 		create_gpu_objects();

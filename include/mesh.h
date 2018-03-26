@@ -30,16 +30,15 @@ namespace dw
 	class Mesh
 	{
 	private:
-		Mesh(const std::string& path, RenderDevice* device, Material* overrideMat = nullptr);
+		Mesh(const std::string& path, RenderDevice* device);
 		void load_from_disk(const std::string& path);
 		void create_gpu_objects();
 
 	public:
-		static Mesh* load(const std::string& path, RenderDevice* device, Material* overrideMat = nullptr);
+		static Mesh* load(const std::string& path, RenderDevice* device);
 		static void unload(Mesh*& mesh);
 		~Mesh();
 
-		inline Material* override_material()	  { return m_override_mat;   }
 		inline VertexArray* mesh_vertex_array()	  { return m_vao;			 }
 		inline uint32_t sub_mesh_count()		  { return m_sub_mesh_count; }
 		inline SubMesh* sub_meshes()			  { return m_sub_meshes;	 }
@@ -52,7 +51,6 @@ namespace dw
 		VertexBuffer* m_vbo = nullptr;
 		IndexBuffer* m_ibo = nullptr;
 		InputLayout* m_il = nullptr;
-		Material* m_override_mat = nullptr;
 		uint32_t m_sub_mesh_count;
 		SubMesh* m_sub_meshes;
 		RenderDevice* m_device = nullptr; // Temp
