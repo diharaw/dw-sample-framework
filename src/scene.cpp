@@ -60,14 +60,14 @@ namespace dw
 			glm::vec3 rotation = glm::vec3(rotationJson[0], rotationJson[1], rotationJson[2]);
 
 			Mesh* mesh = Mesh::load(model, device);
-			Entity* newEntity = new Entity();
+			Entity newEntity;
 
-			newEntity->m_override_mat = mat_override;
-			newEntity->m_name = name;
-			newEntity->m_position = position;
-			newEntity->m_rotation = rotation;
-			newEntity->m_scale = scale;
-			newEntity->m_mesh = mesh;
+			newEntity.m_override_mat = mat_override;
+			newEntity.m_name = name;
+			newEntity.m_position = position;
+			newEntity.m_rotation = rotation;
+			newEntity.m_scale = scale;
+			newEntity.m_mesh = mesh;
 
 			glm::mat4 H = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.x), glm::vec3(0.0f, 1.0f, 0.0f));
 			glm::mat4 P = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.y), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -77,7 +77,7 @@ namespace dw
 			glm::mat4 S = glm::scale(glm::mat4(1.0f), scale);
 			glm::mat4 T = glm::translate(glm::mat4(1.0f), position);
 
-			newEntity->m_transform = T * R * S;
+			newEntity.m_transform = T * R * S;
 
 			auto shaderJson = entity["shader"];
 
@@ -90,9 +90,9 @@ namespace dw
 			shaders[1] = renderer->load_shader(ShaderType::FRAGMENT, fsFile, nullptr);
 
 			std::string combName = vsFile + fsFile;
-			newEntity->m_program = renderer->load_program(combName, 2, &shaders[0]);
+			newEntity.m_program = renderer->load_program(combName, 2, &shaders[0]);
 
-			scene->m_entities.push_back(newEntity);
+			scene->add_entity(newEntity);
 		}
 
 		return scene;
@@ -108,15 +108,13 @@ namespace dw
 		m_device->destroy(m_irradiance_map);
 		m_device->destroy(m_prefiltered_map);
 
-		for (auto entity : m_entities)
+		Entity* entities = m_entities.array();
+
+		for (int i = 0; i < m_entities.size(); i++)
 		{
-			if (entity)
-			{
-				if (entity->m_override_mat)
-					Material::unload(entity->m_override_mat);
-				Mesh::unload(entity->m_mesh);
-				delete entity;
-			}
+			if (entities[i].m_override_mat)
+				Material::unload(entities[i].m_override_mat);
+			Mesh::unload(entities[i].m_mesh);
 		}
 	}
 

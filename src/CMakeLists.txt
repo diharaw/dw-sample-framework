@@ -26,6 +26,7 @@ set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 				  ${PROJECT_SOURCE_DIR}/external/imgui/stb_textedit.h
 				  ${PROJECT_SOURCE_DIR}/external/imgui/stb_truetype.h
 				  ${PROJECT_SOURCE_DIR}/include/imgui_impl_glfw_gl3.h
+				  ${PROJECT_SOURCE_DIR}/include/packed_array.h
 				  ${PROJECT_SOURCE_DIR}/include/mesh.h
 				  ${PROJECT_SOURCE_DIR}/include/material.h
 				  ${PROJECT_SOURCE_DIR}/include/scene.h

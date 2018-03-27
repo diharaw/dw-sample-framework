@@ -3,6 +3,7 @@
 #include "entity.h"
 #include <vector>
 #include <string>
+#include "packed_array.h"
 
 class RenderDevice;
 struct TextureCube;
@@ -19,9 +20,16 @@ namespace dw
 		Scene();
 		~Scene();
 
-		inline void add_entity(Entity* entity) { m_entities.push_back(entity); }
+		inline void add_entity(Entity& entity) 
+		{ 
+			ID id = m_entities.add();
+			entity.id = id;
+			m_entities.set(id, entity);
+		}
+		inline void lookup(ID id, Entity& e) { e = m_entities.lookup(id); }
+		inline void destroy_entity(ID id) { m_entities.remove(id); }
 		inline uint32_t entity_count() { return m_entities.size(); }
-		inline Entity** entities() { return &m_entities[0]; }
+		inline Entity* entities() { return m_entities.array(); }
 		inline const char* name() { return m_name.c_str(); }
 		inline TextureCube* env_map() { return m_env_map; }
 		inline TextureCube* irradiance_map() { return m_irradiance_map; }
@@ -34,6 +42,6 @@ namespace dw
 		TextureCube* m_irradiance_map;
 		TextureCube* m_prefiltered_map;
 		std::string			 m_name;
-		std::vector<Entity*> m_entities;
+		PackedArray<Entity, 1024> m_entities;
 	};
 }

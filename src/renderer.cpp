@@ -338,7 +338,7 @@ namespace dw
 
 	void Renderer::render(Camera* camera)
 	{
-		Entity** entities = m_scene->entities();
+		Entity* entities = m_scene->entities();
 		int entity_count = m_scene->entity_count();
 
 		m_per_frame_uniforms.projMat = camera->m_projection;
@@ -349,10 +349,10 @@ namespace dw
 
 		for (int i = 0; i < entity_count; i++)
 		{
-			Entity* entity = entities[i];
-			m_per_entity_uniforms[i].modalMat = entity->m_transform;
-			m_per_entity_uniforms[i].mvpMat = camera->m_view_projection * entity->m_transform;
-			m_per_entity_uniforms[i].worldPos = glm::vec4(entity->m_position.x, entity->m_position.y, entity->m_position.z, 0.0f);
+			Entity& entity = entities[i];
+			m_per_entity_uniforms[i].modalMat = entity.m_transform;
+			m_per_entity_uniforms[i].mvpMat = camera->m_view_projection * entity.m_transform;
+			m_per_entity_uniforms[i].worldPos = glm::vec4(entity.m_position.x, entity.m_position.y, entity.m_position.z, 0.0f);
 		}
 
 		void* mem = m_device->map_buffer(m_per_frame, BufferMapType::WRITE);
@@ -407,14 +407,17 @@ namespace dw
 		m_device->set_viewport(m_width, m_height, 0, 0);
 		m_device->clear_framebuffer(ClearTarget::ALL, (float*)clear_color);
 
-		Entity** entities = m_scene->entities();
+		Entity* entities = m_scene->entities();
 		int entity_count = m_scene->entity_count();
 
 		for (int i = 0; i < entity_count; i++)
 		{
-			Entity* entity = entities[i];
+			Entity& entity = entities[i];
 
-			m_device->bind_shader_program(entity->m_program);
+			if (!entity.m_mesh || !entity.m_program)
+				continue;
+
+			m_device->bind_shader_program(entity.m_program);
 
 			m_device->bind_rasterizer_state(m_standard_rs);
 			m_device->bind_depth_stencil_state(m_standard_ds);
@@ -422,7 +425,7 @@ namespace dw
 			m_device->bind_uniform_buffer(m_per_frame, ShaderType::VERTEX, 0);
 			m_device->bind_uniform_buffer(m_per_scene, ShaderType::FRAGMENT, 2);
 
-			dw::SubMesh* submeshes = entity->m_mesh->sub_meshes();
+			dw::SubMesh* submeshes = entity.m_mesh->sub_meshes();
 
 			m_device->bind_sampler_state(m_bilinear_sampler, ShaderType::FRAGMENT, 4);
 			m_device->bind_texture(m_scene->irradiance_map(), ShaderType::FRAGMENT, 4);
@@ -435,14 +438,14 @@ namespace dw
 
 			m_device->set_primitive_type(PrimitiveType::TRIANGLES);
 
-			for (uint32_t j = 0; j < entity->m_mesh->sub_mesh_count(); j++)
+			for (uint32_t j = 0; j < entity.m_mesh->sub_mesh_count(); j++)
 			{
 				dw::Material* mat = submeshes[j].mat;
 
 				if (!mat)
-					mat = entity->m_override_mat;
+					mat = entity.m_override_mat;
 
-				m_device->bind_vertex_array(entity->m_mesh->mesh_vertex_array());
+				m_device->bind_vertex_array(entity.m_mesh->mesh_vertex_array());
 
 				if (mat)
 				{
