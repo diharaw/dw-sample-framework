@@ -26,7 +26,7 @@ namespace dw
 			entity.id = id;
 			m_entities.set(id, entity);
 		}
-		inline void lookup(ID id, Entity& e) { e = m_entities.lookup(id); }
+		inline Entity& lookup(ID id) { return m_entities.lookup(id); }
 		inline void destroy_entity(ID id) { m_entities.remove(id); }
 		inline uint32_t entity_count() { return m_entities.size(); }
 		inline Entity* entities() { return m_entities.array(); }
