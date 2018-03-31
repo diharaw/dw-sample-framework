@@ -30,4 +30,5 @@ struct Camera
     void set_rotatation_delta(glm::vec3 angles);
     void set_position(glm::vec3 position);
     void update();
+	void update_projection(float fov, float near, float far, float aspect_ratio);
 };

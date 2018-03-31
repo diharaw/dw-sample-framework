@@ -4,6 +4,17 @@
 #include <vector>
 #include <sstream>
 #include <cassert>
+#include <algorithm>
+#include <stdio.h>
+#ifdef WIN32
+#include <direct.h>
+#define GetCurrentDir _getcwd
+#define ChangeWorkingDir _chdir
+#else
+#include <unistd.h>
+#define GetCurrentDir getcwd
+#define ChangeWorkingDir chdir
+#endif
 
 using String = std::string;
 using StringList = std::vector<std::string>;
@@ -11,8 +22,35 @@ using PositionList = std::vector<size_t>;
 
 namespace Utility
 {
+	extern std::string executable_path();
 	extern bool ReadText(std::string path, std::string& out);
-    
+
+	inline std::string path_without_file(std::string filepath)
+	{
+#ifdef WIN32
+		std::replace(filepath.begin(), filepath.end(), '\\', '/');
+#endif
+		std::size_t found = filepath.find_last_of("/\\");
+		std::string path = filepath.substr(0, found);
+		return path;
+	}
+
+	inline std::string current_working_directory()
+	{
+		char buffer[FILENAME_MAX];
+
+		if (!GetCurrentDir(buffer, sizeof(buffer)))
+			return "";
+
+		buffer[sizeof(buffer) - 1] = '\0';
+		return std::string(buffer);
+	}
+
+	inline void change_current_working_directory(std::string path)
+	{
+		ChangeWorkingDir(path.c_str());
+	}
+
     inline int find(std::string _keyword, std::string _source, int _startIndex = -1)
     {
         std::string::size_type n;

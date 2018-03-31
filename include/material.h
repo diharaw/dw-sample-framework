@@ -16,7 +16,9 @@ namespace dw
 
 	public:
 		static Material* load(const std::string& path, RenderDevice* device);
+		static Texture2D* load_texture(const std::string& path, RenderDevice* device, bool srgb = false);
 		static void unload(Material*& mat);
+		static void unload_texture(Texture2D*& tex, RenderDevice* device);
 		~Material();
 
 		inline Texture2D* texture_albedo()	 { return m_albedo_tex;	 }
@@ -27,8 +29,9 @@ namespace dw
 		inline float	  metalness()		 { return m_metalness_val;  }
 		inline float	  roughness()		 { return m_roughness_val;  }
 
-	private:
+	public:
 		static std::unordered_map<std::string, Material*> m_cache;
+		static std::unordered_map<std::string, Texture2D*> m_texture_cache;
 
 		Texture2D* m_albedo_tex = nullptr;
 		Texture2D* m_normal_tex = nullptr;

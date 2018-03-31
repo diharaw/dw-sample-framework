@@ -23,6 +23,11 @@ Camera::Camera(float fov, float near, float far, float aspect_ratio, glm::vec3 p
     m_projection = glm::perspective(glm::radians(fov), aspect_ratio, near, far);
 }
 
+void Camera::update_projection(float fov, float near, float far, float aspect_ratio)
+{
+	m_projection = glm::perspective(glm::radians(fov), aspect_ratio, near, far);
+}
+
 void Camera::set_translation_delta(glm::vec3 direction, float amount)
 {
     m_position += direction * amount;

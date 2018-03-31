@@ -5,7 +5,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/external/imgui/imgui.cpp
 			     ${PROJECT_SOURCE_DIR}/external/imgui/imgui_demo.cpp
-			     ${PROJECT_SOURCE_DIR}/external/imgui/imgui_draw.cpp
+				 ${PROJECT_SOURCE_DIR}/external/imgui/imgui_draw.cpp
+				 ${PROJECT_SOURCE_DIR}/external/imgui/ImGuizmo.cpp
+				 ${PROJECT_SOURCE_DIR}/external/imgui/imgui_dock.cpp
 			     ${PROJECT_SOURCE_DIR}/src/imgui_impl_glfw_gl3.cpp
 			     ${PROJECT_SOURCE_DIR}/src/timer.cpp
 			     ${PROJECT_SOURCE_DIR}/src/logger.cpp
@@ -25,9 +27,12 @@ set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 				  ${PROJECT_SOURCE_DIR}/external/imgui/stb_rect_pack.h
 				  ${PROJECT_SOURCE_DIR}/external/imgui/stb_textedit.h
 				  ${PROJECT_SOURCE_DIR}/external/imgui/stb_truetype.h
+				  ${PROJECT_SOURCE_DIR}/external/imgui/imgui_dock.h
+				  ${PROJECT_SOURCE_DIR}/external/imgui/ImGuizmo.h
 				  ${PROJECT_SOURCE_DIR}/include/imgui_impl_glfw_gl3.h
 				  ${PROJECT_SOURCE_DIR}/include/imgui_helpers.h
 				  ${PROJECT_SOURCE_DIR}/include/mesh.h
+				  ${PROJECT_SOURCE_DIR}/include/packed_array.h
 				  ${PROJECT_SOURCE_DIR}/include/material.h
 				  ${PROJECT_SOURCE_DIR}/include/scene.h
 				  ${PROJECT_SOURCE_DIR}/include/tsm_headers.h

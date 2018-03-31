@@ -24,15 +24,15 @@ namespace dw
 		std::string sceneName = json["name"];
 		scene->m_name = sceneName;
 		std::string envMap = json["environment_map"];
-		TextureCube* cube = (TextureCube*)trm::load_image(envMap, TextureFormat::R16G16B16_FLOAT, device);
+		TextureCube* cube = (TextureCube*)trm::load_image("assets/" + envMap, TextureFormat::R16G16B16_FLOAT, device);
 		scene->m_env_map = cube;
 
 		std::string irradianceMap = json["irradiance_map"];
-		cube = (TextureCube*)trm::load_image(irradianceMap, TextureFormat::R16G16B16_FLOAT, device);
+		cube = (TextureCube*)trm::load_image("assets/" + irradianceMap, TextureFormat::R16G16B16_FLOAT, device);
 		scene->m_irradiance_map = cube;
 
 		std::string prefilteredMap = json["prefiltered_map"];
-		cube = (TextureCube*)trm::load_image(prefilteredMap, TextureFormat::R16G16B16_FLOAT, device);
+		cube = (TextureCube*)trm::load_image("assets/" + prefilteredMap, TextureFormat::R16G16B16_FLOAT, device);
 		scene->m_prefiltered_map = cube;
 
 		auto entities = json["entities"];
@@ -47,7 +47,7 @@ namespace dw
 			if (!entity["material"].is_null())
 			{
 				std::string material = entity["material"];
-				mat_override = Material::load(material, device);
+				mat_override = Material::load("assets/" + material, device);
 			}
 
 			auto positionJson = entity["position"];
@@ -59,7 +59,7 @@ namespace dw
 			auto rotationJson = entity["rotation"];
 			glm::vec3 rotation = glm::vec3(rotationJson[0], rotationJson[1], rotationJson[2]);
 
-			Mesh* mesh = Mesh::load(model, device);
+			Mesh* mesh = Mesh::load("assets/" + model, device);
 			Entity newEntity;
 
 			newEntity.m_override_mat = mat_override;
@@ -84,10 +84,10 @@ namespace dw
 			Shader* shaders[2];
 
 			std::string vsFile = shaderJson["vs"];
-			shaders[0] = renderer->load_shader(ShaderType::VERTEX, vsFile, nullptr);
+			shaders[0] = renderer->load_shader(ShaderType::VERTEX, "assets/" + vsFile, nullptr);
 
 			std::string fsFile = shaderJson["fs"];
-			shaders[1] = renderer->load_shader(ShaderType::FRAGMENT, fsFile, nullptr);
+			shaders[1] = renderer->load_shader(ShaderType::FRAGMENT, "assets/" + fsFile, nullptr);
 
 			std::string combName = vsFile + fsFile;
 			newEntity.m_program = renderer->load_program(combName, 2, &shaders[0]);

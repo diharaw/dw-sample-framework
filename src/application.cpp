@@ -19,9 +19,9 @@ namespace dw
         
     }
     
-    int Application::run()
+    int Application::run(int argc, const char* argv[])
     {
-        if(!init_base())
+        if(!init_base(argc, argv))
             return 1;
         
         while(!exit_requested())
@@ -32,7 +32,7 @@ namespace dw
         return 0;
     }
     
-    bool Application::init()
+    bool Application::init(int argc, const char* argv[])
     {
         return true;
     }
@@ -47,7 +47,7 @@ namespace dw
         
     }
     
-    bool Application::init_base()
+    bool Application::init_base(int argc, const char* argv[])
     {
         Logger::initialize();
         Logger::open_console_stream();
@@ -69,7 +69,7 @@ namespace dw
         int minor_ver = 3;
 #endif
         
-        if (Utility::ReadText("config.json", config))
+        if (Utility::ReadText(Utility::executable_path() + "/config.json", config))
         {
             LOG_INFO("Loading configuration from json...");
             
@@ -146,7 +146,7 @@ namespace dw
 		if (!m_device.init())
 			return false;
         
-        if(!init())
+        if(!init(argc, argv))
             return false;
         
         return true;

@@ -12,11 +12,11 @@
 #include "logger.h"
 #include "timer.h"
 
-#define DW_DECLARE_MAIN(class_name)  \
-int main()                           \
-{                                    \
-    class_name app;                  \
-    return app.run();                \
+#define DW_DECLARE_MAIN(class_name)    \
+int main(int argc, const char* argv[]) \
+{									   \
+    class_name app;					   \
+    return app.run(argc, argv);		   \
 }
 
 #define MAX_KEYS 1024
@@ -29,7 +29,7 @@ namespace dw
     public:
         Application();
         ~Application();
-        int run();
+        int run(int argc, const char* argv[]);
         
         virtual void window_resized(int width, int height);
         virtual void key_pressed(int code);
@@ -57,7 +57,7 @@ namespace dw
         void request_exit() const;
         bool exit_requested() const;
         
-        virtual bool init();
+        virtual bool init(int argc, const char* argv[]);
         virtual void update(double delta);
         virtual void shutdown();
         
@@ -79,7 +79,7 @@ namespace dw
 		RenderDevice						m_device;
         
     private:
-        bool init_base();
+        bool init_base(int argc, const char* argv[]);
         void update_base(double delta);
         void shutdown_base();
     };

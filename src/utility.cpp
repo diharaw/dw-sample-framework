@@ -1,8 +1,28 @@
-#include <utility.h>
+#include "utility.h"
+
 #include <fstream>
+
+#ifdef WIN32
+#include <Windows.h>
+#endif
 
 namespace Utility
 {
+	static std::string g_exe_path = "";
+
+	std::string executable_path()
+	{
+		if (g_exe_path == "")
+		{
+			char buffer[1024];
+			GetModuleFileName(NULL, &buffer[0], 1024);
+			g_exe_path = buffer;
+			g_exe_path = path_without_file(g_exe_path);
+		}
+		
+		return g_exe_path;
+	}
+
 	bool ReadText(std::string path, std::string& out)
 	{
 		std::ifstream file;

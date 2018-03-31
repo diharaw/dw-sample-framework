@@ -16,6 +16,7 @@ struct VertexArray;
 struct VertexBuffer;
 struct InputLayout;
 struct Texture2D;
+struct Framebuffer;
 
 namespace dw
 { 
@@ -74,7 +75,7 @@ namespace dw
 		~Renderer();
 		void set_scene(Scene* scene);
 		Scene* scene();
-		void render(Camera* camera);
+		void render(Camera* camera, uint16_t w = 0, uint16_t h = 0, Framebuffer* fbo = nullptr);
 		Shader* load_shader(int type, std::string& path, Material* mat);
 		ShaderProgram* load_program(std::string& combined_name, uint32_t count, Shader** shaders);
 
@@ -83,7 +84,7 @@ namespace dw
 		void create_quad();
 		void render_shadow_maps();
 		void render_atmosphere();
-		void render_scene();
+		void render_scene(uint16_t w = 0, uint16_t h = 0, Framebuffer* fbo = nullptr);
 		void render_post_process();
 
 	private:

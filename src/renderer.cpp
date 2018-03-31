@@ -90,19 +90,19 @@ namespace dw
 
 		m_trilinear_sampler = m_device->create_sampler_state(ssDesc);
 
-		m_brdfLUT = (Texture2D*)trm::load_image("texture/brdfLUT.trm", TextureFormat::R16G16_FLOAT, m_device);
+		m_brdfLUT = (Texture2D*)trm::load_image(Utility::executable_path() + "/texture/brdfLUT.trm", TextureFormat::R16G16_FLOAT, m_device);
 
 		create_cube();
 		create_quad();
 
-		std::string path = "shader/cubemap_vs.glsl";
+		std::string path = Utility::executable_path() + "/shader/cubemap_vs.glsl";
 		m_cube_map_vs = load_shader(ShaderType::VERTEX, path, nullptr);
-		path = "shader/cubemap_fs.glsl";
+		path = Utility::executable_path() + "/shader/cubemap_fs.glsl";
 		m_cube_map_fs = load_shader(ShaderType::FRAGMENT, path, nullptr);
 
 		Shader* shaders[] = { m_cube_map_vs, m_cube_map_fs };
 
-		path = "cubemap_vs.glslcubemap_fs.glsl";
+		path = Utility::executable_path() + "/cubemap_vs.glslcubemap_fs.glsl";
 		m_cube_map_program = load_program(path, 2, &shaders[0]);
 
 		if (!m_cube_map_vs || !m_cube_map_fs || !m_cube_map_program)
@@ -336,7 +336,7 @@ namespace dw
 		}
 	}
 
-	void Renderer::render(Camera* camera)
+	void Renderer::render(Camera* camera, uint16_t w, uint16_t h, Framebuffer* fbo)
 	{
 		Entity* entities = m_scene->entities();
 		int entity_count = m_scene->entity_count();
@@ -379,7 +379,7 @@ namespace dw
 			m_device->unmap_buffer(m_per_entity);
 		}
 
-		render_scene();
+		render_scene(w, h, fbo);
 		render_atmosphere();
 	}
 
@@ -401,10 +401,10 @@ namespace dw
 		m_device->draw(0, 36);
 	}
 
-	void Renderer::render_scene()
+	void Renderer::render_scene(uint16_t w, uint16_t h, Framebuffer* fbo)
 	{
-		m_device->bind_framebuffer(nullptr);
-		m_device->set_viewport(m_width, m_height, 0, 0);
+		m_device->bind_framebuffer(fbo);
+		m_device->set_viewport(w, h, 0, 0);
 		m_device->clear_framebuffer(ClearTarget::ALL, (float*)clear_color);
 
 		Entity* entities = m_scene->entities();
