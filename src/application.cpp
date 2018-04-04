@@ -137,6 +137,10 @@ namespace dw
 		ImGui::CreateContext();
         ImGui_ImplGlfwGL3_Init(m_window, false);
 		ImGui::StyleColorsDark();
+
+		ImGuiIO io = ImGui::GetIO();
+		std::string font_path = Utility::executable_path() + "/fonts/Roboto-Medium.ttf";
+		io.Fonts->AddFontFromFileTTF(font_path.c_str(), 16.0f);
         
         int display_w, display_h;
         glfwGetFramebufferSize(m_window, &display_w, &display_h);
