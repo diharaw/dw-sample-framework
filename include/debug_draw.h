@@ -73,7 +73,7 @@ namespace dd
 		bool init(RenderDevice* _device);
 		void shutdown();
 		void capsule(const float& _height, const float& _radius, const glm::vec3& _pos, const glm::vec3& _c);
-		void aabb(const glm::vec3& _min, const glm::vec3& _max, const glm::vec3& _pos, const glm::vec3& _c);
+		void aabb(const glm::vec3& _min, const glm::vec3& _max, const glm::vec3& _c);
 		void obb(const glm::vec3& _min, const glm::vec3& _max, const glm::mat4& _model, const glm::vec3& _c);
 		void grid(const float& _x, const float& _z, const float& _y_level, const float& spacing, const glm::vec3& _c);
 		void line(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& c);

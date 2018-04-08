@@ -2,6 +2,13 @@
 
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
+#include <geometry.h>
+
+struct Plane 
+{
+	glm::vec3 point;
+	glm::vec3 normal;
+};
 
 struct Camera
 {
@@ -20,10 +27,20 @@ struct Camera
     float m_roll;
     
     glm::mat4 m_view;
+	glm::mat3 m_model;
     glm::mat4 m_projection;
     glm::mat4 m_view_projection;
     glm::mat4 m_rotate;
     glm::mat4 m_translate;
+
+	Plane m_near_plane;
+	Plane m_far_plane;
+	Plane m_left_plane;
+	Plane m_right_plane;
+	Plane m_top_plane;
+	Plane m_bottom_plane;
+
+	dw::Frustum m_frustum;
     
     Camera(float fov, float near, float far, float aspect_ratio, glm::vec3 position, glm::vec3 forward);
     void set_translation_delta(glm::vec3 direction, float amount);
@@ -31,4 +48,6 @@ struct Camera
     void set_position(glm::vec3 position);
     void update();
 	void update_projection(float fov, float near, float far, float aspect_ratio);
+	bool aabb_inside_frustum(glm::vec3 max_v, glm::vec3 min_v);
+	bool aabb_inside_plane(Plane plane, glm::vec3 max_v, glm::vec3 min_v);
 };

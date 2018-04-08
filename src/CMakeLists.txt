@@ -14,7 +14,6 @@ set(DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/external/imgui/imgui.cpp
 			     ${PROJECT_SOURCE_DIR}/src/utility.cpp
 				 ${PROJECT_SOURCE_DIR}/src/camera.cpp
 				 ${PROJECT_SOURCE_DIR}/src/renderer.cpp
-				 ${PROJECT_SOURCE_DIR}/src/debug_draw.cpp
 				 ${PROJECT_SOURCE_DIR}/src/trm_loader.cpp
 				 ${PROJECT_SOURCE_DIR}/src/mesh.cpp
 				 ${PROJECT_SOURCE_DIR}/src/material.cpp
@@ -33,9 +32,9 @@ set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 				  ${PROJECT_SOURCE_DIR}/include/imgui_impl_glfw_gl3.h
 				  ${PROJECT_SOURCE_DIR}/include/imgui_helpers.h
 				  ${PROJECT_SOURCE_DIR}/include/mesh.h
+				  ${PROJECT_SOURCE_DIR}/include/geometry.h
 				  ${PROJECT_SOURCE_DIR}/include/packed_array.h
 				  ${PROJECT_SOURCE_DIR}/include/material.h
-				  ${PROJECT_SOURCE_DIR}/include/debug_draw.h
 				  ${PROJECT_SOURCE_DIR}/include/scene.h
 				  ${PROJECT_SOURCE_DIR}/include/tsm_headers.h
 				  ${PROJECT_SOURCE_DIR}/include/tsm_material.h

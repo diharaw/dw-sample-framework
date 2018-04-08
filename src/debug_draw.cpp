@@ -172,8 +172,10 @@ namespace dd
 		circle_xz(_radius, glm::vec3(_pos.x, _radius, _pos.z), _c);
 	}
 
-	void Renderer::aabb(const glm::vec3& _min, const glm::vec3& _max, const glm::vec3& _pos, const glm::vec3& _c)
+	void Renderer::aabb(const glm::vec3& _min, const glm::vec3& _max, const glm::vec3& _c)
 	{
+		glm::vec3 _pos = (_max + _min) * 0.5f;
+
 		glm::vec3 min = _pos + _min;
 		glm::vec3 max = _pos + _max;
 
@@ -372,40 +374,43 @@ namespace dd
 
 	void Renderer::render(Framebuffer* fbo, int width, int height, const glm::mat4& view_proj)
 	{
-		m_uniforms.view_proj = view_proj;
-
-		void* ptr = m_device->map_buffer(m_line_vbo, BufferMapType::WRITE);
-
-		if (m_world_vertices.size() > MAX_VERTICES)
-			std::cout << "Vertices are above limit" << std::endl;
-		else
-			memcpy(ptr, &m_world_vertices[0], sizeof(VertexWorld) * m_world_vertices.size());
-
-		m_device->unmap_buffer(m_line_vbo);
-
-		ptr = m_device->map_buffer(m_ubo, BufferMapType::WRITE);
-		memcpy(ptr, &m_uniforms, sizeof(CameraUniforms));
-		m_device->unmap_buffer(m_ubo);
-
-		m_device->bind_rasterizer_state(m_rs);
-		m_device->bind_depth_stencil_state(m_ds);
-		m_device->bind_framebuffer(fbo);
-		m_device->set_viewport(width, height, 0, 0);
-		m_device->bind_shader_program(m_line_program);
-		m_device->bind_uniform_buffer(m_ubo, ShaderType::VERTEX, 0);
-		m_device->bind_vertex_array(m_line_vao);
-
-		int v = 0;
-
-		for (int i = 0; i < m_draw_commands.size(); i++)
+		if (m_world_vertices.size() > 0)
 		{
-			DrawCommand& cmd = m_draw_commands[i];
-			m_device->set_primitive_type(cmd.type);
-			m_device->draw(v, cmd.vertices);
-			v += cmd.vertices;
-		}
+			m_uniforms.view_proj = view_proj;
 
-		m_draw_commands.clear();
-		m_world_vertices.clear();
+			void* ptr = m_device->map_buffer(m_line_vbo, BufferMapType::WRITE);
+
+			if (m_world_vertices.size() > MAX_VERTICES)
+				std::cout << "Vertices are above limit" << std::endl;
+			else
+				memcpy(ptr, &m_world_vertices[0], sizeof(VertexWorld) * m_world_vertices.size());
+
+			m_device->unmap_buffer(m_line_vbo);
+
+			ptr = m_device->map_buffer(m_ubo, BufferMapType::WRITE);
+			memcpy(ptr, &m_uniforms, sizeof(CameraUniforms));
+			m_device->unmap_buffer(m_ubo);
+
+			m_device->bind_rasterizer_state(m_rs);
+			m_device->bind_depth_stencil_state(m_ds);
+			m_device->bind_framebuffer(fbo);
+			m_device->set_viewport(width, height, 0, 0);
+			m_device->bind_shader_program(m_line_program);
+			m_device->bind_uniform_buffer(m_ubo, ShaderType::VERTEX, 0);
+			m_device->bind_vertex_array(m_line_vao);
+
+			int v = 0;
+
+			for (int i = 0; i < m_draw_commands.size(); i++)
+			{
+				DrawCommand& cmd = m_draw_commands[i];
+				m_device->set_primitive_type(cmd.type);
+				m_device->draw(v, cmd.vertices);
+				v += cmd.vertices;
+			}
+
+			m_draw_commands.clear();
+			m_world_vertices.clear();
+		}
 	}
 }
