@@ -1,6 +1,7 @@
 #include "utility.h"
 
 #include <fstream>
+#include <iostream>
 
 #ifdef WIN32
 #include <Windows.h>
@@ -19,6 +20,8 @@ namespace Utility
 			g_exe_path = buffer;
 			g_exe_path = path_without_file(g_exe_path);
 		}
+
+		std::cout << g_exe_path << std::endl;
 		
 		return g_exe_path;
 	}

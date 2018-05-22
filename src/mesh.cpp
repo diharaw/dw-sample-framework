@@ -141,7 +141,8 @@ namespace dw
 			{ 3, DataType::FLOAT, false, 0, "POSITION" },
 			{ 2, DataType::FLOAT, false, offsetof(TSM_Vertex, texCoord), "TEXCOORD" },
 			{ 3, DataType::FLOAT, false, offsetof(TSM_Vertex, normal), "NORMAL" },
-			{ 4, DataType::FLOAT, false, offsetof(TSM_Vertex, tangent), "TANGENT" }
+			{ 3, DataType::FLOAT, false, offsetof(TSM_Vertex, tangent), "TANGENT" },
+			{ 3, DataType::FLOAT, false, offsetof(TSM_Vertex, bitangent), "BITANGENT" }
 		};
 
 		InputLayoutCreateDesc ilcd;

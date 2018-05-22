@@ -113,7 +113,7 @@ namespace dw
 	Material::Material(const std::string& path, RenderDevice* device) : m_device(device), m_alpha(false)
 	{
 		std::string matJson;
-		bool result = Utility::ReadText(path, matJson);
+		bool result = Utility::ReadText("assets/" + path, matJson);
 		assert(result);
 		nlohmann::json json = nlohmann::json::parse(matJson.c_str());
 

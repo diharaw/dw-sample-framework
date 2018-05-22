@@ -47,7 +47,7 @@ namespace dw
 			if (!entity["material"].is_null())
 			{
 				std::string material = entity["material"];
-				mat_override = Material::load("assets/" + material, device);
+				mat_override = Material::load(material, device);
 			}
 
 			auto positionJson = entity["position"];

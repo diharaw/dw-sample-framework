@@ -4,12 +4,6 @@
 
 namespace dw
 {
-	struct Plane
-	{
-		glm::vec3 n;
-		float	  d;
-	};
-
 	enum FrustumPlanes
 	{
 		FRUSTUM_PLANE_NEAR = 0,
@@ -18,6 +12,12 @@ namespace dw
 		FRUSTUM_PLANE_RIGHT = 3,
 		FRUSTUM_PLANE_TOP = 4,
 		FRUSTUM_PLANE_BOTTOM = 5
+	};
+
+	struct Plane
+	{
+		glm::vec3 n;
+		float	  d;
 	};
 
 	struct Frustum

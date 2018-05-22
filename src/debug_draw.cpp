@@ -247,21 +247,24 @@ namespace dd
 
 	void Renderer::line(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& c)
 	{
-		VertexWorld vw0, vw1;
-		vw0.position = v0;
-		vw0.color = c;
+		if (m_world_vertices.size() < MAX_VERTICES)
+		{
+			VertexWorld vw0, vw1;
+			vw0.position = v0;
+			vw0.color = c;
 
-		vw1.position = v1;
-		vw1.color = c;
+			vw1.position = v1;
+			vw1.color = c;
 
-		m_world_vertices.push_back(vw0);
-		m_world_vertices.push_back(vw1);
+			m_world_vertices.push_back(vw0);
+			m_world_vertices.push_back(vw1);
 
-		DrawCommand cmd;
-		cmd.type = PrimitiveType::LINES;
-		cmd.vertices = 2;
+			DrawCommand cmd;
+			cmd.type = PrimitiveType::LINES;
+			cmd.vertices = 2;
 
-		m_draw_commands.push_back(cmd);
+			m_draw_commands.push_back(cmd);
+		}
 	}
 
 	void Renderer::line_strip(glm::vec3* v, const int& count, const glm::vec3& c)
@@ -332,6 +335,44 @@ namespace dd
 		circle_xy(radius, pos, c);
 		circle_xz(radius, pos, c);
 		circle_yz(radius, pos, c);
+	}
+
+	void Renderer::frustum(const glm::mat4& view_proj, const glm::vec3& c)
+	{
+		glm::mat4 inverse = glm::inverse(view_proj);
+		glm::vec3 corners[8];
+
+		for (int i = 0; i < 8; i++)
+		{
+			glm::vec4 v = inverse * kFrustumCorners[i];
+			v = v / v.w;
+			corners[i] = glm::vec3(v.x, v.y, v.z);
+		}
+
+		glm::vec3 _far[5] = {
+			corners[0],
+			corners[1],
+			corners[2],
+			corners[3],
+			corners[0]
+		};
+
+		line_strip(&_far[0], 5, c);
+
+		glm::vec3 _near[5] = {
+			corners[4],
+			corners[5],
+			corners[6],
+			corners[7],
+			corners[4]
+		};
+
+		line_strip(&_near[0], 5, c);
+
+		line(corners[0], corners[4], c);
+		line(corners[1], corners[5], c);
+		line(corners[2], corners[6], c);
+		line(corners[3], corners[7], c);
 	}
 
 	void Renderer::frustum(const glm::mat4& proj, const glm::mat4& view, const glm::vec3& c)

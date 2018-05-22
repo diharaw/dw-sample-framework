@@ -39,15 +39,16 @@ namespace dd
 
 #define MAX_VERTICES 100000
 
-	const glm::vec4 kFrustumCorners[] = {
-		glm::vec4(-1.0f, -1.0f, 1.0f, 1.0f),
-		glm::vec4(-1.0f, 1.0f, 1.0f, 1.0f),
-		glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
-		glm::vec4(1.0f, -1.0f, 1.0f, 1.0f),
-		glm::vec4(-1.0f, -1.0f, -1.0f, 1.0f),
-		glm::vec4(-1.0f, 1.0f, -1.0f, 1.0f),
-		glm::vec4(1.0f, 1.0f, -1.0f, 1.0f),
-		glm::vec4(1.0f, -1.0f, -1.0f, 1.0f)
+	const glm::vec4 kFrustumCorners[] = 
+	{
+		glm::vec4(-1.0f, -1.0f, 1.0f, 1.0f),  // Far-Bottom-Left
+		glm::vec4(-1.0f, 1.0f, 1.0f, 1.0f),   // Far-Top-Left
+		glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),    // Far-Top-Right
+		glm::vec4(1.0f, -1.0f, 1.0f, 1.0f),   // Far-Bottom-Right
+		glm::vec4(-1.0f, -1.0f, -1.0f, 1.0f), // Near-Bottom-Left
+		glm::vec4(-1.0f, 1.0f, -1.0f, 1.0f),  // Near-Top-Left
+		glm::vec4(1.0f, 1.0f, -1.0f, 1.0f),   // Near-Top-Right
+		glm::vec4(1.0f, -1.0f, -1.0f, 1.0f)	  // Near-Bottom-Right
 	};
 
 	class Renderer
@@ -82,6 +83,7 @@ namespace dd
 		void circle_xz(float radius, const glm::vec3& pos, const glm::vec3& c);
 		void circle_yz(float radius, const glm::vec3& pos, const glm::vec3& c);
 		void sphere(const float& radius, const glm::vec3& pos, const glm::vec3& c);
+		void frustum(const glm::mat4& view_proj, const glm::vec3& c);
 		void frustum(const glm::mat4& proj, const glm::mat4& view, const glm::vec3& c);
 		void render(Framebuffer* fbo, int width, int height, const glm::mat4& view_proj);
 	};

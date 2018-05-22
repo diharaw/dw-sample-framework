@@ -90,14 +90,14 @@ namespace dw
 
 		m_trilinear_sampler = m_device->create_sampler_state(ssDesc);
 
-		m_brdfLUT = (Texture2D*)trm::load_image(Utility::executable_path() + "/texture/brdfLUT.trm", TextureFormat::R16G16_FLOAT, m_device);
+		m_brdfLUT = (Texture2D*)trm::load_image(Utility::executable_path() + "/assets/texture/brdfLUT.trm", TextureFormat::R16G16_FLOAT, m_device);
 
 		create_cube();
 		create_quad();
 
-		std::string path = Utility::executable_path() + "/shader/cubemap_vs.glsl";
+		std::string path = Utility::executable_path() + "/assets/shader/cubemap_vs.glsl";
 		m_cube_map_vs = load_shader(ShaderType::VERTEX, path, nullptr);
-		path = Utility::executable_path() + "/shader/cubemap_fs.glsl";
+		path = Utility::executable_path() + "/assets/shader/cubemap_fs.glsl";
 		m_cube_map_fs = load_shader(ShaderType::FRAGMENT, path, nullptr);
 
 		Shader* shaders[] = { m_cube_map_vs, m_cube_map_fs };
@@ -110,7 +110,7 @@ namespace dw
 			LOG_ERROR("Failed to load cubemap shaders");
 		}
 
-		m_per_scene_uniforms.pointLightCount = 4;
+		m_per_scene_uniforms.pointLightCount = 0;
 		m_per_scene_uniforms.pointLights[0].position = glm::vec4(-10.0f, 20.0f, 10.0f, 1.0f);
 		m_per_scene_uniforms.pointLights[0].color = glm::vec4(300.0f);
 		m_per_scene_uniforms.pointLights[1].position = glm::vec4(10.0f, 20.0f, 10.0f, 1.0f);
@@ -119,6 +119,9 @@ namespace dw
 		m_per_scene_uniforms.pointLights[2].color = glm::vec4(300.0f);
 		m_per_scene_uniforms.pointLights[3].position = glm::vec4(10.0f, -20.0f, 10.0f, 1.0f);
 		m_per_scene_uniforms.pointLights[3].color = glm::vec4(300.0f);
+
+		m_per_scene_uniforms.directionalLight.color = glm::vec4(1.0f);
+		m_per_scene_uniforms.directionalLight.direction = glm::vec4(glm::normalize(glm::vec3(1.0f, -1.0f, 0.0f)), 1.0f);
 	}
 
 	Renderer::~Renderer()
