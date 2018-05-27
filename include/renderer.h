@@ -9,6 +9,7 @@ class RenderDevice;
 struct SamplerState;
 struct UniformBuffer;
 struct RasterizerState;
+struct BlendState;
 struct DepthStencilState;
 struct ShaderProgram;
 struct Shader;
@@ -17,6 +18,8 @@ struct VertexBuffer;
 struct InputLayout;
 struct Texture2D;
 struct Framebuffer;
+
+class Shadows;
 
 namespace dw
 { 
@@ -49,9 +52,10 @@ namespace dw
 	struct DW_ALIGNED(16) PerEntityUniforms
 	{
 		glm::mat4 mvpMat;
+		glm::mat4 lastMvpMat;
 		glm::mat4 modalMat;
 		glm::vec4 worldPos;
-		uint8_t padding[112];
+		uint8_t	  padding[48];
 	};
 
 	struct DW_ALIGNED(16) PerSceneUniforms
@@ -63,7 +67,13 @@ namespace dw
 
 	struct DW_ALIGNED(16) PerMaterialUniforms
 	{
-		glm::vec4  albedoValue;
+		glm::vec4 albedoValue;
+		glm::vec4 metalnessRoughness;
+	};
+
+	struct DW_ALIGNED(16) PerFrustumSplitUniforms
+	{
+		glm::mat4 crop_matrix;
 	};
 
 	class Scene;
@@ -75,14 +85,16 @@ namespace dw
 		~Renderer();
 		void set_scene(Scene* scene);
 		Scene* scene();
-		void render(Camera* camera, uint16_t w = 0, uint16_t h = 0, Framebuffer* fbo = nullptr);
+		void render(Camera* camera, uint16_t w = 0, uint16_t h = 0, Shadows* shadows = nullptr, Framebuffer* fbo = nullptr);
 		Shader* load_shader(int type, std::string& path, Material* mat);
 		ShaderProgram* load_program(std::string& combined_name, uint32_t count, Shader** shaders);
+
+		inline PerSceneUniforms* per_scene_uniform() { return &m_per_scene_uniforms; }
 
 	private:
 		void create_cube();
 		void create_quad();
-		void render_shadow_maps();
+		void render_shadow_maps(Shadows* shadows);
 		void render_atmosphere();
 		void render_scene(uint16_t w = 0, uint16_t h = 0, Framebuffer* fbo = nullptr);
 		void render_post_process();
@@ -98,10 +110,12 @@ namespace dw
 		UniformBuffer* m_per_frame;
 		UniformBuffer* m_per_material;
 		UniformBuffer* m_per_entity;
+		UniformBuffer* m_per_frustum_split;
 		RasterizerState* m_standard_rs;
 		RasterizerState* m_atmosphere_rs;
 		DepthStencilState* m_standard_ds;
 		DepthStencilState* m_atmosphere_ds;
+		BlendState*	  m_standard_bs;
 		VertexArray*  m_quad_vao;
 		VertexBuffer* m_quad_vbo;
 		InputLayout*  m_quad_layout;
@@ -115,6 +129,9 @@ namespace dw
 		Shader*		   m_cube_map_vs;
 		Shader*		   m_cube_map_fs;
 		ShaderProgram* m_cube_map_program;
+		Shader*		   m_pssm_vs;
+		Shader*		   m_pssm_fs;
+		ShaderProgram* m_pssm_program;
 		Texture2D* m_brdfLUT;
 		std::unordered_map<std::string, ShaderProgram*> m_program_cache;
 		std::unordered_map<std::string, Shader*> m_shader_cache;

@@ -88,7 +88,7 @@ namespace dd
 		DepthStencilStateCreateDesc ds_desc;
 		DW_ZERO_MEMORY(ds_desc);
 		ds_desc.depth_mask = true;
-		ds_desc.enable_depth_test = true;
+		ds_desc.enable_depth_test = false;
 		ds_desc.enable_stencil_test = false;
 		ds_desc.depth_cmp_func = ComparisonFunction::LESS_EQUAL;
 

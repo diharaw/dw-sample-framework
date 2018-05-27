@@ -20,6 +20,9 @@ namespace dw
 		Scene();
 		~Scene();
 
+		Entity* lookup(const std::string& name);
+		void update();
+
 		inline void add_entity(Entity& entity) 
 		{ 
 			ID id = m_entities.add();

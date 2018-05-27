@@ -78,6 +78,7 @@ namespace dw
 			glm::mat4 T = glm::translate(glm::mat4(1.0f), position);
 
 			newEntity.m_transform = T * R * S;
+			newEntity.m_prev_transform = newEntity.m_transform;
 
 			auto shaderJson = entity["shader"];
 
@@ -115,6 +116,38 @@ namespace dw
 			if (entities[i].m_override_mat)
 				Material::unload(entities[i].m_override_mat);
 			Mesh::unload(entities[i].m_mesh);
+		}
+	}
+
+	Entity* Scene::lookup(const std::string& name)
+	{
+		for (int i = 0; i < m_entities.size(); i++)
+		{
+			Entity* e = &m_entities[i];
+
+			if (e->m_name == name)
+				return e;
+		}
+
+		return nullptr;
+	}
+
+	void Scene::update()
+	{
+		for (int i = 0; i < m_entities.size(); i++)
+		{
+			Entity& e = m_entities[i];
+
+			glm::mat4 H = glm::rotate(glm::mat4(1.0f), glm::radians(e.m_rotation.x), glm::vec3(0.0f, 1.0f, 0.0f));
+			glm::mat4 P = glm::rotate(glm::mat4(1.0f), glm::radians(e.m_rotation.y), glm::vec3(1.0f, 0.0f, 0.0f));
+			glm::mat4 B = glm::rotate(glm::mat4(1.0f), glm::radians(e.m_rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+
+			glm::mat4 R = H * P * B;
+			glm::mat4 S = glm::scale(glm::mat4(1.0f), e.m_scale);
+			glm::mat4 T = glm::translate(glm::mat4(1.0f), e.m_position);
+
+			e.m_transform = T * R * S;
+			e.m_prev_transform = e.m_transform;
 		}
 	}
 

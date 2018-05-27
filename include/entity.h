@@ -16,6 +16,7 @@ namespace dw
 		glm::vec3 m_rotation;
 		glm::vec3 m_scale;
 		glm::mat4 m_transform;
+		glm::mat4 m_prev_transform;
 		ShaderProgram* m_program;
 		Material* m_override_mat;
 		Mesh* m_mesh;
