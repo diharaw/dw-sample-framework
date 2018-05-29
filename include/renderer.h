@@ -24,56 +24,66 @@ class Shadows;
 namespace dw
 { 
 #define MAX_POINT_LIGHTS 32
+#define MAX_SHADOW_FRUSTUM 8
+
 	class Material;
 
 	struct PointLight
 	{
-		glm::vec4 position;
-		glm::vec4 color;
+		DW_ALIGNED(16) glm::vec4 position;
+		DW_ALIGNED(16) glm::vec4 color;
 	};
 
 	struct DirectionalLight
 	{
-		glm::vec4 direction;
-		glm::vec4 color;
+		DW_ALIGNED(16) glm::vec4 direction;
+		DW_ALIGNED(16) glm::vec4 color;
 	};
 
-	struct DW_ALIGNED(16) PerFrameUniforms
+	struct ShadowFrustum
 	{
-		glm::mat4 lastViewProj;
-		glm::mat4 viewProj;
-		glm::mat4 invViewProj;
-		glm::mat4 projMat;
-		glm::mat4 viewMat;
-		glm::vec4 viewPos;
-		glm::vec4 viewDir;
+		DW_ALIGNED(16) glm::mat4 shadowMatrix;
+		DW_ALIGNED(16) float	 farPlane;
 	};
 
-	struct DW_ALIGNED(16) PerEntityUniforms
+	struct PerFrameUniforms
 	{
-		glm::mat4 mvpMat;
-		glm::mat4 lastMvpMat;
-		glm::mat4 modalMat;
-		glm::vec4 worldPos;
+		DW_ALIGNED(16) glm::mat4	 lastViewProj;
+		DW_ALIGNED(16) glm::mat4	 viewProj;
+		DW_ALIGNED(16) glm::mat4	 invViewProj;
+		DW_ALIGNED(16) glm::mat4	 projMat;
+		DW_ALIGNED(16) glm::mat4	 viewMat;
+		DW_ALIGNED(16) glm::vec4	 viewPos;
+		DW_ALIGNED(16) glm::vec4	 viewDir;
+		DW_ALIGNED(16) int			 numCascades;
+		DW_ALIGNED(16) ShadowFrustum shadowFrustums[MAX_SHADOW_FRUSTUM];
+	};
+
+	struct PerEntityUniforms
+	{
+		DW_ALIGNED(16) glm::mat4 mvpMat;
+		DW_ALIGNED(16) glm::mat4 lastMvpMat;
+		DW_ALIGNED(16) glm::mat4 modalMat;
+		DW_ALIGNED(16) glm::vec4 worldPos;
 		uint8_t	  padding[48];
 	};
 
-	struct DW_ALIGNED(16) PerSceneUniforms
+	struct PerSceneUniforms
 	{
-		PointLight 		 pointLights[MAX_POINT_LIGHTS];
-		DirectionalLight directionalLight;
-		int				 pointLightCount;
+		DW_ALIGNED(16) PointLight 		pointLights[MAX_POINT_LIGHTS];
+		DW_ALIGNED(16) DirectionalLight directionalLight;
+		DW_ALIGNED(16) int				pointLightCount;
 	};
 
-	struct DW_ALIGNED(16) PerMaterialUniforms
+	struct PerMaterialUniforms
 	{
-		glm::vec4 albedoValue;
-		glm::vec4 metalnessRoughness;
+		DW_ALIGNED(16) glm::vec4 albedoValue;
+		DW_ALIGNED(16) glm::vec4 metalnessRoughness;
 	};
 
-	struct DW_ALIGNED(16) PerFrustumSplitUniforms
+	struct PerFrustumSplitUniforms
 	{
-		glm::mat4 crop_matrix;
+		DW_ALIGNED(16) glm::mat4 crop_matrix;
 	};
 
 	class Scene;
@@ -97,7 +107,7 @@ namespace dw
 		void render_shadow_maps(Shadows* shadows);
 		void render_atmosphere();
 		void render_scene(uint16_t w = 0, uint16_t h = 0, Framebuffer* fbo = nullptr);
-		void render_post_process();
+		void render_post_process(Shadows* shadows);
 
 	private:
 		uint16_t m_width;
@@ -132,7 +142,13 @@ namespace dw
 		Shader*		   m_pssm_vs;
 		Shader*		   m_pssm_fs;
 		ShaderProgram* m_pssm_program;
-		Texture2D* m_brdfLUT;
+		Shader*		   m_quad_vs;
+		Shader*		   m_quad_fs;
+		ShaderProgram* m_quad_program;
+		Texture2D*	   m_brdfLUT;
+		Texture2D*	   m_color_buffer;
+		Texture2D*	   m_depth_buffer;
+		Framebuffer*   m_color_fbo;
 		std::unordered_map<std::string, ShaderProgram*> m_program_cache;
 		std::unordered_map<std::string, Shader*> m_shader_cache;
 	};

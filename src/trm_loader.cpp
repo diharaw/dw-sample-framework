@@ -126,11 +126,11 @@ namespace trm
 					array_slice = TextureType::TEXTURECUBE + arraySlice + 1;
 					
 				device->set_texture_data(texture,
-						mipSlice,
-						array_slice,
-						mipHeader.width,
-						mipHeader.height,
-						imageData);
+										 mipSlice,
+										 array_slice,
+										 mipHeader.width,
+										 mipHeader.height,
+										 imageData);
 
 				free(imageData);
 			}

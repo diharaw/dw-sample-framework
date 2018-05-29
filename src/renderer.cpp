@@ -112,6 +112,39 @@ namespace dw
 
 		m_standard_bs = m_device->create_blend_state(bsDesc);
 
+		Texture2DCreateDesc color_buffer_desc;
+		DW_ZERO_MEMORY(color_buffer_desc);
+
+		color_buffer_desc.height = m_height;
+		color_buffer_desc.width = m_width;
+		color_buffer_desc.mipmap_levels = 1;
+		color_buffer_desc.format = TextureFormat::R8G8B8A8_SNORM;
+
+		m_color_buffer = m_device->create_texture_2d(color_buffer_desc);
+
+		Texture2DCreateDesc depth_buffer_desc;
+		DW_ZERO_MEMORY(depth_buffer_desc);
+
+		depth_buffer_desc.height = m_height;
+		depth_buffer_desc.width = m_width;
+		depth_buffer_desc.mipmap_levels = 1;
+		depth_buffer_desc.format = TextureFormat::D32_FLOAT_S8_UINT;
+
+		m_depth_buffer = m_device->create_texture_2d(depth_buffer_desc);
+
+		FramebufferCreateDesc fbo_desc;
+		DW_ZERO_MEMORY(fbo_desc);
+
+		fbo_desc.depthStencilTarget.texture = m_depth_buffer;
+		fbo_desc.depthStencilTarget.mipSlice = 0;
+		fbo_desc.depthStencilTarget.arraySlice = 0;
+		fbo_desc.renderTargetCount = 1;
+		fbo_desc.renderTargets[0].texture = m_color_buffer;
+		fbo_desc.renderTargets[0].arraySlice = 0;
+		fbo_desc.renderTargets[0].mipSlice = 0;
+
+		m_color_fbo = m_device->create_framebuffer(fbo_desc);
+
 		m_brdfLUT = (Texture2D*)trm::load_image(Utility::executable_path() + "/assets/texture/brdfLUT.trm", TextureFormat::R16G16_FLOAT, m_device);
 
 		create_cube();
@@ -169,6 +202,9 @@ namespace dw
 
 	Renderer::~Renderer()
 	{
+		m_device->destroy(m_color_fbo);
+		m_device->destroy(m_depth_buffer);
+		m_device->destroy(m_color_buffer);
 		m_device->destroy(m_quad_vao);
 		m_device->destroy(m_quad_vbo);
 		delete m_quad_layout;
@@ -199,7 +235,8 @@ namespace dw
 
 	void Renderer::create_cube()
 	{
-		float cubeVertices[] = {
+		float cubeVertices[] = 
+		{
 			// back face
 			-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
 			1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
@@ -258,9 +295,9 @@ namespace dw
 
 		InputElement elements[] =
 		{
-			{ 3, DataType::FLOAT, false, 0, "POSITION" },
-		{ 3, DataType::FLOAT, false, sizeof(float) * 3, "NORMAL" },
-		{ 2, DataType::FLOAT, false, sizeof(float) * 6, "TEXCOORD" }
+			{ 3, DataType::FLOAT, false, 0,					"POSITION" },
+			{ 3, DataType::FLOAT, false, sizeof(float) * 3, "NORMAL"   },
+			{ 2, DataType::FLOAT, false, sizeof(float) * 6, "TEXCOORD" }
 		};
 
 		DW_ZERO_MEMORY(ilcd);
@@ -306,7 +343,7 @@ namespace dw
 
 		InputElement quadElements[] =
 		{
-			{ 3, DataType::FLOAT, false, 0, "POSITION" },
+			{ 3, DataType::FLOAT, false, 0,					"POSITION" },
 			{ 2, DataType::FLOAT, false, sizeof(float) * 3, "TEXCOORD" }
 		};
 
@@ -327,6 +364,24 @@ namespace dw
 		if (!m_quad_vbo || !m_quad_vao)
 		{
 			LOG_FATAL("Failed to create Vertex Buffers/Arrays");
+		}
+
+		// Load quad shaders
+		{
+			std::string path = Utility::executable_path() + "/assets/shader/quad_vs.glsl";
+			m_quad_vs = load_shader(ShaderType::VERTEX, path, nullptr);
+			path = Utility::executable_path() + "/assets/shader/quad_fs.glsl";
+			m_quad_fs = load_shader(ShaderType::FRAGMENT, path, nullptr);
+
+			Shader* shaders[] = { m_quad_vs, m_quad_fs };
+
+			path = Utility::executable_path() + "/quad_vs.glslquadfs.glsl";
+			m_quad_program = load_program(path, 2, &shaders[0]);
+
+			if (!m_quad_vs || !m_quad_fs || !m_quad_program)
+			{
+				LOG_ERROR("Failed to load Quad shaders");
+			}
 		}
 	}
 
@@ -393,6 +448,8 @@ namespace dw
 		m_per_frame_uniforms.viewProj = camera->m_view_projection;
 		m_per_frame_uniforms.viewDir = glm::vec4(camera->m_forward.x, camera->m_forward.y, camera->m_forward.z, 0.0f);
 		m_per_frame_uniforms.viewPos = glm::vec4(camera->m_position.x, camera->m_position.y, camera->m_position.z, 0.0f);
+		m_per_frame_uniforms.numCascades = shadows->frustum_split_count();
+		memcpy(&m_per_frame_uniforms.shadowFrustums[0], shadows->frustum_splits(), sizeof(ShadowFrustum) * m_per_frame_uniforms.numCascades);
 
 		for (int i = 0; i < entity_count; i++)
 		{
@@ -429,6 +486,7 @@ namespace dw
 		render_shadow_maps(shadows);
 		render_scene(w, h, fbo);
 		render_atmosphere();
+		render_post_process(shadows);
 	}
 
 	void Renderer::render_shadow_maps(Shadows* shadows)
@@ -496,7 +554,7 @@ namespace dw
 
 	void Renderer::render_scene(uint16_t w, uint16_t h, Framebuffer* fbo)
 	{
-		m_device->bind_framebuffer(fbo);
+		m_device->bind_framebuffer(m_color_fbo);
 		m_device->set_viewport(w, h, 0, 0);
 		m_device->clear_framebuffer(ClearTarget::ALL, (float*)clear_color);
 
@@ -582,8 +640,21 @@ namespace dw
 		}
 	}
 
-	void Renderer::render_post_process()
+	void Renderer::render_post_process(Shadows* shadows)
 	{
+		m_device->bind_framebuffer(nullptr);
+		m_device->set_viewport(m_width, m_height, 0, 0);
+		m_device->clear_framebuffer(ClearTarget::ALL, (float*)clear_color);
+
+		m_device->bind_shader_program(m_quad_program);
+		m_device->bind_uniform_buffer(m_per_frame, ShaderType::FRAGMENT, 0);
+
+		m_device->bind_sampler_state(m_bilinear_sampler, ShaderType::FRAGMENT, 0);
+		m_device->bind_texture(m_color_buffer, ShaderType::FRAGMENT, 0);
+
+		m_device->bind_sampler_state(m_bilinear_sampler, ShaderType::FRAGMENT, 1);
+		m_device->bind_texture(shadows->shadow_map(), ShaderType::FRAGMENT, 1);
+
 		m_device->bind_vertex_array(m_quad_vao);
 		m_device->set_primitive_type(PrimitiveType::TRIANGLES);
 		m_device->draw(0, 6);

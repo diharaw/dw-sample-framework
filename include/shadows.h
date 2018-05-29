@@ -52,6 +52,7 @@ public:
 	FrustumSplit* frustum_splits();
 	glm::mat4 split_view_proj(int i);
 
+	inline Texture2D* shadow_map() { return m_shadow_maps; }
 	inline Framebuffer** framebuffers() { return &m_shadow_fbos[0]; }
 	inline uint32_t frustum_split_count() { return m_settings.split_count; }
 	inline ShadowSettings settings() { return m_settings; }
