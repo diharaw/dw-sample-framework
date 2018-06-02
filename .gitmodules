@@ -16,6 +16,3 @@
 [submodule "external/Terminus-GFX"]
 	path = external/Terminus-GFX
 	url = https://github.com/diharaw/Terminus-GFX.git
-[submodule "external/Terminus-Math"]
-	path = external/Terminus-Math
-	url = https://github.com/diharaw/Terminus-Math.git

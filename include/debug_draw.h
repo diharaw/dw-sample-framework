@@ -2,11 +2,15 @@
 
 #include <gtc/matrix_transform.hpp>
 #include <gtc/type_ptr.hpp>
-#include <Macros.h>
+#include <macros.h>
 #include <vector>
 
-struct Framebuffer;
+// Hard-limit of vertices. Used to reserve space in vertex and draw command vectors. 
+#define MAX_VERTICES 100000
+
+// Forward declarations
 class RenderDevice;
+struct Framebuffer;
 struct VertexArray;
 struct VertexBuffer;
 struct InputLayout;
@@ -17,11 +21,11 @@ struct RenderDevice;
 struct RasterizerState;
 struct DepthStencilState;
 
-namespace dd
+namespace dw
 {
-	struct DW_ALIGNED(16) CameraUniforms
+	struct CameraUniforms
 	{
-		glm::mat4 view_proj;
+		DW_ALIGNED(16) glm::mat4 view_proj;
 	};
 
 	struct VertexWorld
@@ -37,8 +41,6 @@ namespace dd
 		int vertices;
 	};
 
-#define MAX_VERTICES 100000
-
 	const glm::vec4 kFrustumCorners[] = 
 	{
 		glm::vec4(-1.0f, -1.0f, 1.0f, 1.0f),  // Far-Bottom-Left
@@ -51,11 +53,23 @@ namespace dd
 		glm::vec4(1.0f, -1.0f, -1.0f, 1.0f)	  // Near-Bottom-Right
 	};
 
-	class Renderer
+	class DebugRenderer
 	{
 	private:
 	private:
+		// Vertex list to be uploaded to GPU.
+		std::vector<VertexWorld> m_world_vertices;
+
+		// Draw command list.
+		std::vector<DrawCommand> m_draw_commands;
+
+		// Camera matrix.
 		CameraUniforms m_uniforms;
+
+		// Pointer to RenderDevice instance to use for drawing and shutdown.
+		RenderDevice* m_device;
+
+		// GPU resources.
 		VertexArray* m_line_vao;
 		VertexBuffer* m_line_vbo;
 		InputLayout* m_line_il;
@@ -63,16 +77,17 @@ namespace dd
 		Shader* m_line_fs;
 		ShaderProgram* m_line_program;
 		UniformBuffer* m_ubo;
-		std::vector<VertexWorld> m_world_vertices;
-		std::vector<DrawCommand> m_draw_commands;
-		RenderDevice* m_device;
 		RasterizerState* m_rs;
 		DepthStencilState* m_ds;
 
 	public:
-		Renderer();
+		DebugRenderer();
+
+		// Initialization and shutdown.
 		bool init(RenderDevice* _device);
 		void shutdown();
+
+		// Debug shape drawing.
 		void capsule(const float& _height, const float& _radius, const glm::vec3& _pos, const glm::vec3& _c);
 		void aabb(const glm::vec3& _min, const glm::vec3& _max, const glm::vec3& _c);
 		void obb(const glm::vec3& _min, const glm::vec3& _max, const glm::mat4& _model, const glm::vec3& _c);
@@ -85,6 +100,8 @@ namespace dd
 		void sphere(const float& radius, const glm::vec3& pos, const glm::vec3& c);
 		void frustum(const glm::mat4& view_proj, const glm::vec3& c);
 		void frustum(const glm::mat4& proj, const glm::mat4& view, const glm::vec3& c);
+		
+		// Render method. Pass in target Framebuffer, viewport size and view-projection matrix.
 		void render(Framebuffer* fbo, int width, int height, const glm::mat4& view_proj);
 	};
-}
+} // namespace dw

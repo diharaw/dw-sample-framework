@@ -3,9 +3,45 @@
 #include <logger.h>
 #include <utility.h>
 
-namespace dd
+namespace dw
 {
-	Renderer::Renderer()
+	const char* g_vs_src = R"(
+
+	layout (location = 0) in vec3 VS_IN_Position;
+	layout (location = 1) in vec2 VS_IN_TexCoord;
+	layout (location = 2) in vec3 VS_IN_Color;
+	
+	layout (std140) uniform CameraUniforms //#binding 0
+	{ 
+		mat4 viewProj;
+	};
+	
+	out vec3 PS_IN_Color;
+	
+	void main()
+	{
+	    PS_IN_Color = VS_IN_Color;
+	    gl_Position = viewProj * vec4(VS_IN_Position, 1.0);
+	}
+
+	)";
+
+	const char* g_fs_src = R"(
+
+	out vec4 PS_OUT_Color;
+
+	in vec3 PS_IN_Color;
+	
+	void main()
+	{
+	    PS_OUT_Color = vec4(PS_IN_Color, 1.0);
+	}
+
+	)";
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	DebugRenderer::DebugRenderer()
 	{
 		m_world_vertices.resize(MAX_VERTICES);
 		m_world_vertices.clear();
@@ -14,32 +50,28 @@ namespace dd
 		m_draw_commands.clear();
 	}
 
-	bool Renderer::init(RenderDevice* _device)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	bool DebugRenderer::init(RenderDevice* _device)
 	{
 		m_device = _device;
 
-		std::string vs_str;
-		Utility::ReadText("shader/debug_draw_vs.glsl", vs_str);
-
-		std::string fs_str;
-		Utility::ReadText("shader/debug_draw_fs.glsl", fs_str);
-
-		m_line_vs = m_device->create_shader(vs_str.c_str(), ShaderType::VERTEX);
-		m_line_fs = m_device->create_shader(fs_str.c_str(), ShaderType::FRAGMENT);
+		// Create shaders
+		m_line_vs = m_device->create_shader(g_vs_src, ShaderType::VERTEX);
+		m_line_fs = m_device->create_shader(g_fs_src, ShaderType::FRAGMENT);
 
 		if (!m_line_vs || !m_line_fs)
 		{
-			LOG_FATAL("Failed to create Shaders");
+			DW_LOG_FATAL("Failed to create Shaders");
 			return false;
 		}
 
+		// Create shader program
 		Shader* shaders[] = { m_line_vs, m_line_fs };
 		m_line_program = m_device->create_shader_program(shaders, 2);
 
+		// Create vertex buffer
 		BufferCreateDesc bc;
-		InputLayoutCreateDesc ilcd;
-		VertexArrayCreateDesc vcd;
-
 		DW_ZERO_MEMORY(bc);
 		bc.data = nullptr;
 		bc.data_type = DataType::FLOAT;
@@ -48,13 +80,16 @@ namespace dd
 
 		m_line_vbo = m_device->create_vertex_buffer(bc);
 
+		// Declare vertex attributes
 		InputElement elements[] =
 		{
 			{ 3, DataType::FLOAT, false, 0, "POSITION" },
-		{ 2, DataType::FLOAT, false, sizeof(float) * 3, "TEXCOORD" },
-		{ 3, DataType::FLOAT, false, sizeof(float) * 5, "COLOR" }
+			{ 2, DataType::FLOAT, false, sizeof(float) * 3, "TEXCOORD" },
+			{ 3, DataType::FLOAT, false, sizeof(float) * 5, "COLOR" }
 		};
 
+		// Create input layout
+		InputLayoutCreateDesc ilcd;
 		DW_ZERO_MEMORY(ilcd);
 		ilcd.elements = elements;
 		ilcd.num_elements = 3;
@@ -62,6 +97,8 @@ namespace dd
 
 		m_line_il = m_device->create_input_layout(ilcd);
 
+		// Create vertex array
+		VertexArrayCreateDesc vcd;
 		DW_ZERO_MEMORY(vcd);
 		vcd.index_buffer = nullptr;
 		vcd.vertex_buffer = m_line_vbo;
@@ -71,10 +108,11 @@ namespace dd
 
 		if (!m_line_vao || !m_line_vbo)
 		{
-			LOG_FATAL("Failed to create Vertex Buffers/Arrays");
+			DW_LOG_FATAL("Failed to create Vertex Buffers/Arrays");
 			return false;
 		}
 
+		// Create rasterizer state
 		RasterizerStateCreateDesc rs_desc;
 		DW_ZERO_MEMORY(rs_desc);
 		rs_desc.cull_mode = CullMode::NONE;
@@ -85,6 +123,7 @@ namespace dd
 
 		m_rs = m_device->create_rasterizer_state(rs_desc);
 
+		// Create depth stencil state
 		DepthStencilStateCreateDesc ds_desc;
 		DW_ZERO_MEMORY(ds_desc);
 		ds_desc.depth_mask = true;
@@ -94,6 +133,7 @@ namespace dd
 
 		m_ds = m_device->create_depth_stencil_state(ds_desc);
 
+		// Create uniform buffer for matrix data
 		BufferCreateDesc uboDesc;
 		DW_ZERO_MEMORY(uboDesc);
 		uboDesc.data = nullptr;
@@ -106,8 +146,11 @@ namespace dd
 		return true;
 	}
 
-	void Renderer::shutdown()
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::shutdown()
 	{
+		// Destroy GPU resources
 		m_device->destroy(m_ubo);
 		m_device->destroy(m_line_program);
 		m_device->destroy(m_line_vs);
@@ -118,7 +161,9 @@ namespace dd
 		m_device->destroy(m_rs);
 	}
 
-	void Renderer::capsule(const float& _height, const float& _radius, const glm::vec3& _pos, const glm::vec3& _c)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::capsule(const float& _height, const float& _radius, const glm::vec3& _pos, const glm::vec3& _c)
 	{
 		// Draw four lines
 		line(glm::vec3(_pos.x, _pos.y + _radius, _pos.z - _radius), glm::vec3(_pos.x, _height - _radius, _pos.z - _radius), _c);
@@ -172,7 +217,9 @@ namespace dd
 		circle_xz(_radius, glm::vec3(_pos.x, _radius, _pos.z), _c);
 	}
 
-	void Renderer::aabb(const glm::vec3& _min, const glm::vec3& _max, const glm::vec3& _c)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::aabb(const glm::vec3& _min, const glm::vec3& _max, const glm::vec3& _c)
 	{
 		glm::vec3 _pos = (_max + _min) * 0.5f;
 
@@ -195,7 +242,9 @@ namespace dd
 		line(glm::vec3(min.x, min.y, max.z), glm::vec3(min.x, max.y, max.z), _c);
 	}
 
-	void Renderer::obb(const glm::vec3& _min, const glm::vec3& _max, const glm::mat4& _model, const glm::vec3& _c)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::obb(const glm::vec3& _min, const glm::vec3& _max, const glm::mat4& _model, const glm::vec3& _c)
 	{
 		glm::vec3 verts[8];
 		glm::vec3 size = _max - _min;
@@ -229,7 +278,9 @@ namespace dd
 		line(verts[7], verts[5], _c);
 	}
 
-	void Renderer::grid(const float& _x, const float& _z, const float& _y_level, const float& spacing, const glm::vec3& _c)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::grid(const float& _x, const float& _z, const float& _y_level, const float& spacing, const glm::vec3& _c)
 	{
 		int offset_x = floor((_x * spacing) / 2.0f);
 		int offset_z = floor((_z * spacing) / 2.0f);
@@ -245,7 +296,9 @@ namespace dd
 		}
 	}
 
-	void Renderer::line(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& c)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::line(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& c)
 	{
 		if (m_world_vertices.size() < MAX_VERTICES)
 		{
@@ -267,7 +320,9 @@ namespace dd
 		}
 	}
 
-	void Renderer::line_strip(glm::vec3* v, const int& count, const glm::vec3& c)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::line_strip(glm::vec3* v, const int& count, const glm::vec3& c)
 	{
 		for (int i = 0; i < count; i++)
 		{
@@ -285,7 +340,9 @@ namespace dd
 		m_draw_commands.push_back(cmd);
 	}
 
-	void Renderer::circle_xy(float radius, const glm::vec3& pos, const glm::vec3& c)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::circle_xy(float radius, const glm::vec3& pos, const glm::vec3& c)
 	{
 		glm::vec3 verts[19];
 
@@ -300,7 +357,9 @@ namespace dd
 		line_strip(&verts[0], 19, c);
 	}
 
-	void Renderer::circle_xz(float radius, const glm::vec3& pos, const glm::vec3& c)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::circle_xz(float radius, const glm::vec3& pos, const glm::vec3& c)
 	{
 		glm::vec3 verts[19];
 
@@ -315,7 +374,9 @@ namespace dd
 		line_strip(&verts[0], 19, c);
 	}
 
-	void Renderer::circle_yz(float radius, const glm::vec3& pos, const glm::vec3& c)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::circle_yz(float radius, const glm::vec3& pos, const glm::vec3& c)
 	{
 		glm::vec3 verts[19];
 
@@ -330,14 +391,18 @@ namespace dd
 		line_strip(&verts[0], 19, c);
 	}
 
-	void Renderer::sphere(const float& radius, const glm::vec3& pos, const glm::vec3& c)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::sphere(const float& radius, const glm::vec3& pos, const glm::vec3& c)
 	{
 		circle_xy(radius, pos, c);
 		circle_xz(radius, pos, c);
 		circle_yz(radius, pos, c);
 	}
 
-	void Renderer::frustum(const glm::mat4& view_proj, const glm::vec3& c)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::frustum(const glm::mat4& view_proj, const glm::vec3& c)
 	{
 		glm::mat4 inverse = glm::inverse(view_proj);
 		glm::vec3 corners[8];
@@ -375,7 +440,9 @@ namespace dd
 		line(corners[3], corners[7], c);
 	}
 
-	void Renderer::frustum(const glm::mat4& proj, const glm::mat4& view, const glm::vec3& c)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::frustum(const glm::mat4& proj, const glm::mat4& view, const glm::vec3& c)
 	{
 		glm::mat4 inverse = glm::inverse(proj * view);
 		glm::vec3 corners[8];
@@ -413,7 +480,9 @@ namespace dd
 		line(corners[3], corners[7], c);
 	}
 
-	void Renderer::render(Framebuffer* fbo, int width, int height, const glm::mat4& view_proj)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void DebugRenderer::render(Framebuffer* fbo, int width, int height, const glm::mat4& view_proj)
 	{
 		if (m_world_vertices.size() > 0)
 		{
@@ -422,7 +491,7 @@ namespace dd
 			void* ptr = m_device->map_buffer(m_line_vbo, BufferMapType::WRITE);
 
 			if (m_world_vertices.size() > MAX_VERTICES)
-				std::cout << "Vertices are above limit" << std::endl;
+				DW_LOG_ERROR("Vertex count above allowed limit!");
 			else
 				memcpy(ptr, &m_world_vertices[0], sizeof(VertexWorld) * m_world_vertices.size());
 
@@ -454,4 +523,4 @@ namespace dd
 			m_world_vertices.clear();
 		}
 	}
-}
+} // namespace dw

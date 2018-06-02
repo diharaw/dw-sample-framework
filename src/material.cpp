@@ -1,48 +1,47 @@
 #include <render_device.h>
-
 #include <macros.h>
 #include <material.h>
 #include <utility.h>
 #include <logger.h>
-
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-#include <json.hpp>
 
 namespace dw
 {
 	std::unordered_map<std::string, Material*> Material::m_cache;
 	std::unordered_map<std::string, Texture2D*> Material::m_texture_cache;
 
-	Material* Material::load(const std::string& path, RenderDevice* device)
-	{
-		if (m_cache.find(path) == m_cache.end())
-		{
-			LOG_INFO("Material Asset not in cache. Loading from disk.");
+	// -----------------------------------------------------------------------------------------------------------------------------------
 
-			Material* mat = new Material(path, device);
-			m_cache[path] = mat;
+	Material* Material::load(const std::string& name, const std::string* textures, RenderDevice* device)
+	{
+		if (m_cache.find(name) == m_cache.end())
+		{
+			DW_LOG_INFO("Material Asset not in cache. Loading from disk.");
+
+			Material* mat = new Material(name, textures, device);
+			m_cache[name] = mat;
 			return mat;
 		}
 		else
 		{
-			LOG_INFO("Material Asset already loaded. Retrieving from cache.");
-			return m_cache[path];
+			DW_LOG_INFO("Material Asset already loaded. Retrieving from cache.");
+			return m_cache[name];
 		}	
 	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
 
 	Texture2D* Material::load_texture(const std::string& path, RenderDevice* device, bool srgb)
 	{
 		if (m_texture_cache.find(path) == m_texture_cache.end())
 		{
 			Texture2DCreateDesc desc;
-			LOG_INFO("Texture Asset not in cache. Loading from disk.");
+			DW_LOG_INFO("Texture Asset not in cache. Loading from disk.");
 
-			std::string texPath = "assets/texture/";
-			texPath += path;
-			//stbi_set_flip_vertically_on_load(true);
+			std::string texPath = utility::path_for_resource(path);
+	
 			int x, y, n;
-
 			stbi_uc* data = stbi_load(texPath.c_str(), &x, &y, &n, 0);
 
 			DW_ZERO_MEMORY(desc);
@@ -79,10 +78,12 @@ namespace dw
 		}
 		else
 		{
-			LOG_INFO("Texture Asset already loaded. Retrieving from cache.");
+			DW_LOG_INFO("Texture Asset already loaded. Retrieving from cache.");
 			return m_texture_cache[path];
 		}
 	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
 
 	void Material::unload(Material*& mat)
 	{
@@ -97,6 +98,8 @@ namespace dw
 		}
 	}
 
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
 	void Material::unload_texture(Texture2D*& tex, RenderDevice* device)
 	{
 		for (auto itr : m_texture_cache)
@@ -110,87 +113,30 @@ namespace dw
 		}
 	}
 
-	Material::Material(const std::string& path, RenderDevice* device) : m_device(device), m_alpha(false)
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	Material::Material(const std::string& name, const std::string* textures, RenderDevice* device) : m_device(device)
 	{
-		std::string matJson;
-		bool result = Utility::ReadText("assets/" + path, matJson);
-		assert(result);
-		nlohmann::json json = nlohmann::json::parse(matJson.c_str());
-
-		Texture2DCreateDesc desc;
-
-		if (json.find("diffuse_map") != json.end())
+		for (uint32_t i = 0; i < 16; i++)
 		{
-			std::string texPath = json["diffuse_map"];
-			m_albedo_tex = load_texture(texPath, device, true);
+			m_textures[i] = nullptr;
 
-			if (!m_albedo_tex)
+			if (!textures[i].empty())
 			{
-				LOG_ERROR("Failed to load Albedo Map");
+				// First index must always be diffuse/albedo, so SRGB is set to true.
+				m_textures[i] = load_texture(textures[i], m_device, i == 0 ? true : false);
 			}
-		}
-		else if (json.find("diffuse_value") != json.end())
-		{
-			m_albedo_val.x = json["diffuse_value"]["r"];
-			m_albedo_val.y = json["diffuse_value"]["g"];
-			m_albedo_val.z = json["diffuse_value"]["b"];
-			m_albedo_val.w = json["diffuse_value"]["a"];
-		}
-
-		if (json.find("normal_map") != json.end())
-		{
-			std::string texPath = json["normal_map"];
-			m_normal_tex = load_texture(texPath, device);
-
-			if (!m_normal_tex)
-			{
-				LOG_ERROR("Failed to load Normal Map");
-			}
-		}
-
-		if (json.find("metalness_map") != json.end())
-		{
-			std::string texPath = json["metalness_map"];
-			m_metalness_tex = load_texture(texPath, device);
-
-			if (!m_metalness_tex)
-			{
-				LOG_ERROR("Failed to load Metalness Map");
-			}
-		}
-		if (json.find("metalness_value") != json.end())
-		{
-			m_metalness_val = json["metalness_value"];
-		}
-
-		if (json.find("roughness_map") != json.end())
-		{
-			std::string texPath = json["roughness_map"];
-			m_roughness_tex = load_texture(texPath, device);
-
-			if (!m_roughness_tex)
-			{
-				LOG_ERROR("Failed to load Roughness Map");
-			}
-		}
-		if (json.find("roughness_value") != json.end())
-		{
-			m_roughness_val = json["roughness_value"];
 		}
 	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
 
 	Material::~Material()
 	{
-		if (m_albedo_tex)
-			unload_texture(m_albedo_tex, m_device);
-
-		if (m_normal_tex)
-			unload_texture(m_normal_tex, m_device);
-
-		if (m_metalness_tex)
-			unload_texture(m_metalness_tex, m_device);
-
-		if (m_roughness_tex)
-			unload_texture(m_roughness_tex, m_device);
+		for (uint32_t i = 0; i < 16; i++)
+		{
+			if (m_textures[i])
+				unload_texture(m_textures[i], m_device);
+		}
 	}
-}
+} // namespace dw

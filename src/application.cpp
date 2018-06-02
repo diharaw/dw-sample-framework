@@ -1,7 +1,5 @@
 #include <application.h>
-
 #include <iostream>
-
 #include <imgui_impl_glfw_gl3.h>
 #include <json.hpp>
 
@@ -13,11 +11,15 @@ namespace dw
     {
         
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     Application::~Application()
     {
         
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     int Application::run(int argc, const char* argv[])
     {
@@ -31,27 +33,35 @@ namespace dw
         
         return 0;
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     bool Application::init(int argc, const char* argv[])
     {
         return true;
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::update(double delta)
     {
         
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::shutdown()
     {
         
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     bool Application::init_base(int argc, const char* argv[])
     {
-        Logger::initialize();
-        Logger::open_console_stream();
-        Logger::open_file_stream();
+        logger::initialize();
+        logger::open_console_stream();
+        logger::open_file_stream();
         
         std::string config;
         
@@ -69,9 +79,9 @@ namespace dw
         int minor_ver = 3;
 #endif
         
-        if (Utility::ReadText(Utility::executable_path() + "/config.json", config))
+        if (utility::read_text(utility::path_for_resource("config.json"), config))
         {
-            LOG_INFO("Loading configuration from json...");
+            DW_LOG_INFO("Loading configuration from json...");
             
             nlohmann::json json = nlohmann::json::parse(config.c_str());
             
@@ -82,24 +92,17 @@ namespace dw
             resizable = json["resizable"];
             maximized = json["maximized"];
             refresh_rate = json["refresh_rate"];
-            major_ver = json["opengl_major_version"];
-            minor_ver = json["opengl_minor_version"];
         }
         else
         {
-            LOG_WARNING("Failed to open config.json. Using default configuration...");
+            DW_LOG_WARNING("Failed to open config.json. Using default configuration...");
         }
         
         if (glfwInit() != GLFW_TRUE)
         {
-            LOG_FATAL("Failed to initialize GLFW");
+            DW_LOG_FATAL("Failed to initialize GLFW");
             return false;
         }
-        
-#if __APPLE__
-        if(major_ver == 4 && minor_ver > 1)
-            minor_ver = 1; // Force Apple builds to revert back to an OpenGL 4.1 context if a higher version was requested.
-#endif
         
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
         glfwWindowHint(GLFW_RESIZABLE, resizable);
@@ -118,7 +121,7 @@ namespace dw
         
         if (!m_window)
         {
-            LOG_FATAL("Failed to create GLFW window!");
+            DW_LOG_FATAL("Failed to create GLFW window!");
             return false;
         }
         
@@ -132,16 +135,12 @@ namespace dw
         
         glfwMakeContextCurrent(m_window);
         
-        LOG_INFO("Successfully initialized platform!");
+        DW_LOG_INFO("Successfully initialized platform!");
         
 		ImGui::CreateContext();
         ImGui_ImplGlfwGL3_Init(m_window, false);
 		ImGui::StyleColorsDark();
 
-		ImGuiIO io = ImGui::GetIO();
-		std::string font_path = Utility::executable_path() + "/fonts/Roboto-Medium.ttf";
-		io.Fonts->AddFontFromFileTTF(font_path.c_str(), 16.0f);
-        
         int display_w, display_h;
         glfwGetFramebufferSize(m_window, &display_w, &display_h);
         m_width = display_w;
@@ -149,12 +148,17 @@ namespace dw
 
 		if (!m_device.init())
 			return false;
+
+		if (!m_debug_renderer.init(&m_device))
+			return false;
         
         if(!init(argc, argv))
             return false;
         
         return true;
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::update_base(double delta)
     {
@@ -162,19 +166,31 @@ namespace dw
         update(delta);
         end_frame();
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::shutdown_base()
     {
+		// Execute user-side shutdown method.
         shutdown();
         
+		// Shutdown debug renderer.
+		m_debug_renderer.shutdown();
+
+		// Shutdown ImGui.
 		ImGui_ImplGlfwGL3_Shutdown();
 		ImGui::DestroyContext();
+
+		// Shutdown GLFW.
         glfwDestroyWindow(m_window);
         glfwTerminate();
         
-        Logger::close_file_stream();
-        Logger::close_console_stream();
+		// Close logger streams.
+        logger::close_file_stream();
+        logger::close_console_stream();
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::begin_frame()
     {
@@ -189,6 +205,8 @@ namespace dw
         m_last_mouse_x = m_mouse_x;
         m_last_mouse_y = m_mouse_y;
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::end_frame()
     {
@@ -199,46 +217,64 @@ namespace dw
         m_timer.stop();
         m_delta = m_timer.elapsed_time_milisec();
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::request_exit() const
     {
-        glfwSetWindowShouldClose(m_window, GL_TRUE);
+        glfwSetWindowShouldClose(m_window, true);
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     bool Application::exit_requested() const
     {
         return glfwWindowShouldClose(m_window);
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::window_resized(int width, int height)
     {
         
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::key_pressed(int code)
     {
         
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::key_released(int code)
     {
         
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::mouse_scrolled(double xoffset, double yoffset)
     {
         
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::mouse_button(int code)
     {
         
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::mouse_move(double x, double y, double deltaX, double deltaY)
     {
         
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::key_callback(GLFWwindow* window, int key, int scancode, int action, int mode)
     {
@@ -258,6 +294,8 @@ namespace dw
             }
         }
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::mouse_callback(GLFWwindow* window, double xpos, double ypos)
     {
@@ -265,11 +303,15 @@ namespace dw
         m_mouse_y = ypos;
         mouse_move(xpos, ypos, m_mouse_delta_x, m_mouse_delta_y);
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
     {
         mouse_scrolled(xoffset, yoffset);
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::mouse_button_callback(GLFWwindow*window, int button, int action, int mods)
     {
@@ -284,6 +326,8 @@ namespace dw
                 m_mouse_buttons[button] = false;
         }
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::window_size_callback(GLFWwindow* window, int width, int height)
     {
@@ -291,6 +335,8 @@ namespace dw
         m_height = height;
         window_resized(width, height);
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::key_callback_glfw(GLFWwindow* window, int key, int scancode, int action, int mode)
     {
@@ -298,12 +344,16 @@ namespace dw
         Application* app = (Application*)glfwGetWindowUserPointer(window);
         app->key_callback(window, key, scancode, action, mode);
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::mouse_callback_glfw(GLFWwindow* window, double xpos, double ypos)
     {
         Application* app = (Application*)glfwGetWindowUserPointer(window);
         app->mouse_callback(window, xpos, ypos);
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::scroll_callback_glfw(GLFWwindow* window, double xoffset, double yoffset)
     {
@@ -311,6 +361,8 @@ namespace dw
         Application* app = (Application*)glfwGetWindowUserPointer(window);
         app->scroll_callback(window, xoffset, yoffset);
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::mouse_button_callback_glfw(GLFWwindow*window, int button, int action, int mods)
     {
@@ -318,11 +370,15 @@ namespace dw
         Application* app = (Application*)glfwGetWindowUserPointer(window);
         app->mouse_button_callback(window, button, action, mods);
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::char_callback_glfw(GLFWwindow* window, unsigned int c)
     {
 		ImGui_ImplGlfw_CharCallback(window, c);
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
     
     void Application::window_size_callback_glfw(GLFWwindow* window, int width, int height)
     {

@@ -33,6 +33,8 @@
 
 build/*
 build/
+external/*
+external/
 bin/
 lib/
 x64/

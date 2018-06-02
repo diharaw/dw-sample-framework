@@ -2,50 +2,64 @@
 
 #include <string>
 
-#define LOG_INFO(x) Logger::log(x, std::string(__FILE__), __LINE__, LogLevel::INFO)
-#define LOG_WARNING(x) Logger::log(x, std::string(__FILE__), __LINE__, LogLevel::WARNING)
-#define LOG_ERROR(x) Logger::log(x, std::string(__FILE__), __LINE__, LogLevel::ERR)
-#define LOG_FATAL(x) Logger::log(x, std::string(__FILE__), __LINE__, LogLevel::FATAL)
+// Macros for quick access. File and line are added through the respective macros.
+#define DW_LOG_INFO(x) dw::logger::log(x, std::string(__FILE__), __LINE__, dw::logger::LEVEL_INFO)
+#define DW_LOG_WARNING(x) dw::logger::log(x, std::string(__FILE__), __LINE__, dw::logger::LEVEL_WARNING)
+#define DW_LOG_ERROR(x) dw::logger::log(x, std::string(__FILE__), __LINE__, dw::logger::LEVEL_ERR)
+#define DW_LOG_FATAL(x) dw::logger::log(x, std::string(__FILE__), __LINE__, dw::logger::LEVEL_FATAL)
 
-enum class LogLevel
+namespace dw
 {
-    INFO     = 0,
-    WARNING  = 1,
-    ERR	     = 2,
-    FATAL    = 3
-};
+	namespace logger
+	{
+		enum LogLevel
+		{
+			LEVEL_INFO = 0,
+			LEVEL_WARNING = 1,
+			LEVEL_ERR = 2,
+			LEVEL_FATAL = 3
+		};
 
-namespace Logger
-{
-    enum LogVerbosity
-    {
-        VERBOSITY_BASIC     = 0x00,
-        VERBOSITY_TIMESTAMP = 0x01,
-        VERBOSITY_LEVEL     = 0x02,
-        VERBOSITY_FILE      = 0x04,
-        VERBOSITY_LINE      = 0x08,
-        VERBOSITY_ALL       = 0x0f
-    };
-    
-    typedef void(*CustomStreamCallback)(std::string, LogLevel);
-    
-    extern void initialize();
-    extern void set_verbosity(int flags);
-    extern void open_file_stream();
-    extern void open_console_stream();
-    extern void open_custom_stream(CustomStreamCallback callback);
-    extern void close_file_stream();
-    extern void close_console_stream();
-    extern void close_custom_stream();
-	extern void enable_debug_mode();
-	extern void disable_debug_mode();
-    extern void log(std::string text, std::string file, int line, LogLevel level);
-    
-    // simplified api for scripting
-    extern void log_info(std::string text);
-    extern void log_error(std::string text);
-    extern void log_warning(std::string text);
-    extern void log_fatal(std::string text);
-    
-    extern void flush();
-}
+		enum LogVerbosity
+		{
+			VERBOSITY_BASIC = 0x00,
+			VERBOSITY_TIMESTAMP = 0x01,
+			VERBOSITY_LEVEL = 0x02,
+			VERBOSITY_FILE = 0x04,
+			VERBOSITY_LINE = 0x08,
+			VERBOSITY_ALL = 0x0f
+		};
+			
+		// Custom stream callback type. Use to implement your own logging stream such as through a network etc.
+		typedef void(*CustomStreamCallback)(std::string, LogLevel);
+
+		extern void initialize();
+		extern void set_verbosity(int flags);
+
+		// Open streams.
+		extern void open_file_stream();
+		extern void open_console_stream();
+		extern void open_custom_stream(CustomStreamCallback callback);
+
+		// Close streams.
+		extern void close_file_stream();
+		extern void close_console_stream();
+		extern void close_custom_stream();
+
+		// Debug mode. These will flush the stream immediately after each log.
+		extern void enable_debug_mode();
+		extern void disable_debug_mode();
+
+		// Main log method. File, line and level are required in addition to log message.
+		extern void log(std::string text, std::string file, int line, LogLevel level);
+
+		// Simplified API.
+		extern void log_info(std::string text);
+		extern void log_error(std::string text);
+		extern void log_warning(std::string text);
+		extern void log_fatal(std::string text);
+
+		// Explicitly flush all streams.
+		extern void flush();
+	} // namespace logger
+} // namespace dw
