@@ -17,6 +17,8 @@ A simple C++ framework for implementing graphics technique samples.
 ## Sample
 Creating a project using dwSampleFramework is as easy as inheriting from the dw::Application class and overriding the methods you need.
 
+![Sample](docs/sample.jpg)
+
 ```c++
 #include <application.h>
 
