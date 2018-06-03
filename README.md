@@ -13,6 +13,7 @@ A simple C++ framework for implementing graphics technique samples.
 * Configuration via JSON
 * Debug drawing
 * Graphics API abstraction via Terminus-GFX
+* Camera class
 
 ## What it looks like
 Creating a project using dwSampleFramework is as easy as inheriting from the dw::Application class and overriding the methods you need.
@@ -47,6 +48,9 @@ The sample application will give you a basic understanding of how to create a si
 
 ![Sample](docs/sample.jpg)
 
+## Building Sample
+Use [CMake](https://cmake.org/) version 3.8 or higher to generate a project for any IDE of your choice. The resulting project will contain all dependencies, framework library and sample application.
+
 ## How to use in a project
 This will only cover using dwSampleFramework in a project that uses CMake since it is more practical and will make handling dependencies easier.
 
@@ -59,6 +63,7 @@ add_subdirectory(path/to/dwSampleFramework)
 ```
 target_link_libraries(TARGET_NAME dwSampleFramework)
 ```
+4. Add dwSampleFramework include directory to your projects' includes (either using `include_directories` or `target_include_directories`).
 
 Note: If you wish to use dwSampleFramework as a precompiled library, make sure you copy the generated Assimp config.h file to your Assimp include directory.
 
