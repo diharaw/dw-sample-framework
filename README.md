@@ -1,5 +1,7 @@
 # dwSampleFramework
 
+[![License: MIT](https://img.shields.io/packagist/l/doctrine/orm.svg)](https://opensource.org/licenses/MIT)
+
 ## What is it?
 A simple C++ framework for implementing graphics technique samples.
 
