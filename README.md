@@ -10,10 +10,14 @@ A simple C++ framework for implementing graphics technique samples.
 * Mesh loading
 * Texture loading
 * Input
-* Configuration via JSON
 * Debug drawing
-* Graphics API abstraction via Terminus-GFX
+* ImGui integration
 * Camera class
+* Configuration via JSON
+* [Terminus-GFX](https://github.com/diharaw/Terminus-GFX) for graphics API abstraction
+
+### Note
+Using Terminus-GFX is **completely** optional. You can use raw OpenGL or any other graphics API instead.
 
 ## What it looks like
 Creating a project using dwSampleFramework is as easy as inheriting from the dw::Application class and overriding the methods you need.
