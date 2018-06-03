@@ -92,7 +92,7 @@ namespace dw
         GLFWwindow*                         m_window;
         Timer                               m_timer;
 		RenderDevice						m_device;
-		DebugRenderer						m_debug_renderer;
+		DebugDraw							m_debug_draw;
     };
 }
 

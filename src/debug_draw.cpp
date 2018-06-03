@@ -41,7 +41,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	DebugRenderer::DebugRenderer()
+	DebugDraw::DebugDraw()
 	{
 		m_world_vertices.resize(MAX_VERTICES);
 		m_world_vertices.clear();
@@ -52,7 +52,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	bool DebugRenderer::init(RenderDevice* _device)
+	bool DebugDraw::init(RenderDevice* _device)
 	{
 		m_device = _device;
 
@@ -148,7 +148,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::shutdown()
+	void DebugDraw::shutdown()
 	{
 		// Destroy GPU resources
 		m_device->destroy(m_ubo);
@@ -163,7 +163,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::capsule(const float& _height, const float& _radius, const glm::vec3& _pos, const glm::vec3& _c)
+	void DebugDraw::capsule(const float& _height, const float& _radius, const glm::vec3& _pos, const glm::vec3& _c)
 	{
 		// Draw four lines
 		line(glm::vec3(_pos.x, _pos.y + _radius, _pos.z - _radius), glm::vec3(_pos.x, _height - _radius, _pos.z - _radius), _c);
@@ -219,7 +219,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::aabb(const glm::vec3& _min, const glm::vec3& _max, const glm::vec3& _c)
+	void DebugDraw::aabb(const glm::vec3& _min, const glm::vec3& _max, const glm::vec3& _c)
 	{
 		glm::vec3 _pos = (_max + _min) * 0.5f;
 
@@ -244,7 +244,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::obb(const glm::vec3& _min, const glm::vec3& _max, const glm::mat4& _model, const glm::vec3& _c)
+	void DebugDraw::obb(const glm::vec3& _min, const glm::vec3& _max, const glm::mat4& _model, const glm::vec3& _c)
 	{
 		glm::vec3 verts[8];
 		glm::vec3 size = _max - _min;
@@ -280,7 +280,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::grid(const float& _x, const float& _z, const float& _y_level, const float& spacing, const glm::vec3& _c)
+	void DebugDraw::grid(const float& _x, const float& _z, const float& _y_level, const float& spacing, const glm::vec3& _c)
 	{
 		int offset_x = floor((_x * spacing) / 2.0f);
 		int offset_z = floor((_z * spacing) / 2.0f);
@@ -298,7 +298,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::line(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& c)
+	void DebugDraw::line(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& c)
 	{
 		if (m_world_vertices.size() < MAX_VERTICES)
 		{
@@ -322,7 +322,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::line_strip(glm::vec3* v, const int& count, const glm::vec3& c)
+	void DebugDraw::line_strip(glm::vec3* v, const int& count, const glm::vec3& c)
 	{
 		for (int i = 0; i < count; i++)
 		{
@@ -342,7 +342,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::circle_xy(float radius, const glm::vec3& pos, const glm::vec3& c)
+	void DebugDraw::circle_xy(float radius, const glm::vec3& pos, const glm::vec3& c)
 	{
 		glm::vec3 verts[19];
 
@@ -359,7 +359,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::circle_xz(float radius, const glm::vec3& pos, const glm::vec3& c)
+	void DebugDraw::circle_xz(float radius, const glm::vec3& pos, const glm::vec3& c)
 	{
 		glm::vec3 verts[19];
 
@@ -376,7 +376,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::circle_yz(float radius, const glm::vec3& pos, const glm::vec3& c)
+	void DebugDraw::circle_yz(float radius, const glm::vec3& pos, const glm::vec3& c)
 	{
 		glm::vec3 verts[19];
 
@@ -393,7 +393,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::sphere(const float& radius, const glm::vec3& pos, const glm::vec3& c)
+	void DebugDraw::sphere(const float& radius, const glm::vec3& pos, const glm::vec3& c)
 	{
 		circle_xy(radius, pos, c);
 		circle_xz(radius, pos, c);
@@ -402,7 +402,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::frustum(const glm::mat4& view_proj, const glm::vec3& c)
+	void DebugDraw::frustum(const glm::mat4& view_proj, const glm::vec3& c)
 	{
 		glm::mat4 inverse = glm::inverse(view_proj);
 		glm::vec3 corners[8];
@@ -442,7 +442,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::frustum(const glm::mat4& proj, const glm::mat4& view, const glm::vec3& c)
+	void DebugDraw::frustum(const glm::mat4& proj, const glm::mat4& view, const glm::vec3& c)
 	{
 		glm::mat4 inverse = glm::inverse(proj * view);
 		glm::vec3 corners[8];
@@ -482,7 +482,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void DebugRenderer::render(Framebuffer* fbo, int width, int height, const glm::mat4& view_proj)
+	void DebugDraw::render(Framebuffer* fbo, int width, int height, const glm::mat4& view_proj)
 	{
 		if (m_world_vertices.size() > 0)
 		{
@@ -523,4 +523,6 @@ namespace dw
 			m_world_vertices.clear();
 		}
 	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
 } // namespace dw

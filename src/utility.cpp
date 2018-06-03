@@ -20,6 +20,8 @@ namespace dw
 	{
 		static std::string g_exe_path = "";
 
+		// -----------------------------------------------------------------------------------------------------------------------------------
+
 		std::string path_for_resource(const std::string& resource)
 		{
 			std::string exe_path = executable_path();
@@ -106,5 +108,7 @@ namespace dw
 			else
 				return false;
 		}
+
+		// -----------------------------------------------------------------------------------------------------------------------------------
 	} // namespace utility
 } // namespace dw

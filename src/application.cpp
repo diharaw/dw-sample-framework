@@ -7,6 +7,8 @@
 
 namespace dw
 {
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
     Application::Application() : m_mouse_x(0.0), m_mouse_y(0.0), m_last_mouse_x(0.0), m_last_mouse_y(0.0), m_mouse_delta_x(0.0), m_mouse_delta_y(0.0), m_delta(0.0), m_window(nullptr)
     {
         
@@ -72,6 +74,7 @@ namespace dw
         int major_ver = 4;
 		m_width = 800;
 		m_height = 600;
+		m_title = "dwSampleFramwork";
         
 #if defined(__APPLE__)
         int minor_ver = 1;
@@ -149,7 +152,7 @@ namespace dw
 		if (!m_device.init())
 			return false;
 
-		if (!m_debug_renderer.init(&m_device))
+		if (!m_debug_draw.init(&m_device))
 			return false;
         
         if(!init(argc, argv))
@@ -174,8 +177,8 @@ namespace dw
 		// Execute user-side shutdown method.
         shutdown();
         
-		// Shutdown debug renderer.
-		m_debug_renderer.shutdown();
+		// Shutdown debug draw.
+		m_debug_draw.shutdown();
 
 		// Shutdown ImGui.
 		ImGui_ImplGlfwGL3_Shutdown();
@@ -385,4 +388,6 @@ namespace dw
         Application* app = (Application*)glfwGetWindowUserPointer(window);
         app->window_size_callback(window, width, height);
     }
-}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+} // namespace dw
