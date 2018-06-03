@@ -52,13 +52,13 @@ This will only cover using dwSampleFramework in a project that uses CMake since 
 
 1. Add dwSampleFramework as a submodule or simply clone it into your external dependencies directory. Make sure all submodules of the framework are also cloned.
 2. Add the dwSampleFramework directory to the root CMakeLists.txt file via the following command.
-'''
+```
 add_subdirectory(path/to/dwSampleFramework)
-'''
+```
 3. Add a link command to your executable that will use the framework.
-'''
+```
 target_link_libraries(TARGET_NAME dwSampleFramework)
-'''
+```
 
 Note: If you wish to use dwSampleFramework as a precompiled library, make sure you copy the generated Assimp config.h file to your Assimp include directory.
 
