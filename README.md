@@ -14,15 +14,13 @@ A simple C++ framework for implementing graphics technique samples.
 * Debug drawing
 * Graphics API abstraction via Terminus-GFX
 
-## Sample
+## What it looks like
 Creating a project using dwSampleFramework is as easy as inheriting from the dw::Application class and overriding the methods you need.
-
-![Sample](docs/sample.jpg)
 
 ```c++
 #include <application.h>
 
-class Sample : public dw::Application
+class Tutorial : public dw::Application
 {
 protected:
 	bool init(int argc, const char* argv[]) override
@@ -41,12 +39,30 @@ protected:
 	}
 };
 
-DW_DECLARE_MAIN(Sample)
+DW_DECLARE_MAIN(Tutorial)
 ``` 
-A more detailed sample can be found in the sample directory.
+
+## Sample 
+The sample application will give you a basic understanding of how to create a simple graphics application using the framework. It simply renders a rotating Teapot. 
+
+![Sample](docs/sample.jpg)
+
+## How to use in a project
+This will only cover using dwSampleFramework in a project that uses CMake since it is more practical and will make handling dependencies easier.
+
+1. Add dwSampleFramework as a submodule or simply clone it into your external dependencies directory. Make sure all submodules of the framework are also cloned.
+2. Add the dwSampleFramework directory to the root CMakeLists.txt file via the following command.
+'''
+add_subdirectory(path/to/dwSampleFramework)
+'''
+3. Add a link command to your executable that will use the framework.
+'''
+target_link_libraries(TARGET_NAME dwSampleFramework)
+'''
+
+Note: If you wish to use dwSampleFramework as a precompiled library, make sure you copy the generated Assimp config.h file to your Assimp include directory.
 
 ## Dependencies
-
 * [Terminus-GFX](https://github.com/diharaw/Terminus-GFX) 
 * [GLFW](https://github.com/glfw/glfw) 
 * [Assimp](https://github.com/assimp/assimp) 
@@ -56,7 +72,6 @@ A more detailed sample can be found in the sample directory.
 * [stb](https://github.com/nothings/stb) 
 
 ## License
-
 ```
 Copyright (c) 2018 Dihara Wijetunga
 
