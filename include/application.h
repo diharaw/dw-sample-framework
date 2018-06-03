@@ -33,14 +33,6 @@ namespace dw
 		// Run method. Command line arguments passed in.
         int run(int argc, const char* argv[]);
         
-		// Window event callbacks. Override these!
-        virtual void window_resized(int width, int height);
-        virtual void key_pressed(int code);
-        virtual void key_released(int code);
-        virtual void mouse_scrolled(double xoffset, double yoffset);
-        virtual void mouse_button(int code);
-        virtual void mouse_move(double x, double y, double deltaX, double deltaY);
-        
 		// Internal callbacks used by GLFW static callback functions.
         void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
         void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -57,6 +49,14 @@ namespace dw
         static void window_size_callback_glfw(GLFWwindow* window, int width, int height);
         
     protected:
+		// Window event callbacks. Override these!
+		virtual void window_resized(int width, int height);
+		virtual void key_pressed(int code);
+		virtual void key_released(int code);
+		virtual void mouse_scrolled(double xoffset, double yoffset);
+		virtual void mouse_button(int code);
+		virtual void mouse_move(double x, double y, double deltaX, double deltaY);
+
 		// Application exit related-methods. Self-explanatory.
         void request_exit() const;
         bool exit_requested() const;

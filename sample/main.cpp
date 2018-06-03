@@ -1,6 +1,7 @@
 #include <application.h>
 #include <mesh.h>
 #include <camera.h>
+#include <material.h>
 
 // Embedded vertex shader source.
 const char* g_sample_vs_src = R"(
@@ -20,12 +21,14 @@ layout (std140) uniform Transforms //#binding 0
 
 out vec3 PS_IN_FragPos;
 out vec3 PS_IN_Normal;
+out vec2 PS_IN_TexCoord;
 
 void main()
 {
     vec4 position = model * vec4(VS_IN_Position, 1.0);
 	PS_IN_FragPos = position.xyz;
 	PS_IN_Normal = mat3(model) * VS_IN_Normal;
+	PS_IN_TexCoord = VS_IN_TexCoord;
     gl_Position = projection * view * position;
 }
 
@@ -38,6 +41,9 @@ out vec4 PS_OUT_Color;
 
 in vec3 PS_IN_FragPos;
 in vec3 PS_IN_Normal;
+in vec2 PS_IN_TexCoord;
+
+uniform sampler2D s_Diffuse; //#slot 0
 
 void main()
 {
@@ -48,7 +54,7 @@ void main()
 
 	float lambert = max(0.0f, dot(n, l));
 
-	vec3 diffuse = vec3(1.0);
+	vec3 diffuse = texture(s_Diffuse, PS_IN_TexCoord).xyz;
 	vec3 ambient = diffuse * 0.03;
 
 	vec3 color = diffuse * lambert + ambient;
@@ -122,6 +128,15 @@ protected:
 		m_device.destroy(m_vs);
 		m_device.destroy(m_ds);
 		m_device.destroy(m_rs);
+		m_device.destroy(m_sampler);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void window_resized(int width, int height) override
+	{
+		// Override window resized method to update camera projection.
+		m_main_camera->update_projection(glm::radians(60.0f), 0.1f, 1000.0f, float(m_width) / float(m_height));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -176,6 +191,17 @@ private:
 		ds_desc.depth_cmp_func = ComparisonFunction::LESS_EQUAL;
 
 		m_ds = m_device.create_depth_stencil_state(ds_desc);
+
+		// Create sampler state.
+		SamplerStateCreateDesc ss_desc;
+		DW_ZERO_MEMORY(ss_desc);
+		ss_desc.min_filter = TextureFilteringMode::LINEAR_ALL;
+		ss_desc.mag_filter = TextureFilteringMode::LINEAR;
+		ss_desc.wrap_mode_u = TextureWrapMode::REPEAT;
+		ss_desc.wrap_mode_v = TextureWrapMode::REPEAT;
+		ss_desc.wrap_mode_w = TextureWrapMode::REPEAT;
+
+		m_sampler = m_device.create_sampler_state(ss_desc);
 
 		return true;
 	}
@@ -239,9 +265,17 @@ private:
 		// Set primitive type.
 		m_device.set_primitive_type(PrimitiveType::TRIANGLES);
 
+		// Bind sampler.
+		m_device.bind_sampler_state(m_sampler, ShaderType::FRAGMENT, 0);
+
 		for (uint32_t i = 0; i < m_mesh->sub_mesh_count(); i++)
 		{
 			dw::SubMesh& submesh = m_mesh->sub_meshes()[i];
+
+			// Bind texture.
+			m_device.bind_texture(submesh.mat->texture(0), ShaderType::FRAGMENT, 0);
+
+			// Issue draw call.
 			m_device.draw_indexed_base_vertex(submesh.index_count, submesh.base_index, submesh.base_vertex);
 		}
 	}
@@ -275,6 +309,7 @@ private:
 	UniformBuffer* m_ubo;
 	RasterizerState* m_rs;
 	DepthStencilState* m_ds;
+	SamplerState* m_sampler;
 
 	// Assets.
 	dw::Mesh* m_mesh;
