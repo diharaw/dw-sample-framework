@@ -16,3 +16,6 @@
 [submodule "external/Terminus-GFX"]
 	path = external/Terminus-GFX
 	url = https://github.com/diharaw/Terminus-GFX.git
+[submodule "external/assimp"]
+	path = external/assimp
+	url = https://github.com/assimp/assimp.git

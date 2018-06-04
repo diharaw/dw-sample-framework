@@ -53,7 +53,7 @@ The sample application will give you a basic understanding of how to create a si
 ![Sample](docs/sample.jpg)
 
 ## Building Sample
-Use [CMake](https://cmake.org/) version 3.8 or higher to generate a project for any IDE of your choice. The resulting project will contain all dependencies, framework library and sample application.
+Use [CMake](https://cmake.org/) version 3.8 or higher to generate a project for any IDE of your choice. The resulting project will contain all dependencies, framework library and sample application. The teapot model and texture can be found inside *data/sample_assets.zip*. Simply extract it into the directory containing the executable.
 
 ## How to use in a project
 This will only cover using dwSampleFramework in a project that uses CMake since it is more practical and will make handling dependencies easier.
