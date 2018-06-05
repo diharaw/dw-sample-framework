@@ -14,6 +14,10 @@
 #define ChangeWorkingDir chdir
 #endif
 
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
+
 namespace dw
 {
 	namespace utility
@@ -26,7 +30,7 @@ namespace dw
 		{
 			std::string exe_path = executable_path();
 #ifdef __APPLE__
-			return exe_path + "/Resources/" + resource;
+			return exe_path + "/Contents/Resources/" + resource;
 #else
 			return exe_path + "/" + resource;
 #endif
@@ -47,16 +51,38 @@ namespace dw
 
 			return g_exe_path;
 		}
-#else
+#elif __APPLE__
 		std::string executable_path()
 		{
 			if (g_exe_path == "")
 			{
-
+                char path[1024];
+                uint32_t size = sizeof(path);
+                if (_NSGetExecutablePath(path, &size) == 0)
+                {
+                    g_exe_path = path;
+                    
+                    // Substring three times to get back to root path.
+                    for (int i = 0; i < 3; i++)
+                    {
+                        std::size_t found = g_exe_path.find_last_of("/");
+                        g_exe_path = g_exe_path.substr(0,found);
+                    }
+                }
 			}
 
 			return g_exe_path;
 		}
+#else
+        std::string executable_path()
+        {
+            if (g_exe_path == "")
+            {
+                
+            }
+            
+            return g_exe_path;
+        }
 #endif
 
 		// -----------------------------------------------------------------------------------------------------------------------------------
