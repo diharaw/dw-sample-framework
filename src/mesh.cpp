@@ -98,11 +98,9 @@ namespace dw
 
 		// Temporary variables
 		aiMaterial* temp_material;
-		uint8_t material_index = 0;
 		std::vector<unsigned int> processed_mat_id;
 		std::unordered_map<unsigned int, Material*> mat_id_mapping;
-		uint32_t unamed_mats = 1;
-
+	
 		// Iterate over submeshes and find materials
 		for (int i = 0; i < m_sub_mesh_count; i++)
 		{
@@ -172,16 +170,21 @@ namespace dw
 				// Assign vertex values.
 				m_vertices[vertexIndex].position = glm::vec3(temp_mesh->mVertices[k].x, temp_mesh->mVertices[k].y, temp_mesh->mVertices[k].z);
 				glm::vec3 n = glm::vec3(temp_mesh->mNormals[k].x, temp_mesh->mNormals[k].y, temp_mesh->mNormals[k].z);
-				glm::vec3 t = glm::vec3(temp_mesh->mTangents[k].x, temp_mesh->mTangents[k].y, temp_mesh->mTangents[k].z);
-				glm::vec3 b = glm::vec3(temp_mesh->mBitangents[k].x, temp_mesh->mBitangents[k].y, temp_mesh->mBitangents[k].z);
-
-				// Assuming right handed coordinate space
-				if (glm::dot(glm::cross(n, t), b) < 0.0f)
-					t *= -1.0f; // Flip tangent
-
-				m_vertices[vertexIndex].normal = n;
-				m_vertices[vertexIndex].tangent = t;
-
+                m_vertices[vertexIndex].normal = n;
+                
+                if (temp_mesh->mTangents && temp_mesh->mBitangents)
+                {
+                    glm::vec3 t = glm::vec3(temp_mesh->mTangents[k].x, temp_mesh->mTangents[k].y, temp_mesh->mTangents[k].z);
+                    glm::vec3 b = glm::vec3(temp_mesh->mBitangents[k].x, temp_mesh->mBitangents[k].y, temp_mesh->mBitangents[k].z);
+                    
+                    // Assuming right handed coordinate space
+                    if (glm::dot(glm::cross(n, t), b) < 0.0f)
+                        t *= -1.0f; // Flip tangent
+                    
+                    m_vertices[vertexIndex].tangent = t;
+                    m_vertices[vertexIndex].bitangent = b;
+                }
+                
 				// Find submesh bounding box extents.
 				if (m_vertices[vertexIndex].position.x > m_sub_meshes[i].max_extents.x)
 					m_sub_meshes[i].max_extents.x = m_vertices[vertexIndex].position.x;

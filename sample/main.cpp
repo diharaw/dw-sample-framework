@@ -75,6 +75,9 @@ struct Transforms
 class Sample : public dw::Application
 {
 protected:
+    
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    
 	bool init(int argc, const char* argv[]) override
 	{
 		// Create GPU resources.
@@ -136,12 +139,15 @@ protected:
 	void window_resized(int width, int height) override
 	{
 		// Override window resized method to update camera projection.
-		m_main_camera->update_projection(glm::radians(60.0f), 0.1f, 1000.0f, float(m_width) / float(m_height));
+		m_main_camera->update_projection(60.0f, 0.1f, 1000.0f, float(m_width) / float(m_height));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
 private:
+    
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    
 	bool create_shaders()
 	{
 		// Create shaders
@@ -235,7 +241,7 @@ private:
 
 	void create_camera()
 	{
-		m_main_camera = new dw::Camera(glm::radians(60.0f), 0.1f, 1000.0f, float(m_width)/float(m_height), glm::vec3(0.0f, 0.0f, 100.0f), glm::vec3(0.0f, 0.0, -1.0f));
+		m_main_camera = new dw::Camera(60.0f, 0.1f, 1000.0f, float(m_width)/float(m_height), glm::vec3(0.0f, 0.0f, 100.0f), glm::vec3(0.0f, 0.0, -1.0f));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -285,9 +291,9 @@ private:
 	void update_uniforms()
 	{
 		m_transforms.model = glm::mat4(1.0f);
-		m_transforms.model = glm::translate(m_transforms.model, glm::vec3(0.0f, -0.25f, 0.0f));
+		m_transforms.model = glm::translate(m_transforms.model, glm::vec3(0.0f, -20.0f, 0.0f));
 		m_transforms.model = glm::rotate(m_transforms.model,(float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
-		m_transforms.model = glm::scale(m_transforms.model, glm::vec3(0.01f));
+		m_transforms.model = glm::scale(m_transforms.model, glm::vec3(0.6f));
 		m_transforms.view = m_main_camera->m_view;
 		m_transforms.projection = m_main_camera->m_projection;
 
