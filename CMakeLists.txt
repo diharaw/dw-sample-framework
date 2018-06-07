@@ -39,8 +39,11 @@ include_directories("${DWSFW_INCLUDE_DIRS}"
                     "${JSON_INCLUDE_DIRS}"
                     "${GLFW_INCLUDE_DIRS}")
 
+if (NOT EMSCRIPTEN)
+    add_subdirectory(external/glfw)
+endif()
+                
 add_subdirectory(external/assimp)
-add_subdirectory(external/glfw)
 add_subdirectory(external/Terminus-GFX)
 add_subdirectory(src)
 add_subdirectory(sample)

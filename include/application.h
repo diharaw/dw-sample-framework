@@ -5,7 +5,12 @@
 #include <stdint.h>
 #include <array>
 #include <string>
+#ifdef __EMSCRIPTEN__
+#define GLFW_INCLUDE_ES3
 #include <GLFW/glfw3.h>
+#else
+#include <GLFW/glfw3.h>
+#endif
 #include <imgui.h>
 #include "logger.h"
 #include "timer.h"

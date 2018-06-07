@@ -28,6 +28,8 @@ namespace dw
 
 	const char* g_fs_src = R"(
 
+    precision mediump float;
+    
 	out vec4 PS_OUT_Color;
 
 	in vec3 PS_IN_Color;

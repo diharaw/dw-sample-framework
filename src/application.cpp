@@ -78,6 +78,9 @@ namespace dw
         
 #if defined(__APPLE__)
         int minor_ver = 1;
+#elif defined(__EMSCRIPTEN__)
+        major_ver = 3;
+        int minor_ver = 0;
 #else
         int minor_ver = 3;
 #endif

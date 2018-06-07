@@ -27,7 +27,7 @@ void Timer::start()
 #ifdef WIN32
     QueryPerformanceCounter(&_start_count);
 #else
-    gettimeofday(&_start_count, NULL);
+    gettimeofday(&_start_count, nullptr);
 #endif
 }
 
@@ -37,7 +37,7 @@ void Timer::stop()
 #ifdef WIN32
     QueryPerformanceCounter(&_end_count);
 #else
-    gettimeofday(&_end_count, NULL);
+    gettimeofday(&_end_count, nullptr);
 #endif
 }
 
@@ -66,7 +66,7 @@ double Timer::elapsed_time_microsec()
     _end_time_microsec = _end_count.QuadPart * (1000000.0 / _frequency.QuadPart);
 #else
     if(!_stopped)
-        gettimeofday(&_end_count, NULL);
+        gettimeofday(&_end_count, nullptr);
     
     _start_time_microsec = (_start_count.tv_sec * 1000000.0) + _start_count.tv_usec;
     _end_time_microsec = (_end_count.tv_sec * 1000000.0) + _end_count.tv_usec;

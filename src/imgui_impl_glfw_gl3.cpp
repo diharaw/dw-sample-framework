@@ -43,14 +43,22 @@
 #include "imgui_impl_glfw_gl3.h"
 
 // GL3W/GLFW
-#include <gl/gl_core_4_5.h>    // This example is using gl3w to access OpenGL functions (because it is small). You may use glew/glad/glLoadGen/etc. whatever already works for you.
-#include <GLFW/glfw3.h>
+#ifdef __EMSCRIPTEN__
+    #define GLFW_INCLUDE_ES3
+	#include <GLFW/glfw3.h>
+#else
+	#include <gl/gl_core_4_5.h>
+    #include <GLFW/glfw3.h>
+#endif
+
 #ifdef _WIN32
 #undef APIENTRY
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL
 #include <GLFW/glfw3native.h>
 #endif
+
+#include <iostream>
 
 // GLFW data
 static GLFWwindow*  g_Window = NULL;
@@ -87,7 +95,9 @@ void ImGui_ImplGlfwGL3_RenderDrawData(ImDrawData* draw_data)
     GLint last_sampler; glGetIntegerv(GL_SAMPLER_BINDING, &last_sampler);
     GLint last_array_buffer; glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &last_array_buffer);
     GLint last_vertex_array; glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &last_vertex_array);
+#ifndef __EMSCRIPTEN__
     GLint last_polygon_mode[2]; glGetIntegerv(GL_POLYGON_MODE, last_polygon_mode);
+#endif
     GLint last_viewport[4]; glGetIntegerv(GL_VIEWPORT, last_viewport);
     GLint last_scissor_box[4]; glGetIntegerv(GL_SCISSOR_BOX, last_scissor_box);
     GLenum last_blend_src_rgb; glGetIntegerv(GL_BLEND_SRC_RGB, (GLint*)&last_blend_src_rgb);
@@ -108,7 +118,9 @@ void ImGui_ImplGlfwGL3_RenderDrawData(ImDrawData* draw_data)
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_SCISSOR_TEST);
+#ifndef __EMSCRIPTEN__
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
 
     // Setup viewport, orthographic projection matrix
     glViewport(0, 0, (GLsizei)fb_width, (GLsizei)fb_height);
@@ -180,7 +192,9 @@ void ImGui_ImplGlfwGL3_RenderDrawData(ImDrawData* draw_data)
     if (last_enable_cull_face) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
     if (last_enable_depth_test) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
     if (last_enable_scissor_test) glEnable(GL_SCISSOR_TEST); else glDisable(GL_SCISSOR_TEST);
+#ifndef __EMSCRIPTEN__
     glPolygonMode(GL_FRONT_AND_BACK, (GLenum)last_polygon_mode[0]);
+#endif
     glViewport(last_viewport[0], last_viewport[1], (GLsizei)last_viewport[2], (GLsizei)last_viewport[3]);
     glScissor(last_scissor_box[0], last_scissor_box[1], (GLsizei)last_scissor_box[2], (GLsizei)last_scissor_box[3]);
 }
@@ -280,6 +294,7 @@ bool ImGui_ImplGlfwGL3_CreateDeviceObjects()
         "}\n";
 
     const GLchar* fragment_shader =
+        "precision mediump float;\n"
         "uniform sampler2D Texture;\n"
         "in vec2 Frag_UV;\n"
         "in vec4 Frag_Color;\n"
@@ -298,7 +313,36 @@ bool ImGui_ImplGlfwGL3_CreateDeviceObjects()
     glShaderSource(g_VertHandle, 2, vertex_shader_with_version, NULL);
     glShaderSource(g_FragHandle, 2, fragment_shader_with_version, NULL);
     glCompileShader(g_VertHandle);
+    
+    GLint success = false;
+    glGetShaderiv(g_VertHandle, GL_COMPILE_STATUS, &success);
+    
+    GLchar infoLog[512];
+    
+    if (success == GL_FALSE)
+    {
+        glGetShaderInfoLog(g_VertHandle, 512, NULL, infoLog);
+        
+        std::string log_error = "Shader compilation failed: ";
+        log_error += std::string(infoLog);
+        
+        std::cout << log_error << std::endl;
+    }
+    
     glCompileShader(g_FragHandle);
+    
+    glGetShaderiv(g_FragHandle, GL_COMPILE_STATUS, &success);
+    
+    if (success == GL_FALSE)
+    {
+        glGetShaderInfoLog(g_FragHandle, 512, NULL, infoLog);
+        
+        std::string log_error = "Shader compilation failed: ";
+        log_error += std::string(infoLog);
+        
+        std::cout << log_error << std::endl;
+    }
+    
     glAttachShader(g_ShaderHandle, g_VertHandle);
     glAttachShader(g_ShaderHandle, g_FragHandle);
     glLinkProgram(g_ShaderHandle);
@@ -362,7 +406,13 @@ bool    ImGui_ImplGlfwGL3_Init(GLFWwindow* window, bool install_callbacks, const
 
     // Store GLSL version string so we can refer to it later in case we recreate shaders. Note: GLSL version is NOT the same as GL version. Leave this to NULL if unsure.
     if (glsl_version == NULL)
+    {
+#ifdef __EMSCRIPTEN__
+        glsl_version = "#version 300 es";
+#else
         glsl_version = "#version 150";
+#endif
+    }
     IM_ASSERT((int)strlen(glsl_version) + 2 < IM_ARRAYSIZE(g_GlslVersion));
     strcpy(g_GlslVersion, glsl_version);
     strcat(g_GlslVersion, "\n");
