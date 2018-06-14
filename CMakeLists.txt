@@ -2,10 +2,9 @@ cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
 project("dwSampleFramework")
 
-IF(APPLE)
-	set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++14")
-	set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
-ENDIF()
+# Options
+set(BUILD_SAMPLES true CACHE BOOL "Build example projects.")
+set(BUILD_SHARED_LIBRARY false CACHE BOOL "Build shared library.")
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
@@ -46,4 +45,7 @@ endif()
 add_subdirectory(external/assimp)
 add_subdirectory(external/Terminus-GFX)
 add_subdirectory(src)
-add_subdirectory(sample)
+
+if (BUILD_SAMPLES)
+    add_subdirectory(sample)
+endif()

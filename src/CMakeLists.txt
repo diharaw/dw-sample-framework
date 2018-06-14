@@ -3,7 +3,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 find_package(OpenGL REQUIRED)
 
-set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_STANDARD 14)
 
 set(DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/external/imgui/imgui.cpp
 			     ${PROJECT_SOURCE_DIR}/external/imgui/imgui_demo.cpp
@@ -14,6 +14,7 @@ set(DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/external/imgui/imgui.cpp
 				 ${PROJECT_SOURCE_DIR}/src/utility.cpp
 				 ${PROJECT_SOURCE_DIR}/src/debug_draw.cpp
 				 ${PROJECT_SOURCE_DIR}/src/camera.cpp
+				 ${PROJECT_SOURCE_DIR}/src/ogl.cpp
 				 ${PROJECT_SOURCE_DIR}/src/mesh.cpp
 				 ${PROJECT_SOURCE_DIR}/src/material.cpp
 				 ${PROJECT_SOURCE_DIR}/src/application.cpp)
@@ -31,6 +32,7 @@ set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 				  ${PROJECT_SOURCE_DIR}/include/debug_draw.h
 				  ${PROJECT_SOURCE_DIR}/include/geometry.h
 				  ${PROJECT_SOURCE_DIR}/include/material.h
+				  ${PROJECT_SOURCE_DIR}/include/ogl.h
 				  ${PROJECT_SOURCE_DIR}/include/camera.h
 				  ${PROJECT_SOURCE_DIR}/include/timer.h
 				  ${PROJECT_SOURCE_DIR}/include/application.h
@@ -39,14 +41,12 @@ set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 
 add_library(dwSampleFramework ${DWSFW_HEADERS} ${DWSFW_SOURCE})				
 
-if (NOT EMSCRIPTEN)
-	target_link_libraries(dwSampleFramework glfw)
-endif()
-
-target_link_libraries(dwSampleFramework Terminus-GFX)
 target_link_libraries(dwSampleFramework assimp)
-target_link_libraries(dwSampleFramework ${OPENGL_LIBRARIES})
 
 if(EMSCRIPTEN)
-    set_target_properties(dwSampleFramework PROPERTIES CMAKE_CXX_FLAGS "-s USE_GLFW=3 -s USE_WEBGL2=1 -s FULL_ES3=1 --std=c++11")
+	set_target_properties(dwSampleFramework PROPERTIES LINK_FLAGS "-O3 -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s USE_GLFW=2 -s USE_WEBGL2=1 -s FULL_ES3=1")
+else()
+	target_link_libraries(dwSampleFramework Terminus-GFX)
+	target_link_libraries(dwSampleFramework glfw)
+	target_link_libraries(dwSampleFramework ${OPENGL_LIBRARIES})
 endif()
