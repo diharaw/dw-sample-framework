@@ -39,12 +39,17 @@ set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 				  ${PROJECT_SOURCE_DIR}/include/logger.h
 				  ${PROJECT_SOURCE_DIR}/include/utility.h)
 
+if(NOT EMSCRIPTEN)
+	list(APPEND DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/glad.h)
+	list(APPEND DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/src/glad.c)
+endif()
+
 add_library(dwSampleFramework ${DWSFW_HEADERS} ${DWSFW_SOURCE})				
 
 target_link_libraries(dwSampleFramework assimp)
 
 if(EMSCRIPTEN)
-	set_target_properties(dwSampleFramework PROPERTIES LINK_FLAGS "-O3 -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s USE_GLFW=2 -s USE_WEBGL2=1 -s FULL_ES3=1")
+	set_target_properties(dwSampleFramework PROPERTIES LINK_FLAGS "-O3 -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s USE_GLFW=3 -s USE_WEBGL2=1 -s FULL_ES3=1")
 else()
 	target_link_libraries(dwSampleFramework Terminus-GFX)
 	target_link_libraries(dwSampleFramework glfw)
