@@ -44,7 +44,11 @@ if(NOT EMSCRIPTEN)
 	list(APPEND DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/src/glad.c)
 endif()
 
-add_library(dwSampleFramework ${DWSFW_HEADERS} ${DWSFW_SOURCE})				
+if (BUILD_SHARED_LIBRARY)
+	add_library(dwSampleFramework SHARED ${DWSFW_HEADERS} ${DWSFW_SOURCE})
+else()
+	add_library(dwSampleFramework ${DWSFW_HEADERS} ${DWSFW_SOURCE})				
+endif()
 
 target_link_libraries(dwSampleFramework assimp)
 

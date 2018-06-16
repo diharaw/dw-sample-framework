@@ -2,6 +2,7 @@
 #include <mesh.h>
 #include <camera.h>
 #include <material.h>
+#include <ogl.h>
 
 // Embedded vertex shader source.
 const char* g_sample_vs_src = R"(
@@ -171,6 +172,18 @@ private:
 			DW_LOG_FATAL("Failed to create Shader Program");
 			return false;
 		}
+
+		// TEMP
+		ezGL::Shader* vs = new ezGL::Shader(GL_VERTEX_SHADER, "pbr_vs.glsl");
+		ezGL::Shader* fs = new ezGL::Shader(GL_FRAGMENT_SHADER, "pbr_fs.glsl");
+
+		ezGL::Shader* ezshaders[] = { vs, fs };
+
+		ezGL::Program* program = new ezGL::Program(2, ezshaders);
+
+		delete program;
+		delete vs;
+		delete fs;
 
 		return true;
 	}
