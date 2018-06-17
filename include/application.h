@@ -59,7 +59,8 @@ namespace dw
 		virtual void key_pressed(int code);
 		virtual void key_released(int code);
 		virtual void mouse_scrolled(double xoffset, double yoffset);
-		virtual void mouse_button(int code);
+		virtual void mouse_pressed(int code);
+		virtual void mouse_released(int code);
 		virtual void mouse_move(double x, double y, double deltaX, double deltaY);
 
 		// Application exit related-methods. Self-explanatory.

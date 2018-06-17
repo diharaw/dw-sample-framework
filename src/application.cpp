@@ -268,13 +268,20 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
     
-    void Application::mouse_button(int code)
-    {
-        
-    }
+	void Application::mouse_pressed(int code)
+	{
+
+	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
-    
+
+	void Application::mouse_released(int code)
+	{
+
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
     void Application::mouse_move(double x, double y, double deltaX, double deltaY)
     {
         
@@ -323,13 +330,16 @@ namespace dw
     {
         if (button >= 0 && button < MAX_MOUSE_BUTTONS)
         {
-            if (action == GLFW_PRESS)
-            {
-                mouse_button(button);
-                m_mouse_buttons[button] = true;
-            }
-            else if (action == GLFW_RELEASE)
-                m_mouse_buttons[button] = false;
+			if (action == GLFW_PRESS)
+			{
+				mouse_pressed(button);
+				m_mouse_buttons[button] = true;
+			}
+			else if (action == GLFW_RELEASE)
+			{
+				mouse_released(button);
+				m_mouse_buttons[button] = false;
+			}
         }
     }
 
