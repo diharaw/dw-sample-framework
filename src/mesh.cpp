@@ -53,13 +53,13 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	Mesh* Mesh::load(const std::string& path, RenderDevice* device)
+	Mesh* Mesh::load(const std::string& path, RenderDevice* device, bool load_materials)
 	{
 		if (m_cache.find(path) == m_cache.end())
 		{
 			DW_LOG_INFO("Mesh Asset not in cache. Loading from disk.");
 
-			Mesh* mesh = new Mesh(path, device);
+			Mesh* mesh = new Mesh(path, device, load_materials);
 			m_cache[path] = mesh;
 			return mesh;
 		}
@@ -87,7 +87,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Mesh::load_from_disk(const std::string & path)
+	void Mesh::load_from_disk(const std::string & path, bool load_materials)
 	{
 		const aiScene* Scene;
 		Assimp::Importer importer;
@@ -113,41 +113,44 @@ namespace dw
 			m_vertex_count += Scene->mMeshes[i]->mNumVertices;
 			m_index_count += m_sub_meshes[i].index_count;
 
-			std::string material_paths[16];
-
-			if (mat_id_mapping.find(Scene->mMeshes[i]->mMaterialIndex) == mat_id_mapping.end())
+			if (load_materials)
 			{
-				std::string current_mat_name;
+				std::string material_paths[16];
 
-				temp_material = Scene->mMaterials[Scene->mMeshes[i]->mMaterialIndex];
-				current_mat_name = path + std::to_string(i);
-
-				for (uint32_t i = 0; i < 11; i++)
+				if (mat_id_mapping.find(Scene->mMeshes[i]->mMaterialIndex) == mat_id_mapping.end())
 				{
-					std::string texture = assimp_get_texture_path(temp_material, kTextureTypes[i]);
+					std::string current_mat_name;
 
-					if (texture != "")
+					temp_material = Scene->mMaterials[Scene->mMeshes[i]->mMaterialIndex];
+					current_mat_name = path + std::to_string(i);
+
+					for (uint32_t i = 0; i < 11; i++)
 					{
-						std::replace(texture.begin(), texture.end(), '\\', '/');
+						std::string texture = assimp_get_texture_path(temp_material, kTextureTypes[i]);
 
-						if (texture.length() > 4 && texture[0] != ' ')
+						if (texture != "")
 						{
-							DW_LOG_INFO("Found " + kTextureTypeStrings[i] + ": " + texture);
-							material_paths[i] = texture;
-							has_least_one_texture = true;
+							std::replace(texture.begin(), texture.end(), '\\', '/');
+
+							if (texture.length() > 4 && texture[0] != ' ')
+							{
+								DW_LOG_INFO("Found " + kTextureTypeStrings[i] + ": " + texture);
+								material_paths[i] = texture;
+								has_least_one_texture = true;
+							}
 						}
 					}
-				}
 
-				if (has_least_one_texture)
-				{
-					m_sub_meshes[i].mat = Material::load(current_mat_name, &material_paths[0], m_device);
-					mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
-				}
+					if (has_least_one_texture)
+					{
+						m_sub_meshes[i].mat = Material::load(current_mat_name, &material_paths[0], m_device);
+						mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
+					}
 
+				}
+				else // if already exists, find the pointer.
+					m_sub_meshes[i].mat = mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex];
 			}
-			else // if already exists, find the pointer.
-				m_sub_meshes[i].mat = mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex];
 		}
 
 		m_vertices = new Vertex[m_vertex_count];
@@ -304,9 +307,9 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	Mesh::Mesh(const std::string& path, RenderDevice* device) : m_device(device)
+	Mesh::Mesh(const std::string& path, RenderDevice* device, bool load_materials) : m_device(device)
 	{
-		load_from_disk(path);
+		load_from_disk(path, load_materials);
 		create_gpu_objects();
 	}
 

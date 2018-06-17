@@ -41,7 +41,7 @@ namespace dw
 	{
 	public:
 		// Static factory methods.
-		static Mesh* load(const std::string& path, RenderDevice* device);
+		static Mesh* load(const std::string& path, RenderDevice* device, bool load_materials = true);
 		static void unload(Mesh*& mesh);
 
 		// Rendering-related getters.
@@ -51,11 +51,11 @@ namespace dw
 
 	private:
 		// Private constructor and destructor to prevent manual creation.
-		Mesh(const std::string& path, RenderDevice* device);
+		Mesh(const std::string& path, RenderDevice* device, bool load_materials);
 		~Mesh();
 
 		// Internal initialization methods.
-		void load_from_disk(const std::string& path);
+		void load_from_disk(const std::string& path, bool load_materials);
 		void create_gpu_objects();
 
 	private:
