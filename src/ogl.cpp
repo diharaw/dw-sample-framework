@@ -7,6 +7,445 @@ namespace ezGL
 {
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
+	Texture::Texture()
+	{
+		glGenTextures(1, &m_gl_tex);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	Texture::~Texture()
+	{
+		glDeleteTextures(1, &m_gl_tex);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Texture::bind(uint32_t unit)
+	{
+		glActiveTexture(GL_TEXTURE0 + unit);
+		glBindTexture(m_target, m_gl_tex);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Texture::unbind(uint32_t unit)
+	{
+		glActiveTexture(GL_TEXTURE0 + unit);
+		glBindTexture(m_target, 0);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Texture::generate_mipmaps()
+	{
+		glBindTexture(m_target, m_gl_tex);
+		glGenerateMipmap(m_target);
+		glBindTexture(m_target, 0);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	Texture1D::Texture1D(uint32_t w, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type) : Texture()
+	{
+		m_array_size = array_size;
+		m_mip_levels = mip_levels;
+		m_internal_format = internal_format;
+		m_format = format;
+		m_type = type;
+		m_width = w;
+
+		// Allocate memory for mip levels.
+		if (array_size > 0)
+		{
+			m_target = GL_TEXTURE_1D_ARRAY;
+
+			int width = m_width;
+
+			glBindTexture(m_target, m_gl_tex);
+
+			for (int i = 0; i < m_mip_levels; i++)
+			{
+				glTexImage2D(m_target, i, m_internal_format, width, m_array_size, 0, m_format, m_type, NULL);
+				width = std::max(1, (width / 2));
+			}
+
+			glBindTexture(m_target, 0);
+		}
+		else
+		{
+			m_target = GL_TEXTURE_1D;
+
+			int width = m_width;
+
+			glBindTexture(m_target, m_gl_tex);
+
+			for (int i = 0; i < m_mip_levels; i++) 
+			{
+				glTexImage1D(m_target, i, m_internal_format, width, 0, m_format, m_type, NULL);
+				width = std::max(1, (width / 2));
+			}
+
+			glBindTexture(m_target, 0);
+		}
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	Texture1D::~Texture1D() {}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Texture1D::set_data(int array_index, int mip_level, void* data)
+	{
+		int width = m_width;
+
+		for (int i = 0; i < mip_level; i++)
+			width = std::max(1, width / 2);
+
+		glBindTexture(m_target, m_gl_tex);
+
+		if (m_array_size > 0)
+			glTexImage2D(m_target, mip_level, m_internal_format, width, array_index, 0, m_format, m_type, data);
+		else
+			glTexImage1D(m_target, mip_level, m_internal_format, width, 0, m_format, m_type, data);
+		
+		glBindTexture(m_target, 0);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t Texture1D::width()
+	{
+		return m_width;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t Texture1D::array_size()
+	{
+		return m_array_size;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t Texture1D::mip_levels()
+	{
+		return m_mip_levels;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	Texture2D::Texture2D(std::string path, bool srgb) : Texture()
+	{
+
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	Texture2D::Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, uint32_t num_samples, GLenum internal_format, GLenum format, GLenum type) : Texture()
+	{
+		m_array_size = array_size;
+		m_mip_levels = mip_levels;
+		m_internal_format = internal_format;
+		m_format = format;
+		m_type = type;
+		m_width = w;
+		m_height = h;
+
+		// Allocate memory for mip levels.
+		if (array_size > 0)
+		{
+			m_target = GL_TEXTURE_2D_ARRAY;
+
+			int width = m_width;
+			int height = m_height;
+
+			glBindTexture(m_target, m_gl_tex);
+
+			for (int i = 0; i < m_mip_levels; i++)
+			{
+				glTexImage3D(m_target, i, m_internal_format, width, height, m_array_size, 0, m_format, m_type, NULL);
+				width = std::max(1, (width / 2));
+				height = std::max(1, (height / 2));
+			}
+
+			glBindTexture(m_target, 0);
+		}
+		else
+		{
+			m_target = GL_TEXTURE_2D;
+
+			int width = m_width;
+			int height = m_height;
+
+			glBindTexture(m_target, m_gl_tex);
+
+			for (int i = 0; i < m_mip_levels; i++)
+			{
+				glTexImage2D(m_target, i, m_internal_format, width, height, 0, m_format, m_type, NULL);
+				width = std::max(1, (width / 2));
+				height = std::max(1, (height / 2));
+			}
+
+			glBindTexture(m_target, 0);
+		}
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	Texture2D::~Texture2D() {}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Texture2D::set_data(int array_index, int mip_level, void* data)
+	{
+		int width = m_width;
+		int height = m_height;
+
+		for (int i = 0; i < mip_level; i++)
+		{
+			width = std::max(1, width / 2);
+			height = std::max(1, (height / 2));
+		}
+
+		glBindTexture(m_target, m_gl_tex);
+
+		if (m_array_size > 0)
+			glTexImage3D(m_target, mip_level, m_internal_format, width, height, array_index, 0, m_format, m_type, data);
+		else
+			glTexImage2D(m_target, mip_level, m_internal_format, width, height, 0, m_format, m_type, data);
+
+		glBindTexture(m_target, 0);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t Texture2D::width()
+	{
+		return m_width;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t Texture2D::height()
+	{
+		return m_height;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t Texture2D::array_size()
+	{
+		return m_array_size;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t Texture2D::mip_levels()
+	{
+		return m_mip_levels;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t Texture2D::num_samples()
+	{
+		return m_num_samples;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	Texture3D::Texture3D(uint32_t w, uint32_t h, uint32_t d, int mip_levels, GLenum internal_format, GLenum format, GLenum type) : Texture()
+	{
+		m_mip_levels = mip_levels;
+		m_internal_format = internal_format;
+		m_format = format;
+		m_type = type;
+		m_width = w;
+		m_height = h;
+		m_depth = d;
+
+		// Allocate memory for mip levels.
+		m_target = GL_TEXTURE_3D;
+
+		int width = m_width;
+		int height = m_height;
+		int depth = m_depth;
+
+		glBindTexture(m_target, m_gl_tex);
+
+		for (int i = 0; i < m_mip_levels; i++)
+		{
+			glTexImage3D(m_target, i, m_internal_format, width, height, depth, 0, m_format, m_type, NULL);
+			width = std::max(1, (width / 2));
+			height = std::max(1, (height / 2));
+			depth = std::max(1, (depth / 2));
+		}
+
+		glBindTexture(m_target, 0);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	Texture3D::~Texture3D()
+	{
+		
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Texture3D::set_data(int mip_level, void* data)
+	{
+		int width = m_width;
+		int height = m_height;
+		int depth = m_depth;
+
+		for (int i = 0; i < mip_level; i++)
+		{
+			width = std::max(1, width / 2);
+			height = std::max(1, (height / 2));
+			depth = std::max(1, (depth / 2));
+		}
+
+		glBindTexture(m_target, m_gl_tex);
+		glTexImage3D(m_target, mip_level, m_internal_format, width, height, depth, 0, m_format, m_type, data);
+		glBindTexture(m_target, 0);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t Texture3D::width()
+	{
+		return m_width;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t Texture3D::height()
+	{
+		return m_height;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t Texture3D::depth()
+	{
+		return m_depth;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t Texture3D::mip_levels()
+	{
+		return m_mip_levels;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	TextureCube::TextureCube(std::string path[], bool srgb)
+	{
+
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	TextureCube::TextureCube(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type)
+	{
+		m_array_size = array_size;
+		m_mip_levels = mip_levels;
+		m_internal_format = internal_format;
+		m_format = format;
+		m_type = type;
+		m_width = w;
+		m_height = h;
+
+		// Allocate memory for mip levels.
+		if (array_size > 0)
+		{
+			m_target = GL_TEXTURE_CUBE_MAP_ARRAY;
+
+			int width = m_width;
+			int height = m_height;
+
+			glBindTexture(m_target, m_gl_tex);
+
+			for (int i = 0; i < m_mip_levels; i++)
+			{
+				for (int face = 0; face < 6; face++)
+				{
+					glTexImage3D(m_target, i, m_internal_format, width, height, m_array_size, 0, m_format, m_type, NULL);
+					width = std::max(1, (width / 2));
+					height = std::max(1, (height / 2));
+				}
+			}
+
+			glBindTexture(m_target, 0);
+		}
+		else
+		{
+			m_target = GL_TEXTURE_CUBE_MAP;
+
+			int width = m_width;
+			int height = m_height;
+
+			glBindTexture(m_target, m_gl_tex);
+
+			for (int i = 0; i < m_mip_levels; i++)
+			{
+				for (int face = 0; face < 6; face++) 
+				{
+					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, i, m_internal_format, width, height, 0, m_format, m_type, NULL);
+				}
+				width = std::max(1, (width / 2));
+				height = std::max(1, (height / 2));
+			}
+
+			glBindTexture(m_target, 0);
+		}
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	TextureCube::~TextureCube() {}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void TextureCube::set_data(int face_index, int mip_level, void* data)
+	{
+
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t TextureCube::width()
+	{
+		return m_width;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t TextureCube::height()
+	{
+		return m_height;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t TextureCube::array_size()
+	{
+		return m_array_size;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t TextureCube::mip_levels()
+	{
+		return m_mip_levels;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
 	Shader::Shader(GLenum type, std::string path) : m_type(type)
 	{
 		GL_CHECK_ERROR(m_gl_shader = glCreateShader(type));
@@ -438,7 +877,7 @@ namespace ezGL
 	UniformBuffer::UniformBuffer(GLenum usage, GLenum type, size_t size, void* data)
 	{
 		GL_CHECK_ERROR(glGenBuffers(1, &m_gl_ubo));
-
+		
 		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, m_gl_ubo));
 		GL_CHECK_ERROR(glBufferData(GL_UNIFORM_BUFFER, size, data, usage));
 		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, 0));

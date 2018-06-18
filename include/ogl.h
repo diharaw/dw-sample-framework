@@ -48,38 +48,98 @@ namespace ezGL
 
 		// Unbind the whatever texture was bound to the specified texture unit.
         void unbind(uint32_t unit);
+
+		void generate_mipmaps();
         
-    private:
+    protected:
         GLuint m_gl_tex;
+		GLenum m_target;
+		GLenum m_internal_format;
+		GLenum m_format; 
+		GLenum m_type;
     };
  
 #if !defined(__EMSCRIPTEN__)
-    class Texture1D
+    class Texture1D : public Texture
     {
+	public:
+		Texture1D(uint32_t w, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type);
+		~Texture1D();
+		void set_data(int array_index, int mip_level, void* data);
+		uint32_t width();
+		uint32_t array_size();
+		uint32_t mip_levels();
+
+	private:
+		uint32_t m_width;
+		uint32_t m_array_size;
+		uint32_t m_mip_levels;
+		
     };
 #endif
     
-    class Texture2D
+    class Texture2D : public Texture
     {
     public:
-        Texture2D(uint32_t w, uint32_t h, GLenum format, void* data);
+		Texture2D(std::string path, bool srgb = true);
+        Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, uint32_t num_samples, GLenum internal_format, GLenum format, GLenum type);
         ~Texture2D();
+		void set_data(int array_index, int mip_level, void* data);
         uint32_t width();
         uint32_t height();
+		uint32_t array_size();
+		uint32_t mip_levels();
+		uint32_t num_samples();
+
+	private:
+		uint32_t m_width;
+		uint32_t m_height;
+		uint32_t m_array_size;
+		uint32_t m_mip_levels;
+		uint32_t m_num_samples;
     };
     
-    class Texture3D
+    class Texture3D : public Texture
     {
+	public:
+		Texture3D(uint32_t w, uint32_t h, uint32_t d, int mip_levels, GLenum internal_format, GLenum format, GLenum type);
+		~Texture3D();
+		void set_data(int mip_level, void* data);
+		uint32_t width();
+		uint32_t height();
+		uint32_t depth();
+		uint32_t mip_levels();
+
+	private:
+		uint32_t m_width;
+		uint32_t m_height;
+		uint32_t m_depth;
+		uint32_t m_mip_levels;
     };
     
-    class TextureCube
+    class TextureCube : public Texture
     {
+	public:
+		TextureCube(std::string path[], bool srgb = true);
+		TextureCube(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type);
+		~TextureCube();
+		void set_data(int face_index, int mip_level, void* data);
+		uint32_t width();
+		uint32_t height();
+		uint32_t array_size();
+		uint32_t mip_levels();
+
+	private:
+		uint32_t m_width;
+		uint32_t m_height;
+		uint32_t m_array_size;
+		uint32_t m_mip_levels;
     };
     
     class Framebuffer
     {
     public:
-        Framebuffer(int count, Texture** render_targets, Texture* depth_target);
+        Framebuffer(int count, Texture* render_targets[], Texture* depth_target);
         ~Framebuffer();
 		void bind();
 		void unbind();
