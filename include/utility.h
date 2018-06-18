@@ -23,6 +23,9 @@ namespace dw
 		// Removes the filename from a file path.
 		extern std::string path_without_file(std::string filepath);
 
+		// Returns the extension of a given file.
+		extern std::string file_extension(std::string filepath);
+
 		// Queries the current working directory.
 		extern std::string current_working_directory();
 

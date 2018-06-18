@@ -2,6 +2,7 @@
 #include <utility.h>
 #include <logger.h>
 #include <gtc/type_ptr.hpp>
+#include <stb_image.h>
 
 namespace ezGL
 {
@@ -9,39 +10,60 @@ namespace ezGL
 
 	Texture::Texture()
 	{
-		glGenTextures(1, &m_gl_tex);
+		GL_CHECK_ERROR(glGenTextures(1, &m_gl_tex));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
 	Texture::~Texture()
 	{
-		glDeleteTextures(1, &m_gl_tex);
+		GL_CHECK_ERROR(glDeleteTextures(1, &m_gl_tex));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
 	void Texture::bind(uint32_t unit)
 	{
-		glActiveTexture(GL_TEXTURE0 + unit);
-		glBindTexture(m_target, m_gl_tex);
+		GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0 + unit));
+		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
 	void Texture::unbind(uint32_t unit)
 	{
-		glActiveTexture(GL_TEXTURE0 + unit);
-		glBindTexture(m_target, 0);
+		GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0 + unit));
+		GL_CHECK_ERROR(glBindTexture(m_target, 0));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
 	void Texture::generate_mipmaps()
 	{
-		glBindTexture(m_target, m_gl_tex);
-		glGenerateMipmap(m_target);
-		glBindTexture(m_target, 0);
+		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+		GL_CHECK_ERROR(glGenerateMipmap(m_target));
+		GL_CHECK_ERROR(glBindTexture(m_target, 0));
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	GLuint Texture::id()
+	{
+		return m_gl_tex;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	GLenum Texture::target()
+	{
+		return m_target;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	uint32_t Texture::array_size()
+	{
+		return m_array_size;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -49,11 +71,26 @@ namespace ezGL
 	Texture1D::Texture1D(uint32_t w, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type) : Texture()
 	{
 		m_array_size = array_size;
-		m_mip_levels = mip_levels;
 		m_internal_format = internal_format;
 		m_format = format;
 		m_type = type;
 		m_width = w;
+
+		// If mip levels is -1, calculate mip levels
+		if (mip_levels == -1)
+		{
+			m_mip_levels = 1;
+
+			int width = m_width;
+
+			while (width > 1)
+			{
+				width = std::max(1, (width / 2));
+				m_mip_levels++;
+			}
+		}
+		else
+			m_mip_levels = mip_levels;
 
 		// Allocate memory for mip levels.
 		if (array_size > 0)
@@ -62,15 +99,15 @@ namespace ezGL
 
 			int width = m_width;
 
-			glBindTexture(m_target, m_gl_tex);
+			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 
 			for (int i = 0; i < m_mip_levels; i++)
 			{
-				glTexImage2D(m_target, i, m_internal_format, width, m_array_size, 0, m_format, m_type, NULL);
+				GL_CHECK_ERROR(glTexImage2D(m_target, i, m_internal_format, width, m_array_size, 0, m_format, m_type, NULL));
 				width = std::max(1, (width / 2));
 			}
 
-			glBindTexture(m_target, 0);
+			GL_CHECK_ERROR(glBindTexture(m_target, 0));
 		}
 		else
 		{
@@ -78,15 +115,15 @@ namespace ezGL
 
 			int width = m_width;
 
-			glBindTexture(m_target, m_gl_tex);
+			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 
 			for (int i = 0; i < m_mip_levels; i++) 
 			{
-				glTexImage1D(m_target, i, m_internal_format, width, 0, m_format, m_type, NULL);
+				GL_CHECK_ERROR(glTexImage1D(m_target, i, m_internal_format, width, 0, m_format, m_type, NULL));
 				width = std::max(1, (width / 2));
 			}
 
-			glBindTexture(m_target, 0);
+			GL_CHECK_ERROR(glBindTexture(m_target, 0));
 		}
 	}
 
@@ -103,14 +140,18 @@ namespace ezGL
 		for (int i = 0; i < mip_level; i++)
 			width = std::max(1, width / 2);
 
-		glBindTexture(m_target, m_gl_tex);
+		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 
 		if (m_array_size > 0)
-			glTexImage2D(m_target, mip_level, m_internal_format, width, array_index, 0, m_format, m_type, data);
+		{
+			GL_CHECK_ERROR(glTexImage2D(m_target, mip_level, m_internal_format, width, array_index, 0, m_format, m_type, data));
+		}
 		else
-			glTexImage1D(m_target, mip_level, m_internal_format, width, 0, m_format, m_type, data);
+		{
+			GL_CHECK_ERROR(glTexImage1D(m_target, mip_level, m_internal_format, width, 0, m_format, m_type, data));
+		}
 		
-		glBindTexture(m_target, 0);
+		GL_CHECK_ERROR(glBindTexture(m_target, 0));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -122,13 +163,6 @@ namespace ezGL
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	uint32_t Texture1D::array_size()
-	{
-		return m_array_size;
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
 	uint32_t Texture1D::mip_levels()
 	{
 		return m_mip_levels;
@@ -136,9 +170,59 @@ namespace ezGL
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	Texture2D::Texture2D(std::string path, bool srgb) : Texture()
+	Texture2D* Texture2D::create_from_files(std::string path, bool srgb)
 	{
+		std::string tex_path = dw::utility::path_for_resource(path);
 
+		int x, y, n;
+		stbi_uc* data = stbi_load(tex_path.c_str(), &x, &y, &n, 0);
+
+		if (!data)
+			return nullptr;
+
+		GLenum internal_format, format;
+
+		if (n == 1)
+		{
+			internal_format = GL_R8;
+			format = GL_RED;
+		}
+		else
+		{
+			if (srgb)
+			{
+				if (n == 4)
+				{
+					internal_format = GL_SRGB8_ALPHA8;
+					format = GL_RGBA;
+				}
+				else if (n == 3)
+				{
+					internal_format = GL_SRGB8;
+					format = GL_RGB;
+				}
+			}
+			else
+			{
+				if (n == 4)
+				{
+					internal_format = GL_RGBA8;
+					format = GL_RGBA;
+				}
+				else if (n == 3)
+				{
+					internal_format = GL_RGBA8;
+					format = GL_RGB;
+				}
+			}
+		}
+
+		Texture2D* texture = new Texture2D(x, y, 1, -1, 1, internal_format, format, GL_UNSIGNED_BYTE);
+		texture->set_data(0, 0, data);
+
+		stbi_image_free(data);
+
+		return texture;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -146,49 +230,97 @@ namespace ezGL
 	Texture2D::Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, uint32_t num_samples, GLenum internal_format, GLenum format, GLenum type) : Texture()
 	{
 		m_array_size = array_size;
-		m_mip_levels = mip_levels;
 		m_internal_format = internal_format;
 		m_format = format;
 		m_type = type;
 		m_width = w;
 		m_height = h;
+		m_num_samples = num_samples;
+
+		// If mip levels is -1, calculate mip levels
+		if (mip_levels == -1)
+		{
+			m_mip_levels = 1;
+
+			int width = m_width;
+			int height = m_height;
+
+			while (width > 1 && height > 1)
+			{
+				width = std::max(1, (width / 2));
+				height = std::max(1, (height / 2));
+				m_mip_levels++;
+			}
+		}
+		else
+			m_mip_levels = mip_levels;
 
 		// Allocate memory for mip levels.
 		if (array_size > 0)
 		{
-			m_target = GL_TEXTURE_2D_ARRAY;
+			if (m_num_samples > 1)
+				m_target = GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
+			else
+				m_target = GL_TEXTURE_2D_ARRAY;
 
 			int width = m_width;
 			int height = m_height;
 
-			glBindTexture(m_target, m_gl_tex);
+			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 
-			for (int i = 0; i < m_mip_levels; i++)
+			if (m_num_samples > 1)
 			{
-				glTexImage3D(m_target, i, m_internal_format, width, height, m_array_size, 0, m_format, m_type, NULL);
-				width = std::max(1, (width / 2));
-				height = std::max(1, (height / 2));
+				if (m_mip_levels > 1)
+					DW_LOG_WARNING("OPENGL: Multisampled textures cannot have mipmaps. Setting mip levels to 1...");
+
+				m_mip_levels = 1;
+				GL_CHECK_ERROR(glTexImage3DMultisample(m_target, m_num_samples, m_internal_format, width, height, m_array_size, true));
+			}
+			else
+			{
+				for (int i = 0; i < m_mip_levels; i++)
+				{
+					GL_CHECK_ERROR(glTexImage3D(m_target, i, m_internal_format, width, height, m_array_size, 0, m_format, m_type, NULL));
+
+					width = std::max(1, (width / 2));
+					height = std::max(1, (height / 2));
+				}
 			}
 
-			glBindTexture(m_target, 0);
+			GL_CHECK_ERROR(glBindTexture(m_target, 0));
 		}
 		else
 		{
-			m_target = GL_TEXTURE_2D;
+			if (m_num_samples > 1)
+				m_target = GL_TEXTURE_2D_MULTISAMPLE;
+			else
+				m_target = GL_TEXTURE_2D;
 
 			int width = m_width;
 			int height = m_height;
 
-			glBindTexture(m_target, m_gl_tex);
+			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 
-			for (int i = 0; i < m_mip_levels; i++)
+			if (m_num_samples > 1)
 			{
-				glTexImage2D(m_target, i, m_internal_format, width, height, 0, m_format, m_type, NULL);
-				width = std::max(1, (width / 2));
-				height = std::max(1, (height / 2));
+				if (m_mip_levels > 1)
+					DW_LOG_WARNING("OPENGL: Multisampled textures cannot have mipmaps. Setting mip levels to 1...");
+
+				m_mip_levels = 1;
+				GL_CHECK_ERROR(glTexImage2DMultisample(m_target, m_num_samples, m_internal_format, width, height, true));
+			}
+			else
+			{
+				for (int i = 0; i < m_mip_levels; i++)
+				{
+					GL_CHECK_ERROR(glTexImage2D(m_target, i, m_internal_format, width, height, 0, m_format, m_type, NULL));
+
+					width = std::max(1, (width / 2));
+					height = std::max(1, (height / 2));
+				}
 			}
 
-			glBindTexture(m_target, 0);
+			GL_CHECK_ERROR(glBindTexture(m_target, 0));
 		}
 	}
 
@@ -200,23 +332,34 @@ namespace ezGL
 
 	void Texture2D::set_data(int array_index, int mip_level, void* data)
 	{
-		int width = m_width;
-		int height = m_height;
-
-		for (int i = 0; i < mip_level; i++)
+		if (m_num_samples > 1)
 		{
-			width = std::max(1, width / 2);
-			height = std::max(1, (height / 2));
+			DW_LOG_ERROR("OPENGL: Multisampled texture data can only be assigned through Shaders or FBOs");
 		}
-
-		glBindTexture(m_target, m_gl_tex);
-
-		if (m_array_size > 0)
-			glTexImage3D(m_target, mip_level, m_internal_format, width, height, array_index, 0, m_format, m_type, data);
 		else
-			glTexImage2D(m_target, mip_level, m_internal_format, width, height, 0, m_format, m_type, data);
+		{
+			int width = m_width;
+			int height = m_height;
 
-		glBindTexture(m_target, 0);
+			for (int i = 0; i < mip_level; i++)
+			{
+				width = std::max(1, width / 2);
+				height = std::max(1, (height / 2));
+			}
+
+			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+
+			if (m_array_size > 0)
+			{
+				GL_CHECK_ERROR(glTexImage3D(m_target, mip_level, m_internal_format, width, height, array_index, 0, m_format, m_type, data));
+			}
+			else
+			{
+				GL_CHECK_ERROR(glTexImage2D(m_target, mip_level, m_internal_format, width, height, 0, m_format, m_type, data));
+			}
+
+			GL_CHECK_ERROR(glBindTexture(m_target, 0));
+		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -231,13 +374,6 @@ namespace ezGL
 	uint32_t Texture2D::height()
 	{
 		return m_height;
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	uint32_t Texture2D::array_size()
-	{
-		return m_array_size;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -258,13 +394,33 @@ namespace ezGL
 
 	Texture3D::Texture3D(uint32_t w, uint32_t h, uint32_t d, int mip_levels, GLenum internal_format, GLenum format, GLenum type) : Texture()
 	{
-		m_mip_levels = mip_levels;
 		m_internal_format = internal_format;
+		m_array_size = 1;
 		m_format = format;
 		m_type = type;
 		m_width = w;
 		m_height = h;
 		m_depth = d;
+
+		// If mip levels is -1, calculate mip levels
+		if (mip_levels == -1)
+		{
+			m_mip_levels = 1;
+
+			int width = m_width;
+			int height = m_height;
+			int depth = m_depth;
+
+			while (width > 1 && height > 1 && depth > 1)
+			{
+				width = std::max(1, (width / 2));
+				height = std::max(1, (height / 2));
+				depth = std::max(1, (depth / 2));
+				m_mip_levels++;
+			}
+		}
+		else
+			m_mip_levels = mip_levels;
 
 		// Allocate memory for mip levels.
 		m_target = GL_TEXTURE_3D;
@@ -273,25 +429,22 @@ namespace ezGL
 		int height = m_height;
 		int depth = m_depth;
 
-		glBindTexture(m_target, m_gl_tex);
+		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 
 		for (int i = 0; i < m_mip_levels; i++)
 		{
-			glTexImage3D(m_target, i, m_internal_format, width, height, depth, 0, m_format, m_type, NULL);
+			GL_CHECK_ERROR(glTexImage3D(m_target, i, m_internal_format, width, height, depth, 0, m_format, m_type, NULL));
 			width = std::max(1, (width / 2));
 			height = std::max(1, (height / 2));
 			depth = std::max(1, (depth / 2));
 		}
 
-		glBindTexture(m_target, 0);
+		GL_CHECK_ERROR(glBindTexture(m_target, 0));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	Texture3D::~Texture3D()
-	{
-		
-	}
+	Texture3D::~Texture3D() {}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -308,9 +461,9 @@ namespace ezGL
 			depth = std::max(1, (depth / 2));
 		}
 
-		glBindTexture(m_target, m_gl_tex);
-		glTexImage3D(m_target, mip_level, m_internal_format, width, height, depth, 0, m_format, m_type, data);
-		glBindTexture(m_target, 0);
+		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+		GL_CHECK_ERROR(glTexImage3D(m_target, mip_level, m_internal_format, width, height, depth, 0, m_format, m_type, data));
+		GL_CHECK_ERROR(glBindTexture(m_target, 0));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -343,9 +496,86 @@ namespace ezGL
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	TextureCube::TextureCube(std::string path[], bool srgb)
+	TextureCube* TextureCube::create_from_files(std::string path[], bool srgb)
 	{
+		if (dw::utility::file_extension(path[0]) == "hdr")
+		{
+			// Load the first image to determine format and dimensions.
+			std::string tex_path = dw::utility::path_for_resource(path[0]);
 
+			int x, y, n;
+			float* data = stbi_loadf(tex_path.c_str(), &x, &y, &n, 3);
+
+			if (!data)
+				return nullptr;
+
+			GLenum internal_format, format;
+
+			internal_format = GL_RGB32F;
+			format = GL_RGB;
+
+			TextureCube* cube = new TextureCube(x, y, 1, -1, internal_format, format, GL_FLOAT);
+
+			cube->set_data(0, 0, 0, data);
+			stbi_image_free(data);
+
+			for (int i = 1; i < 6; i++)
+			{
+				tex_path = dw::utility::path_for_resource(path[i]);
+				data = stbi_loadf(tex_path.c_str(), &x, &y, &n, 3);
+
+				if (!data)
+					return nullptr;
+
+				cube->set_data(i, 0, 0, data);
+				stbi_image_free(data);
+			}
+
+			return cube;
+		}
+		else
+		{
+			// Load the first image to determine format and dimensions.
+			std::string tex_path = dw::utility::path_for_resource(path[0]);
+
+			int x, y, n;
+			stbi_uc* data = stbi_load(tex_path.c_str(), &x, &y, &n, 3);
+
+			if (!data)
+				return nullptr;
+
+			GLenum internal_format, format;
+
+			if (srgb)
+			{
+				internal_format = GL_SRGB8;
+				format = GL_RGB;
+			}
+			else
+			{
+				internal_format = GL_RGBA8;
+				format = GL_RGB;
+			}
+
+			TextureCube* cube = new TextureCube(x, y, 1, -1, internal_format, format, GL_UNSIGNED_BYTE);
+
+			cube->set_data(0, 0, 0, data);
+			stbi_image_free(data);
+
+			for (int i = 1; i < 6; i++)
+			{
+				tex_path = dw::utility::path_for_resource(path[i]);
+				data = stbi_load(tex_path.c_str(), &x, &y, &n, 3);
+
+				if (!data)
+					return nullptr;
+
+				cube->set_data(i, 0, 0, data);
+				stbi_image_free(data);
+			}
+
+			return cube;
+		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -353,12 +583,29 @@ namespace ezGL
 	TextureCube::TextureCube(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type)
 	{
 		m_array_size = array_size;
-		m_mip_levels = mip_levels;
 		m_internal_format = internal_format;
 		m_format = format;
 		m_type = type;
 		m_width = w;
 		m_height = h;
+
+		// If mip levels is -1, calculate mip levels
+		if (mip_levels == -1)
+		{
+			m_mip_levels = 1;
+
+			int width = m_width;
+			int height = m_height;
+
+			while (width > 1 && height > 1)
+			{
+				width = std::max(1, (width / 2));
+				height = std::max(1, (height / 2));
+				m_mip_levels++;
+			}
+		}
+		else
+			m_mip_levels = mip_levels;
 
 		// Allocate memory for mip levels.
 		if (array_size > 0)
@@ -368,19 +615,16 @@ namespace ezGL
 			int width = m_width;
 			int height = m_height;
 
-			glBindTexture(m_target, m_gl_tex);
+			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 
 			for (int i = 0; i < m_mip_levels; i++)
 			{
-				for (int face = 0; face < 6; face++)
-				{
-					glTexImage3D(m_target, i, m_internal_format, width, height, m_array_size, 0, m_format, m_type, NULL);
-					width = std::max(1, (width / 2));
-					height = std::max(1, (height / 2));
-				}
+				GL_CHECK_ERROR(glTexImage3D(m_target, i, m_internal_format, width, height, m_array_size * 6, 0, m_format, m_type, NULL));
+				width = std::max(1, (width / 2));
+				height = std::max(1, (height / 2));
 			}
 
-			glBindTexture(m_target, 0);
+			GL_CHECK_ERROR(glBindTexture(m_target, 0));
 		}
 		else
 		{
@@ -389,19 +633,20 @@ namespace ezGL
 			int width = m_width;
 			int height = m_height;
 
-			glBindTexture(m_target, m_gl_tex);
+			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 
 			for (int i = 0; i < m_mip_levels; i++)
 			{
-				for (int face = 0; face < 6; face++) 
+				for (int face = 0; face < 6; face++)
 				{
-					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, i, m_internal_format, width, height, 0, m_format, m_type, NULL);
+					GL_CHECK_ERROR(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, i, m_internal_format, width, height, 0, m_format, m_type, NULL));
 				}
+
 				width = std::max(1, (width / 2));
 				height = std::max(1, (height / 2));
 			}
 
-			glBindTexture(m_target, 0);
+			GL_CHECK_ERROR(glBindTexture(m_target, 0));
 		}
 	}
 
@@ -411,9 +656,29 @@ namespace ezGL
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void TextureCube::set_data(int face_index, int mip_level, void* data)
+	void TextureCube::set_data(int face_index, int layer_index, int mip_level, void* data)
 	{
+		int width = m_width;
+		int height = m_height;
 
+		for (int i = 0; i < m_mip_levels; i++)
+		{
+			width = std::max(1, (width / 2));
+			height = std::max(1, (height / 2));
+		}
+
+		if (m_array_size > 0)
+		{
+			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+			GL_CHECK_ERROR(glTexSubImage3D(GL_TEXTURE_CUBE_MAP_ARRAY, mip_level, 0, 0, layer_index * 6 + face_index, width, height, 1, m_format, m_type, data));
+			GL_CHECK_ERROR(glBindTexture(m_target, 0));
+		}
+		else
+		{
+			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+			GL_CHECK_ERROR(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face_index, mip_level, m_internal_format, width, height, 0, m_format, m_type, data));
+			GL_CHECK_ERROR(glBindTexture(m_target, 0));
+		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -432,16 +697,121 @@ namespace ezGL
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	uint32_t TextureCube::array_size()
+	uint32_t TextureCube::mip_levels()
 	{
-		return m_array_size;
+		return m_mip_levels;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	uint32_t TextureCube::mip_levels()
+	Framebuffer::Framebuffer()
 	{
-		return m_mip_levels;
+		GL_CHECK_ERROR(glGenFramebuffers(1, &m_gl_fbo));
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	Framebuffer::~Framebuffer()
+	{
+		GL_CHECK_ERROR(glDeleteFramebuffers(1, &m_gl_fbo));
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Framebuffer::bind()
+	{
+		GL_CHECK_ERROR(glBindFramebuffer(GL_FRAMEBUFFER, m_gl_fbo));
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Framebuffer::unbind()
+	{
+		GL_CHECK_ERROR(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Framebuffer::attach_render_target(uint32_t attachment, Texture* texture, uint32_t layer, uint32_t mip_level)
+	{
+		glBindTexture(texture->target(), texture->id());
+		bind();
+
+		if (texture->array_size() > 1)
+		{
+			GL_CHECK_ERROR(glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment, texture->id(), mip_level, layer));
+		}
+		else
+		{
+			GL_CHECK_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment, texture->target(), texture->id(), mip_level));
+		}
+		
+		GL_CHECK_ERROR(glDrawBuffer(GL_COLOR_ATTACHMENT0 + attachment));
+
+		unbind();
+		glBindTexture(texture->target(), 0);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Framebuffer::attach_render_target(uint32_t attachment, TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level)
+	{
+		glBindTexture(texture->target(), texture->id());
+		bind();
+
+		if (texture->array_size() > 1)
+		{
+			GL_CHECK_ERROR(glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level, layer));
+		}
+		else
+		{
+			GL_CHECK_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level));
+		}
+
+		GL_CHECK_ERROR(glDrawBuffer(GL_COLOR_ATTACHMENT0 + attachment));
+
+		unbind();
+		glBindTexture(texture->target(), 0);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Framebuffer::attach_depth_stencil_target(Texture* texture, uint32_t layer, uint32_t mip_level)
+	{
+		glBindTexture(texture->target(), texture->id());
+		bind();
+
+		if (texture->array_size() > 1)
+		{
+			GL_CHECK_ERROR(glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, texture->id(), mip_level, layer));
+		}
+		else
+		{
+			GL_CHECK_ERROR(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, texture->id(), mip_level));
+		}
+
+		unbind();
+		glBindTexture(texture->target(), 0);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Framebuffer::attach_depth_stencil_target(TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level)
+	{
+		glBindTexture(texture->target(), texture->id());
+		bind();
+
+		if (texture->array_size() > 1)
+		{
+			GL_CHECK_ERROR(glFramebufferTexture3D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level, layer));
+		}
+		else
+		{
+			GL_CHECK_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level));
+		}
+
+		unbind();
+		glBindTexture(texture->target(), 0);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -1048,4 +1418,4 @@ namespace ezGL
 #endif
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
-}
+} // namespace dw

@@ -117,6 +117,17 @@ namespace dw
 			return path;
 		}
 
+		// -----------------------------------------------------------------------------------------------------------------------------------
+
+		std::string file_extension(std::string filepath)
+		{
+			std::size_t found = filepath.find_last_of(".");
+			std::string ext = filepath.substr(found, filepath.size());
+			return ext;
+		}
+
+		// -----------------------------------------------------------------------------------------------------------------------------------
+
 		bool read_text(std::string path, std::string& out)
 		{
 			std::ifstream file;

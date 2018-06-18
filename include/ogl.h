@@ -50,6 +50,12 @@ namespace ezGL
         void unbind(uint32_t unit);
 
 		void generate_mipmaps();
+
+		GLuint id();
+
+		GLenum target();
+
+		uint32_t array_size();
         
     protected:
         GLuint m_gl_tex;
@@ -57,6 +63,7 @@ namespace ezGL
 		GLenum m_internal_format;
 		GLenum m_format; 
 		GLenum m_type;
+		uint32_t m_array_size;
     };
  
 #if !defined(__EMSCRIPTEN__)
@@ -67,12 +74,10 @@ namespace ezGL
 		~Texture1D();
 		void set_data(int array_index, int mip_level, void* data);
 		uint32_t width();
-		uint32_t array_size();
 		uint32_t mip_levels();
 
 	private:
 		uint32_t m_width;
-		uint32_t m_array_size;
 		uint32_t m_mip_levels;
 		
     };
@@ -81,20 +86,18 @@ namespace ezGL
     class Texture2D : public Texture
     {
     public:
-		Texture2D(std::string path, bool srgb = true);
+		static Texture2D* create_from_files(std::string path, bool srgb = true);
         Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, uint32_t num_samples, GLenum internal_format, GLenum format, GLenum type);
         ~Texture2D();
 		void set_data(int array_index, int mip_level, void* data);
         uint32_t width();
         uint32_t height();
-		uint32_t array_size();
 		uint32_t mip_levels();
 		uint32_t num_samples();
 
 	private:
 		uint32_t m_width;
 		uint32_t m_height;
-		uint32_t m_array_size;
 		uint32_t m_mip_levels;
 		uint32_t m_num_samples;
     };
@@ -120,32 +123,35 @@ namespace ezGL
     class TextureCube : public Texture
     {
 	public:
-		TextureCube(std::string path[], bool srgb = true);
+		static TextureCube* create_from_files(std::string path[], bool srgb = true);
 		TextureCube(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type);
 		~TextureCube();
-		void set_data(int face_index, int mip_level, void* data);
+		void set_data(int face_index, int layer_index, int mip_level, void* data);
 		uint32_t width();
 		uint32_t height();
-		uint32_t array_size();
 		uint32_t mip_levels();
 
 	private:
 		uint32_t m_width;
 		uint32_t m_height;
-		uint32_t m_array_size;
 		uint32_t m_mip_levels;
     };
     
     class Framebuffer
     {
     public:
-        Framebuffer(int count, Texture* render_targets[], Texture* depth_target);
+        Framebuffer();
         ~Framebuffer();
 		void bind();
 		void unbind();
-        
+		void attach_render_target(uint32_t attachment, Texture* texture, uint32_t layer, uint32_t mip_level);
+		void attach_render_target(uint32_t attachment, TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level);
+		void attach_depth_stencil_target(Texture* texture, uint32_t layer, uint32_t mip_level);
+		void attach_depth_stencil_target(TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level);
+
     private:
         GLuint m_gl_fbo;
+		GLuint m_draw_buffers[16];
     };
     
     class Shader
