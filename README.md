@@ -3,21 +3,17 @@
 [![License: MIT](https://img.shields.io/packagist/l/doctrine/orm.svg)](https://opensource.org/licenses/MIT)
 
 ## What is it?
-A simple C++ framework for implementing graphics technique samples.
+A simple C++ framework for implementing graphics technique samples using OpenGL.
 
 ## Features
 * Cross-platform
+* Wrapper classes for common OpenGL objects (Textures, Shaders, Buffers, etc)
 * Mesh loading
 * Texture loading
 * Input
 * Debug drawing
 * ImGui integration
 * Camera class
-* Configuration via JSON
-* [Terminus-GFX](https://github.com/diharaw/Terminus-GFX) for graphics API abstraction
-
-### Note
-Using Terminus-GFX is **completely** optional. You can use raw OpenGL or any other graphics API instead.
 
 ## What it looks like
 Creating a project using dwSampleFramework is as easy as inheriting from the dw::Application class and overriding the methods you need.
@@ -72,10 +68,8 @@ target_link_libraries(TARGET_NAME dwSampleFramework)
 Note: If you wish to use dwSampleFramework as a precompiled library, make sure you copy the generated Assimp config.h file to your Assimp include directory.
 
 ## Dependencies
-* [Terminus-GFX](https://github.com/diharaw/Terminus-GFX) 
 * [GLFW](https://github.com/glfw/glfw) 
 * [Assimp](https://github.com/assimp/assimp) 
-* [json](https://github.com/nlohmann/json) 
 * [glm](https://github.com/g-truc/glm) 
 * [imgui](https://github.com/ocornut/imgui) 
 * [stb](https://github.com/nothings/stb) 
