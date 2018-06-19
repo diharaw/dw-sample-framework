@@ -4,22 +4,11 @@
 #include <gtc/type_ptr.hpp>
 #include <macros.h>
 #include <vector>
+#include <memory>
+#include <ogl.h>
 
 // Hard-limit of vertices. Used to reserve space in vertex and draw command vectors. 
 #define MAX_VERTICES 100000
-
-// Forward declarations
-class RenderDevice;
-struct Framebuffer;
-struct VertexArray;
-struct VertexBuffer;
-struct InputLayout;
-struct Shader;
-struct ShaderProgram;
-struct UniformBuffer;
-struct RenderDevice;
-struct RasterizerState;
-struct DepthStencilState;
 
 namespace dw
 {
@@ -59,7 +48,7 @@ namespace dw
 		DebugDraw();
 
 		// Initialization and shutdown.
-		bool init(RenderDevice* _device);
+		bool init();
 		void shutdown();
 
 		// Debug shape drawing.
@@ -89,18 +78,12 @@ namespace dw
 		// Camera matrix.
 		CameraUniforms m_uniforms;
 
-		// Pointer to RenderDevice instance to use for drawing and shutdown.
-		RenderDevice* m_device;
-
 		// GPU resources.
-		VertexArray* m_line_vao;
-		VertexBuffer* m_line_vbo;
-		InputLayout* m_line_il;
-		Shader* m_line_vs;
-		Shader* m_line_fs;
-		ShaderProgram* m_line_program;
-		UniformBuffer* m_ubo;
-		RasterizerState* m_rs;
-		DepthStencilState* m_ds;
+		std::unique_ptr<VertexArray> m_line_vao;
+		std::unique_ptr<VertexBuffer> m_line_vbo;
+		std::unique_ptr<Shader> m_line_vs;
+		std::unique_ptr<Shader> m_line_fs;
+		std::unique_ptr<Program> m_line_program;
+		std::unique_ptr<UniformBuffer> m_ubo;
 	};
 } // namespace dw

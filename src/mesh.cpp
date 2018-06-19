@@ -1,6 +1,5 @@
 #include <mesh.h>
 #include <macros.h>
-#include <render_device.h>
 #include <material.h>
 #include <logger.h>
 #include <stdio.h>
@@ -53,13 +52,13 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	Mesh* Mesh::load(const std::string& path, RenderDevice* device, bool load_materials)
+	Mesh* Mesh::load(const std::string& path, bool load_materials)
 	{
 		if (m_cache.find(path) == m_cache.end())
 		{
 			DW_LOG_INFO("Mesh Asset not in cache. Loading from disk.");
 
-			Mesh* mesh = new Mesh(path, device, load_materials);
+			Mesh* mesh = new Mesh(path, load_materials);
 			m_cache[path] = mesh;
 			return mesh;
 		}
@@ -143,7 +142,7 @@ namespace dw
 
 					if (has_least_one_texture)
 					{
-						m_sub_meshes[i].mat = Material::load(current_mat_name, &material_paths[0], m_device);
+						m_sub_meshes[i].mat = Material::load(current_mat_name, &material_paths[0]);
 						mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
 					}
 
@@ -249,57 +248,29 @@ namespace dw
 	void Mesh::create_gpu_objects()
 	{
 		// Create vertex buffer.
-		BufferCreateDesc bc;
-		DW_ZERO_MEMORY(bc);
-		bc.data = m_vertices;
-		bc.data_type = DataType::FLOAT;
-		bc.size = sizeof(Vertex) * m_vertex_count;
-		bc.usage_type = BufferUsageType::STATIC;
-
-		m_vbo = m_device->create_vertex_buffer(bc);
+        m_vbo = std::make_unique<VertexBuffer>(GL_STATIC_DRAW, sizeof(Vertex) * m_vertex_count, m_vertices);
 
 		if (!m_vbo)
 			DW_LOG_ERROR("Failed to create Vertex Buffer");
 
 		// Create index buffer.
-		DW_ZERO_MEMORY(bc);
-		bc.data = m_indices;
-		bc.data_type = DataType::UINT32;
-		bc.size = sizeof(uint32_t) * m_index_count;
-		bc.usage_type = BufferUsageType::STATIC;
-
-		m_ibo = m_device->create_index_buffer(bc);
+		m_ibo = std::make_unique<IndexBuffer>(GL_STATIC_DRAW, sizeof(uint32_t) * m_index_count, m_indices);
 
 		if (!m_ibo)
 			DW_LOG_ERROR("Failed to create Index Buffer");
-
+        
 		// Declare vertex attributes.
-		InputElement elements[] =
+		VertexAttrib attribs[] =
 		{
-			{ 3, DataType::FLOAT, false, 0, "POSITION" },
-			{ 2, DataType::FLOAT, false, offsetof(Vertex, tex_coord), "TEXCOORD" },
-			{ 3, DataType::FLOAT, false, offsetof(Vertex, normal), "NORMAL" },
-			{ 3, DataType::FLOAT, false, offsetof(Vertex, tangent), "TANGENT" },
-			{ 3, DataType::FLOAT, false, offsetof(Vertex, bitangent), "BITANGENT" }
+			{ 3, GL_FLOAT, false, 0 },
+			{ 2, GL_FLOAT, false, offsetof(Vertex, tex_coord) },
+			{ 3, GL_FLOAT, false, offsetof(Vertex, normal) },
+			{ 3, GL_FLOAT, false, offsetof(Vertex, tangent) },
+			{ 3, GL_FLOAT, false, offsetof(Vertex, bitangent) }
 		};
 
-		// Create input layout.
-		InputLayoutCreateDesc ilcd;
-		DW_ZERO_MEMORY(ilcd);
-		ilcd.elements = elements;
-		ilcd.num_elements = 4;
-		ilcd.vertex_size = sizeof(Vertex);
-
-		m_il = m_device->create_input_layout(ilcd);
-
 		// Create vertex array.
-		VertexArrayCreateDesc vcd;
-		DW_ZERO_MEMORY(vcd);
-		vcd.index_buffer = m_ibo;
-		vcd.vertex_buffer = m_vbo;
-		vcd.layout = m_il;
-
-		m_vao = m_device->create_vertex_array(vcd);
+        m_vao = std::make_unique<VertexArray>(m_vbo.get(), m_ibo.get(), sizeof(Vertex), 5, attribs);
 
 		if (!m_vao)
 			DW_LOG_ERROR("Failed to create Vertex Array");
@@ -307,7 +278,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	Mesh::Mesh(const std::string& path, RenderDevice* device, bool load_materials) : m_device(device)
+	Mesh::Mesh(const std::string& path, bool load_materials)
 	{
 		load_from_disk(path, load_materials);
 		create_gpu_objects();
@@ -317,15 +288,6 @@ namespace dw
 
 	Mesh::~Mesh()
 	{
-		// Free GPU resources.
-		if (m_device)
-		{
-			DW_SAFE_DELETE(m_il);
-			m_device->destroy(m_vao);
-			m_device->destroy(m_vbo);
-			m_device->destroy(m_ibo);
-		}
-
 		// Unload submesh materials.
 		for (uint32_t i = 0; i < m_sub_mesh_count; i++)
 		{

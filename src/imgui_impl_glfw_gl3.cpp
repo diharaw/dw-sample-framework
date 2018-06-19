@@ -47,7 +47,7 @@
     #define GLFW_INCLUDE_ES3
 	#include <GLFW/glfw3.h>
 #else
-	#include <gl/gl_core_4_5.h>
+	#include <glad.h>
     #include <GLFW/glfw3.h>
 #endif
 

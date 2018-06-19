@@ -1,5 +1,7 @@
-#include <gl/gl_core_4_5.h>
-//#include <glad.h>
+#pragma once
+
+//#include <gl/gl_core_4_5.h>
+#include <glad.h>
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -34,7 +36,7 @@ err = glGetError();																				  \
 #define GL_CHECK_ERROR(x)	x
 #endif
 
-namespace ezGL
+namespace dw
 {
 	// Texture base class.
     class Texture
@@ -45,17 +47,26 @@ namespace ezGL
 
 		// Bind texture to specified texture unit i.e GL_TEXTURE<unit>.
         void bind(uint32_t unit);
-
-		// Unbind the whatever texture was bound to the specified texture unit.
         void unbind(uint32_t unit);
-
+        
+        // Binding to image units.
+        void bind_image(uint32_t unit, uint32_t mip_level, uint32_t layer, GLenum access, GLenum format);
+        
+        // Mipmap generation.
 		void generate_mipmaps();
-
+        
+        // Getters.
 		GLuint id();
-
 		GLenum target();
-
 		uint32_t array_size();
+        
+        // Texture sampler functions.
+        void set_wrapping(GLenum s, GLenum t, GLenum r);
+        void set_border_color(float r, float g, float b, float a);
+        void set_min_filter(GLenum filter);
+        void set_mag_filter(GLenum filter);
+		void set_compare_mode(GLenum mode);
+		void set_compare_func(GLenum func);
         
     protected:
         GLuint m_gl_tex;
@@ -144,14 +155,21 @@ namespace ezGL
         ~Framebuffer();
 		void bind();
 		void unbind();
-		void attach_render_target(uint32_t attachment, Texture* texture, uint32_t layer, uint32_t mip_level);
-		void attach_render_target(uint32_t attachment, TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level);
+
+		// Attach entire texture or entire layer of a layered texture as a render target.
+		void attach_render_target(uint32_t attachment, Texture* texture, uint32_t layer, uint32_t mip_level, bool draw = true, bool read = true);
+
+		// Attach a given face from a cubemap or a specific layer of a cubemap array as a render target.
+		void attach_render_target(uint32_t attachment, TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level, bool draw = true, bool read = true);
+
+		// Attach entire texture or entire layer of a layered texture as a depth stencil target.
 		void attach_depth_stencil_target(Texture* texture, uint32_t layer, uint32_t mip_level);
+
+		// Attach a given face from a cubemap or a specific layer of a cubemap array as a depth stencil target.
 		void attach_depth_stencil_target(TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level);
 
     private:
         GLuint m_gl_fbo;
-		GLuint m_draw_buffers[16];
     };
     
     class Shader
@@ -159,7 +177,9 @@ namespace ezGL
         friend class Program;
         
     public:
-        Shader(GLenum type, std::string path);
+        static Shader* create_from_file(GLenum type, std::string path);
+        
+        Shader(GLenum type, std::string source);
         ~Shader();
         GLenum type();
         
@@ -196,34 +216,61 @@ namespace ezGL
         GLuint m_gl_program;
 		std::unordered_map<std::string, GLuint> m_location_map;
     };
-    
-    class VertexBuffer
-    {
-        friend class VertexArray;
-        
-    public:
-		VertexBuffer(GLenum usage, size_t size, void* data);
-        ~VertexBuffer();
-        void bind();
-        void unbind();
-        
-    private:
-        GLuint m_gl_vbo;
-    };
-    
-    class IndexBuffer
-    {
-        friend class VAO;
 
+	class Buffer
+	{
+	public:
+		Buffer(GLenum type, GLenum usage, size_t size, void* data);
+		virtual ~Buffer();
+		void bind();
+		void bind_base(int index);
+		void bind_range(int index, size_t offset, size_t size);
+		void unbind();
+		void* map(GLenum access);
+		void* map_range(GLenum access, size_t offset, size_t size);
+		void unmap();
+		void set_data(size_t offset, size_t size, void* data);
+
+	protected:
+		GLenum m_type;
+		GLuint m_gl_buffer;
+		size_t m_size;
+#if defined(__EMSCRIPTEN__)
+		void* m_staging;
+		size_t m_mapped_size;
+		size_t m_mapped_offset;
+#endif
+	};
+    
+    class VertexBuffer : public Buffer
+    {
     public:
-		IndexBuffer(GLenum usage, size_t size, void* data);
-        ~IndexBuffer();
-        void bind();
-        void unbind();
-        
-    private:
-        GLuint m_gl_ibo;
+		VertexBuffer(GLenum usage, size_t size, void* data = nullptr);
+        ~VertexBuffer();
     };
+    
+    class IndexBuffer : public Buffer
+    {
+    public:
+		IndexBuffer(GLenum usage, size_t size, void* data = nullptr);
+        ~IndexBuffer();
+    };
+
+	class UniformBuffer : public Buffer
+	{
+	public:
+		UniformBuffer(GLenum usage, size_t size, void* data = nullptr);
+		~UniformBuffer();
+	};
+
+#if !defined(__EMSCRIPTEN__)
+	class ShaderStorageBuffer : public Buffer
+	{
+	public:
+		ShaderStorageBuffer(GLenum usage, size_t size, void* data = nullptr);
+		~ShaderStorageBuffer();
+	};
+#endif
 
 	struct VertexAttrib
 	{
@@ -236,7 +283,7 @@ namespace ezGL
     class VertexArray
     {
     public:
-		VertexArray(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib* attribs);
+		VertexArray(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[]);
         ~VertexArray();
 		void bind();
 		void unbind();
@@ -244,47 +291,4 @@ namespace ezGL
     private:
         GLuint m_gl_vao;
     };
-    
-    class UniformBuffer
-    {
-    public:
-		UniformBuffer(GLenum usage, GLenum type, size_t size, void* data = nullptr);
-        ~UniformBuffer();
-        void bind_base(int index);
-		void bind_range(int index, size_t offset, size_t size);
-        void unbind();
-        void* map(GLenum access);
-		void* map_range(GLenum access, size_t offset, size_t size);
-        void unmap();
-        void set_data(size_t offset, size_t size, void* data);
-        
-    private:
-        GLuint m_gl_ubo;
-		size_t m_size;
-#if defined(__EMSCRIPTEN__)
-		void* m_staging;
-		size_t m_mapped_size;
-		size_t m_mapped_offset;
-#endif
-    };
-    
-#if !defined(__EMSCRIPTEN__)
-	class ShaderStorageBuffer
-	{
-	public:
-		ShaderStorageBuffer(GLenum usage, GLenum type, size_t size, void* data = nullptr);
-		~ShaderStorageBuffer();
-		void bind_base(int index);
-		void bind_range(int index, size_t offset, size_t size);
-		void unbind();
-		void* map(GLenum access);
-		void* map_range(GLenum access, size_t offset, size_t size);
-		void unmap();
-		void set_data(size_t offset, size_t size, void* data);
-
-	private:
-		GLuint m_gl_ssbo;
-		size_t m_size;
-	};
-#endif
 }

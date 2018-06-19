@@ -1,7 +1,6 @@
 #include <application.h>
 #include <iostream>
 #include <imgui_impl_glfw_gl3.h>
-#include <json.hpp>
 
 #include "utility.h"
 
@@ -68,14 +67,16 @@ namespace dw
         std::string config;
         
         // Defaults
-        bool resizable = true;
-        bool maximized = false;
-        int refresh_rate = 60;
-        int major_ver = 4;
-		m_width = 800;
-		m_height = 600;
-		m_title = "dwSampleFramwork";
+		AppSettings settings = intial_app_settings();
+
+        bool resizable = settings.resizable;
+        bool maximized = settings.maximized;
+        int refresh_rate = settings.refresh_rate;
+		m_width = settings.width;
+		m_height = settings.height;
+		m_title = settings.title;
         
+		int major_ver = 4;
 #if defined(__APPLE__)
         int minor_ver = 1;
 #elif defined(__EMSCRIPTEN__)
@@ -84,26 +85,7 @@ namespace dw
 #else
         int minor_ver = 3;
 #endif
-        
-        if (utility::read_text(utility::path_for_resource("config.json"), config))
-        {
-            DW_LOG_INFO("Loading configuration from json...");
-            
-            nlohmann::json json = nlohmann::json::parse(config.c_str());
-            
-            m_width = json["width"];
-            m_height = json["height"];
-            std::string title = json["title"];
-            m_title = title;
-            resizable = json["resizable"];
-            maximized = json["maximized"];
-            refresh_rate = json["refresh_rate"];
-        }
-        else
-        {
-            DW_LOG_WARNING("Failed to open config.json. Using default configuration...");
-        }
-        
+       
         if (glfwInit() != GLFW_TRUE)
         {
             DW_LOG_FATAL("Failed to initialize GLFW");
@@ -142,7 +124,10 @@ namespace dw
         glfwMakeContextCurrent(m_window);
         
         DW_LOG_INFO("Successfully initialized platform!");
-        
+
+		if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+			return false;
+	
 		ImGui::CreateContext();
         ImGui_ImplGlfwGL3_Init(m_window, false);
 		ImGui::StyleColorsDark();
@@ -152,10 +137,7 @@ namespace dw
         m_width = display_w;
         m_height = display_h;
 
-		if (!m_device.init())
-			return false;
-
-		if (!m_debug_draw.init(&m_device))
+		if (!m_debug_draw.init())
 			return false;
         
         if(!init(argc, argv))
@@ -237,6 +219,13 @@ namespace dw
     {
         return glfwWindowShouldClose(m_window);
     }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	AppSettings Application::intial_app_settings()
+	{
+		return AppSettings();
+	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
     

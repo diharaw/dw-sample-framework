@@ -1,5 +1,4 @@
 #include <debug_draw.h>
-#include <render_device.h>
 #include <logger.h>
 #include <utility.h>
 
@@ -54,13 +53,11 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	bool DebugDraw::init(RenderDevice* _device)
+	bool DebugDraw::init()
 	{
-		m_device = _device;
-
 		// Create shaders
-		m_line_vs = m_device->create_shader(g_vs_src, ShaderType::VERTEX);
-		m_line_fs = m_device->create_shader(g_fs_src, ShaderType::FRAGMENT);
+		m_line_vs = std::make_unique<Shader>(GL_VERTEX_SHADER, g_vs_src);
+		m_line_fs = std::make_unique<Shader>(GL_FRAGMENT_SHADER, g_fs_src);
 
 		if (!m_line_vs || !m_line_fs)
 		{
@@ -69,44 +66,25 @@ namespace dw
 		}
 
 		// Create shader program
-		Shader* shaders[] = { m_line_vs, m_line_fs };
-		m_line_program = m_device->create_shader_program(shaders, 2);
+		Shader* shaders[] = { m_line_vs.get(), m_line_fs.get() };
+		m_line_program = std::make_unique<Program>(2, shaders);
+
+		// Bind uniform block index
+		m_line_program->uniform_block_binding("CameraUniforms", 0);
 
 		// Create vertex buffer
-		BufferCreateDesc bc;
-		DW_ZERO_MEMORY(bc);
-		bc.data = nullptr;
-		bc.data_type = DataType::FLOAT;
-		bc.size = sizeof(VertexWorld) * MAX_VERTICES;
-		bc.usage_type = BufferUsageType::DYNAMIC;
-
-		m_line_vbo = m_device->create_vertex_buffer(bc);
+		m_line_vbo = std::make_unique<VertexBuffer>(GL_DYNAMIC_DRAW, sizeof(VertexWorld) * MAX_VERTICES);
 
 		// Declare vertex attributes
-		InputElement elements[] =
+		VertexAttrib attribs[] =
 		{
-			{ 3, DataType::FLOAT, false, 0, "POSITION" },
-			{ 2, DataType::FLOAT, false, sizeof(float) * 3, "TEXCOORD" },
-			{ 3, DataType::FLOAT, false, sizeof(float) * 5, "COLOR" }
+			{ 3, GL_FLOAT, false, 0 },
+			{ 2, GL_FLOAT, false, sizeof(float) * 3 },
+			{ 3, GL_FLOAT, false, sizeof(float) * 5 }
 		};
 
-		// Create input layout
-		InputLayoutCreateDesc ilcd;
-		DW_ZERO_MEMORY(ilcd);
-		ilcd.elements = elements;
-		ilcd.num_elements = 3;
-		ilcd.vertex_size = sizeof(float) * 8;
-
-		m_line_il = m_device->create_input_layout(ilcd);
-
 		// Create vertex array
-		VertexArrayCreateDesc vcd;
-		DW_ZERO_MEMORY(vcd);
-		vcd.index_buffer = nullptr;
-		vcd.vertex_buffer = m_line_vbo;
-		vcd.layout = m_line_il;
-
-		m_line_vao = m_device->create_vertex_array(vcd);
+		m_line_vao = std::make_unique<VertexArray>(m_line_vbo.get(), nullptr, sizeof(float) * 8, 3, attribs);
 
 		if (!m_line_vao || !m_line_vbo)
 		{
@@ -114,36 +92,8 @@ namespace dw
 			return false;
 		}
 
-		// Create rasterizer state
-		RasterizerStateCreateDesc rs_desc;
-		DW_ZERO_MEMORY(rs_desc);
-		rs_desc.cull_mode = CullMode::NONE;
-		rs_desc.fill_mode = FillMode::SOLID;
-		rs_desc.front_winding_ccw = true;
-		rs_desc.multisample = true;
-		rs_desc.scissor = false;
-
-		m_rs = m_device->create_rasterizer_state(rs_desc);
-
-		// Create depth stencil state
-		DepthStencilStateCreateDesc ds_desc;
-		DW_ZERO_MEMORY(ds_desc);
-		ds_desc.depth_mask = true;
-		ds_desc.enable_depth_test = false;
-		ds_desc.enable_stencil_test = false;
-		ds_desc.depth_cmp_func = ComparisonFunction::LESS_EQUAL;
-
-		m_ds = m_device->create_depth_stencil_state(ds_desc);
-
 		// Create uniform buffer for matrix data
-		BufferCreateDesc uboDesc;
-		DW_ZERO_MEMORY(uboDesc);
-		uboDesc.data = nullptr;
-		uboDesc.data_type = DataType::FLOAT;
-		uboDesc.size = sizeof(CameraUniforms);
-		uboDesc.usage_type = BufferUsageType::DYNAMIC;
-
-		m_ubo = m_device->create_uniform_buffer(uboDesc);
+		m_ubo = std::make_unique<UniformBuffer>(GL_DYNAMIC_DRAW, sizeof(CameraUniforms));
 
 		return true;
 	}
@@ -152,15 +102,6 @@ namespace dw
 
 	void DebugDraw::shutdown()
 	{
-		// Destroy GPU resources
-		m_device->destroy(m_ubo);
-		m_device->destroy(m_line_program);
-		m_device->destroy(m_line_vs);
-		m_device->destroy(m_line_fs);
-		m_device->destroy(m_line_vbo);
-		m_device->destroy(m_line_vao);
-		m_device->destroy(m_ds);
-		m_device->destroy(m_rs);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -315,7 +256,7 @@ namespace dw
 			m_world_vertices.push_back(vw1);
 
 			DrawCommand cmd;
-			cmd.type = PrimitiveType::LINES;
+			cmd.type = GL_LINES;
 			cmd.vertices = 2;
 
 			m_draw_commands.push_back(cmd);
@@ -336,7 +277,7 @@ namespace dw
 		}
 
 		DrawCommand cmd;
-		cmd.type = PrimitiveType::LINE_STRIP;
+		cmd.type = GL_LINE_STRIP;
 		cmd.vertices = count;
 
 		m_draw_commands.push_back(cmd);
@@ -490,39 +431,55 @@ namespace dw
 		{
 			m_uniforms.view_proj = view_proj;
 
-			void* ptr = m_device->map_buffer(m_line_vbo, BufferMapType::WRITE);
+			void* ptr = m_line_vbo->map(GL_WRITE_ONLY);
 
 			if (m_world_vertices.size() > MAX_VERTICES)
 				DW_LOG_ERROR("Vertex count above allowed limit!");
 			else
 				memcpy(ptr, &m_world_vertices[0], sizeof(VertexWorld) * m_world_vertices.size());
 
-			m_device->unmap_buffer(m_line_vbo);
+			m_line_vbo->unmap();
 
-			ptr = m_device->map_buffer(m_ubo, BufferMapType::WRITE);
+			ptr = m_ubo->map(GL_WRITE_ONLY);
 			memcpy(ptr, &m_uniforms, sizeof(CameraUniforms));
-			m_device->unmap_buffer(m_ubo);
+			m_ubo->unmap();
 
-			m_device->bind_rasterizer_state(m_rs);
-			m_device->bind_depth_stencil_state(m_ds);
-			m_device->bind_framebuffer(fbo);
-			m_device->set_viewport(width, height, 0, 0);
-			m_device->bind_shader_program(m_line_program);
-			m_device->bind_uniform_buffer(m_ubo, ShaderType::VERTEX, 0);
-			m_device->bind_vertex_array(m_line_vao);
+			// Get previous state
+			GLboolean last_enable_cull_face = glIsEnabled(GL_CULL_FACE);
+			GLboolean last_enable_depth_test = glIsEnabled(GL_DEPTH_TEST);
+
+			// Set initial state
+			glDisable(GL_DEPTH_TEST);
+			glDisable(GL_CULL_FACE);
+
+			if (fbo)
+				fbo->bind();
+			else
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			glViewport(0, 0, width, height);
+			m_line_program->use();
+			m_ubo->bind_base(0);
+			m_line_vao->bind();
 
 			int v = 0;
 
 			for (int i = 0; i < m_draw_commands.size(); i++)
 			{
 				DrawCommand& cmd = m_draw_commands[i];
-				m_device->set_primitive_type(cmd.type);
-				m_device->draw(v, cmd.vertices);
+				glDrawArrays(cmd.type, v, cmd.vertices);
 				v += cmd.vertices;
 			}
 
 			m_draw_commands.clear();
 			m_world_vertices.clear();
+
+			// Restore state
+			if (last_enable_cull_face)
+				glEnable(GL_CULL_FACE);
+
+			if (last_enable_depth_test)
+				glEnable(GL_DEPTH_TEST);
 		}
 	}
 

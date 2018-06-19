@@ -1,6 +1,5 @@
 #pragma once
 
-#include <render_device.h>
 #include <debug_draw.h>
 #include <stdint.h>
 #include <array>
@@ -29,6 +28,18 @@ int main(int argc, const char* argv[]) \
 
 namespace dw
 {
+	struct AppSettings
+	{
+		bool resizable = true;
+		bool maximized = false;
+		int refresh_rate = 60;
+		int major_ver = 4;
+		int width = 800;
+		int height = 600;
+		std::string title = "dwSampleFramwork";
+	};
+
+
     class Application
     {
     public:
@@ -54,6 +65,9 @@ namespace dw
         static void window_size_callback_glfw(GLFWwindow* window, int width, int height);
         
     protected:
+		// Intial app settings. Override this to set defaults.
+		virtual AppSettings intial_app_settings();
+
 		// Window event callbacks. Override these!
 		virtual void window_resized(int width, int height);
 		virtual void key_pressed(int code);
@@ -97,7 +111,6 @@ namespace dw
         std::array<bool, MAX_MOUSE_BUTTONS> m_mouse_buttons;
         GLFWwindow*                         m_window;
         Timer                               m_timer;
-		RenderDevice						m_device;
 		DebugDraw							m_debug_draw;
     };
 }

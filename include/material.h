@@ -3,10 +3,8 @@
 #include <unordered_map>
 #include <string>
 #include <glm.hpp>
-
-// Forward declarations.
-struct Texture2D;
-class  RenderDevice;
+#include <ogl.h>
+#include <memory>
 
 namespace dw
 {
@@ -14,12 +12,12 @@ namespace dw
 	{
 	public:
 		// Material factory methods.
-		static Material* load(const std::string& name, const std::string* textures, RenderDevice* device);
+		static Material* load(const std::string& name, const std::string* textures);
 		static void unload(Material*& mat);
 
 		// Texture factory methods.
-		static Texture2D* load_texture(const std::string& path, RenderDevice* device, bool srgb = false);
-		static void unload_texture(Texture2D*& tex, RenderDevice* device);
+        static Texture2D* load_texture(const std::string& path, bool srgb = false);
+		static void unload_texture(Texture2D*& tex);
 		
 		// Rendering related getters.
 		inline Texture2D* texture(const uint32_t& index) { return m_textures[index];  }
@@ -27,7 +25,7 @@ namespace dw
 
 	private:
 		// Private constructor and destructor.
-		Material(const std::string& name, const std::string* textures, RenderDevice* device);
+		Material(const std::string& name, const std::string* textures);
 		~Material();
 
 	public:
@@ -42,8 +40,5 @@ namespace dw
 
 		// Texture list. In the same order as the Assimp texture enums.
 		Texture2D* m_textures[16];
-
-		// Cached RenderDevice pointer for cleaning up GPU resources.
-		RenderDevice* m_device = nullptr;
 	};
 } // namespace dw

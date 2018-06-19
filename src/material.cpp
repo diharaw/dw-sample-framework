@@ -1,10 +1,7 @@
-#include <render_device.h>
 #include <macros.h>
 #include <material.h>
 #include <utility.h>
 #include <logger.h>
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 
 namespace dw
 {
@@ -13,13 +10,13 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	Material* Material::load(const std::string& name, const std::string* textures, RenderDevice* device)
+	Material* Material::load(const std::string& name, const std::string* textures)
 	{
 		if (m_cache.find(name) == m_cache.end())
 		{
 			DW_LOG_INFO("Material Asset not in cache. Loading from disk.");
 
-			Material* mat = new Material(name, textures, device);
+			Material* mat = new Material(name, textures);
 			m_cache[name] = mat;
 			return mat;
 		}
@@ -32,47 +29,11 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	Texture2D* Material::load_texture(const std::string& path, RenderDevice* device, bool srgb)
+	Texture2D* Material::load_texture(const std::string& path, bool srgb)
 	{
 		if (m_texture_cache.find(path) == m_texture_cache.end())
 		{
-			Texture2DCreateDesc desc;
-			DW_LOG_INFO("Texture Asset not in cache. Loading from disk.");
-
-			std::string texPath = utility::path_for_resource(path);
-	
-			int x, y, n;
-			stbi_uc* data = stbi_load(texPath.c_str(), &x, &y, &n, 0);
-
-			DW_ZERO_MEMORY(desc);
-
-			desc.data = data;
-
-			if (srgb)
-			{
-				if (n == 4)
-					desc.format = TextureFormat::R8G8B8A8_UNORM_SRGB;
-				else if (n == 3)
-					desc.format = TextureFormat::R8G8B8_UNORM_SRGB;
-				else if (n == 1)
-					desc.format = TextureFormat::R8_UNORM;
-			}
-			else
-			{
-				if (n == 4)
-					desc.format = TextureFormat::R8G8B8A8_UNORM;
-				else if (n == 3)
-					desc.format = TextureFormat::R8G8B8_UNORM;
-				else if (n == 1)
-					desc.format = TextureFormat::R8_UNORM;
-			}
-
-			desc.width = x;
-			desc.height = y;
-			desc.mipmap_levels = 10;
-
-			Texture2D* tex = device->create_texture_2d(desc);
-
+            Texture2D* tex = Texture2D::create_from_files(path, srgb);
 			m_texture_cache[path] = tex;
 			return tex;
 		}
@@ -100,14 +61,14 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Material::unload_texture(Texture2D*& tex, RenderDevice* device)
+	void Material::unload_texture(Texture2D*& tex)
 	{
 		for (auto itr : m_texture_cache)
 		{
 			if (itr.second == tex)
 			{
 				m_texture_cache.erase(itr.first);
-				device->destroy(tex);
+                DW_SAFE_DELETE(tex);
 				return;
 			}
 		}
@@ -115,7 +76,7 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	Material::Material(const std::string& name, const std::string* textures, RenderDevice* device) : m_device(device)
+	Material::Material(const std::string& name, const std::string* textures)
 	{
 		for (uint32_t i = 0; i < 16; i++)
 		{
@@ -124,7 +85,7 @@ namespace dw
 			if (!textures[i].empty())
 			{
 				// First index must always be diffuse/albedo, so SRGB is set to true.
-				m_textures[i] = load_texture(textures[i], m_device, i == 0 ? true : false);
+				m_textures[i] = load_texture(textures[i], i == 0 ? true : false);
 			}
 		}
 	}
@@ -136,7 +97,7 @@ namespace dw
 		for (uint32_t i = 0; i < 16; i++)
 		{
 			if (m_textures[i])
-				unload_texture(m_textures[i], m_device);
+				unload_texture(m_textures[i]);
 		}
 	}
 

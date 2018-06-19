@@ -2,9 +2,10 @@
 #include <utility.h>
 #include <logger.h>
 #include <gtc/type_ptr.hpp>
+#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-namespace ezGL
+namespace dw
 {
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -65,6 +66,76 @@ namespace ezGL
 	{
 		return m_array_size;
 	}
+    
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    
+    void Texture::set_wrapping(GLenum s, GLenum t, GLenum r)
+    {
+        GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+        GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_WRAP_S, s));
+        GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_WRAP_T, t));
+        GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_WRAP_R, r));
+        GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    }
+    
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    
+    void Texture::set_border_color(float r, float g, float b, float a)
+    {
+        float border_color[] = { r, g, b, a };
+        GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+        GL_CHECK_ERROR(glTexParameterfv(m_target, GL_TEXTURE_BORDER_COLOR, border_color));
+        GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    }
+    
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    
+    void Texture::set_min_filter(GLenum filter)
+    {
+        GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+        GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_MIN_FILTER, filter));
+        GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    }
+    
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    
+    void Texture::set_mag_filter(GLenum filter)
+    {
+        GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+        GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_MAG_FILTER, filter));
+        GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    }
+    
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    
+    void Texture::bind_image(uint32_t unit, uint32_t mip_level, uint32_t layer, GLenum access, GLenum format)
+    {
+        bind(unit);
+        
+        // GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format
+        if (m_array_size > 1)
+            glBindImageTexture(unit, m_gl_tex, mip_level, GL_TRUE, layer, access, format);
+        else
+            glBindImageTexture(unit, m_gl_tex, mip_level, GL_FALSE, 0, access, format);
+    }
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Texture::set_compare_mode(GLenum mode)
+	{
+		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+		GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_COMPARE_MODE, mode));
+		GL_CHECK_ERROR(glBindTexture(m_target, 0));
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Texture::set_compare_func(GLenum func)
+	{
+		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+		GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_COMPARE_FUNC, func));
+		GL_CHECK_ERROR(glBindTexture(m_target, 0));
+	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -93,7 +164,7 @@ namespace ezGL
 			m_mip_levels = mip_levels;
 
 		// Allocate memory for mip levels.
-		if (array_size > 0)
+		if (array_size > 1)
 		{
 			m_target = GL_TEXTURE_1D_ARRAY;
 
@@ -125,6 +196,11 @@ namespace ezGL
 
 			GL_CHECK_ERROR(glBindTexture(m_target, 0));
 		}
+        
+        // Default sampling options.
+        set_wrapping(GL_REPEAT, GL_REPEAT, GL_REPEAT);
+        set_min_filter(GL_LINEAR_MIPMAP_LINEAR);
+        set_mag_filter(GL_LINEAR);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -142,7 +218,7 @@ namespace ezGL
 
 		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 
-		if (m_array_size > 0)
+		if (m_array_size > 1)
 		{
 			GL_CHECK_ERROR(glTexImage2D(m_target, mip_level, m_internal_format, width, array_index, 0, m_format, m_type, data));
 		}
@@ -172,7 +248,7 @@ namespace ezGL
 
 	Texture2D* Texture2D::create_from_files(std::string path, bool srgb)
 	{
-		std::string tex_path = dw::utility::path_for_resource(path);
+		std::string tex_path = utility::path_for_resource(path);
 
 		int x, y, n;
 		stbi_uc* data = stbi_load(tex_path.c_str(), &x, &y, &n, 0);
@@ -196,7 +272,7 @@ namespace ezGL
 					internal_format = GL_SRGB8_ALPHA8;
 					format = GL_RGBA;
 				}
-				else if (n == 3)
+				else
 				{
 					internal_format = GL_SRGB8;
 					format = GL_RGB;
@@ -209,9 +285,9 @@ namespace ezGL
 					internal_format = GL_RGBA8;
 					format = GL_RGBA;
 				}
-				else if (n == 3)
+				else
 				{
-					internal_format = GL_RGBA8;
+					internal_format = GL_RGB8;
 					format = GL_RGB;
 				}
 			}
@@ -219,6 +295,7 @@ namespace ezGL
 
 		Texture2D* texture = new Texture2D(x, y, 1, -1, 1, internal_format, format, GL_UNSIGNED_BYTE);
 		texture->set_data(0, 0, data);
+        texture->generate_mipmaps();
 
 		stbi_image_free(data);
 
@@ -256,7 +333,7 @@ namespace ezGL
 			m_mip_levels = mip_levels;
 
 		// Allocate memory for mip levels.
-		if (array_size > 0)
+		if (array_size > 1)
 		{
 			if (m_num_samples > 1)
 				m_target = GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
@@ -311,17 +388,22 @@ namespace ezGL
 			}
 			else
 			{
-				for (int i = 0; i < m_mip_levels; i++)
-				{
-					GL_CHECK_ERROR(glTexImage2D(m_target, i, m_internal_format, width, height, 0, m_format, m_type, NULL));
+                for (int i = 0; i < m_mip_levels; i++)
+                {
+                    GL_CHECK_ERROR(glTexImage2D(m_target, i, m_internal_format, width, height, 0, m_format, m_type, NULL));
 
-					width = std::max(1, (width / 2));
-					height = std::max(1, (height / 2));
-				}
+                    width = std::max(1, (width / 2));
+                    height = std::max(1, (height / 2));
+                }
 			}
 
 			GL_CHECK_ERROR(glBindTexture(m_target, 0));
 		}
+        
+        // Default sampling options.
+        set_wrapping(GL_REPEAT, GL_REPEAT, GL_REPEAT);
+        set_min_filter(GL_LINEAR_MIPMAP_LINEAR);
+        set_mag_filter(GL_LINEAR);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -349,7 +431,7 @@ namespace ezGL
 
 			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 
-			if (m_array_size > 0)
+			if (m_array_size > 1)
 			{
 				GL_CHECK_ERROR(glTexImage3D(m_target, mip_level, m_internal_format, width, height, array_index, 0, m_format, m_type, data));
 			}
@@ -440,6 +522,11 @@ namespace ezGL
 		}
 
 		GL_CHECK_ERROR(glBindTexture(m_target, 0));
+        
+        // Default sampling options.
+        set_wrapping(GL_REPEAT, GL_REPEAT, GL_REPEAT);
+        set_min_filter(GL_LINEAR_MIPMAP_LINEAR);
+        set_mag_filter(GL_LINEAR);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -498,10 +585,10 @@ namespace ezGL
 
 	TextureCube* TextureCube::create_from_files(std::string path[], bool srgb)
 	{
-		if (dw::utility::file_extension(path[0]) == "hdr")
+		if (utility::file_extension(path[0]) == "hdr")
 		{
 			// Load the first image to determine format and dimensions.
-			std::string tex_path = dw::utility::path_for_resource(path[0]);
+			std::string tex_path = utility::path_for_resource(path[0]);
 
 			int x, y, n;
 			float* data = stbi_loadf(tex_path.c_str(), &x, &y, &n, 3);
@@ -521,7 +608,7 @@ namespace ezGL
 
 			for (int i = 1; i < 6; i++)
 			{
-				tex_path = dw::utility::path_for_resource(path[i]);
+				tex_path = utility::path_for_resource(path[i]);
 				data = stbi_loadf(tex_path.c_str(), &x, &y, &n, 3);
 
 				if (!data)
@@ -536,7 +623,7 @@ namespace ezGL
 		else
 		{
 			// Load the first image to determine format and dimensions.
-			std::string tex_path = dw::utility::path_for_resource(path[0]);
+			std::string tex_path = utility::path_for_resource(path[0]);
 
 			int x, y, n;
 			stbi_uc* data = stbi_load(tex_path.c_str(), &x, &y, &n, 3);
@@ -564,7 +651,7 @@ namespace ezGL
 
 			for (int i = 1; i < 6; i++)
 			{
-				tex_path = dw::utility::path_for_resource(path[i]);
+				tex_path = utility::path_for_resource(path[i]);
 				data = stbi_load(tex_path.c_str(), &x, &y, &n, 3);
 
 				if (!data)
@@ -608,7 +695,7 @@ namespace ezGL
 			m_mip_levels = mip_levels;
 
 		// Allocate memory for mip levels.
-		if (array_size > 0)
+		if (array_size > 1)
 		{
 			m_target = GL_TEXTURE_CUBE_MAP_ARRAY;
 
@@ -648,6 +735,11 @@ namespace ezGL
 
 			GL_CHECK_ERROR(glBindTexture(m_target, 0));
 		}
+        
+        // Default sampling options.
+        set_wrapping(GL_REPEAT, GL_REPEAT, GL_REPEAT);
+        set_min_filter(GL_LINEAR_MIPMAP_LINEAR);
+        set_mag_filter(GL_LINEAR);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -667,7 +759,7 @@ namespace ezGL
 			height = std::max(1, (height / 2));
 		}
 
-		if (m_array_size > 0)
+		if (m_array_size > 1)
 		{
 			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 			GL_CHECK_ERROR(glTexSubImage3D(GL_TEXTURE_CUBE_MAP_ARRAY, mip_level, 0, 0, layer_index * 6 + face_index, width, height, 1, m_format, m_type, data));
@@ -732,7 +824,7 @@ namespace ezGL
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Framebuffer::attach_render_target(uint32_t attachment, Texture* texture, uint32_t layer, uint32_t mip_level)
+	void Framebuffer::attach_render_target(uint32_t attachment, Texture* texture, uint32_t layer, uint32_t mip_level, bool draw, bool read)
 	{
 		glBindTexture(texture->target(), texture->id());
 		bind();
@@ -746,7 +838,23 @@ namespace ezGL
 			GL_CHECK_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment, texture->target(), texture->id(), mip_level));
 		}
 		
-		GL_CHECK_ERROR(glDrawBuffer(GL_COLOR_ATTACHMENT0 + attachment));
+		if (draw)
+		{
+			GL_CHECK_ERROR(glDrawBuffer(GL_COLOR_ATTACHMENT0 + attachment));
+		}
+		else
+		{
+			GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
+		}
+
+		if (read)
+		{
+			GL_CHECK_ERROR(glReadBuffer(GL_COLOR_ATTACHMENT0 + attachment));
+		}
+		else
+		{
+			GL_CHECK_ERROR(glReadBuffer(GL_NONE));
+		}
 
 		unbind();
 		glBindTexture(texture->target(), 0);
@@ -754,7 +862,7 @@ namespace ezGL
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Framebuffer::attach_render_target(uint32_t attachment, TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level)
+	void Framebuffer::attach_render_target(uint32_t attachment, TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level, bool draw, bool read)
 	{
 		glBindTexture(texture->target(), texture->id());
 		bind();
@@ -768,7 +876,23 @@ namespace ezGL
 			GL_CHECK_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level));
 		}
 
-		GL_CHECK_ERROR(glDrawBuffer(GL_COLOR_ATTACHMENT0 + attachment));
+		if (draw)
+		{
+			GL_CHECK_ERROR(glDrawBuffer(GL_COLOR_ATTACHMENT0 + attachment));
+		}
+		else
+		{
+			GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
+		}
+
+		if (read)
+		{
+			GL_CHECK_ERROR(glReadBuffer(GL_COLOR_ATTACHMENT0 + attachment));
+		}
+		else
+		{
+			GL_CHECK_ERROR(glReadBuffer(GL_NONE));
+		}
 
 		unbind();
 		glBindTexture(texture->target(), 0);
@@ -790,6 +914,9 @@ namespace ezGL
 			GL_CHECK_ERROR(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, texture->id(), mip_level));
 		}
 
+		GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
+		GL_CHECK_ERROR(glReadBuffer(GL_NONE));
+
 		unbind();
 		glBindTexture(texture->target(), 0);
 	}
@@ -810,27 +937,35 @@ namespace ezGL
 			GL_CHECK_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level));
 		}
 
+		GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
+		GL_CHECK_ERROR(glReadBuffer(GL_NONE));
+
 		unbind();
 		glBindTexture(texture->target(), 0);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	Shader::Shader(GLenum type, std::string path) : m_type(type)
+    Shader* Shader::create_from_file(GLenum type, std::string path)
+    {
+        std::string source;
+        
+        if (!utility::read_text(path, source))
+        {
+            DW_LOG_ERROR("Failed to read GLSL shader source: " + path);
+            
+            // Force assertion failure for debug builds.
+            assert(false);
+            
+            return nullptr;
+        }
+        
+        return new Shader(type, source);
+    }
+    
+	Shader::Shader(GLenum type, std::string source) : m_type(type)
 	{
 		GL_CHECK_ERROR(m_gl_shader = glCreateShader(type));
-
-		std::string source;
-
-		if (!dw::utility::read_text(path, source))
-		{
-			DW_LOG_ERROR("Failed to read GLSL shader source: " + path);
-
-			// Force assertion failure for debug builds.
-			assert(false);
-
-			return;
-		}
 
 #if defined(__APPLE__)
 		source = "#version 410 core\n" + std::string(source);
@@ -1107,71 +1242,148 @@ namespace ezGL
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	VertexBuffer::VertexBuffer(GLenum usage, size_t size, void* data)
+	Buffer::Buffer(GLenum type, GLenum usage, size_t size, void* data) : m_type(type), m_size(size)
 	{
-		GL_CHECK_ERROR(glGenBuffers(1, &m_gl_vbo));
+		GL_CHECK_ERROR(glGenBuffers(1, &m_gl_buffer));
 
-		GL_CHECK_ERROR(glBindBuffer(GL_ARRAY_BUFFER, m_gl_vbo));
-		GL_CHECK_ERROR(glBufferData(GL_ARRAY_BUFFER, size, data, usage));
-		GL_CHECK_ERROR(glBindBuffer(GL_ARRAY_BUFFER, 0));
+		GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
+		GL_CHECK_ERROR(glBufferData(m_type, size, data, usage));
+		GL_CHECK_ERROR(glBindBuffer(m_type, 0));
+
+#if defined(__EMSCRIPTEN__)
+		m_staging = malloc(m_size);
+#endif
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	VertexBuffer::~VertexBuffer()
+	Buffer::~Buffer()
 	{
-		glDeleteBuffers(1, &m_gl_vbo);
+#if defined(__EMSCRIPTEN__)
+		free(m_staging);
+#endif
+		glDeleteBuffers(1, &m_gl_buffer);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void VertexBuffer::bind()
+	void Buffer::bind()
 	{
-		glBindBuffer(GL_ARRAY_BUFFER, m_gl_vbo);
+		GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void VertexBuffer::unbind()
+	void Buffer::bind_base(int index)
 	{
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		GL_CHECK_ERROR(glBindBufferBase(m_type, index, m_gl_buffer));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	IndexBuffer::IndexBuffer(GLenum usage, size_t size, void* data)
+	void Buffer::bind_range(int index, size_t offset, size_t size)
 	{
-		GL_CHECK_ERROR(glGenBuffers(1, &m_gl_ibo));
-
-		GL_CHECK_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_gl_ibo));
-		GL_CHECK_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, usage));
-		GL_CHECK_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+		GL_CHECK_ERROR(glBindBufferRange(m_type, index, m_gl_buffer, offset, size));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	IndexBuffer::~IndexBuffer()
+	void Buffer::unbind()
 	{
-		glDeleteBuffers(1, &m_gl_ibo);
+		GL_CHECK_ERROR(glBindBuffer(m_type, 0));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void IndexBuffer::bind()
+	void* Buffer::map(GLenum access)
 	{
-		glBindBuffer(GL_ARRAY_BUFFER, m_gl_ibo);
+#if defined(__EMSCRIPTEN__)
+		return m_staging;
+#else
+		GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
+		GL_CHECK_ERROR(void* ptr = glMapBuffer(m_type, access));
+		GL_CHECK_ERROR(glBindBuffer(m_type, 0));
+		return ptr;
+#endif
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void IndexBuffer::unbind()
+	void* Buffer::map_range(GLenum access, size_t offset, size_t size)
 	{
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
+#if defined(__EMSCRIPTEN__)
+		m_mapped_size = size;
+		m_mapped_offset = offset;
+		return static_cast<char*>(m_staging) + offset;
+#else
+		GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
+		GL_CHECK_ERROR(void* ptr = glMapBufferRange(m_type, offset, size, access));
+		GL_CHECK_ERROR(glBindBuffer(m_type, 0));
+		return ptr;
+#endif
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	VertexArray::VertexArray(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib* attribs)
+	void Buffer::unmap()
+	{
+#if defined(__EMSCRIPTEN__)
+		GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
+		glBufferSubData(m_type, m_mapped_offset, m_mapped_size, static_cast<char*>(m_staging) + m_mapped_offset);
+		GL_CHECK_ERROR(glBindBuffer(m_type, 0));
+#else
+		GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
+		GL_CHECK_ERROR(glUnmapBuffer(m_type));
+		GL_CHECK_ERROR(glBindBuffer(m_type, 0));
+#endif
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Buffer::set_data(size_t offset, size_t size, void* data)
+	{
+		GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
+		glBufferSubData(m_type, offset, size, data);
+		GL_CHECK_ERROR(glBindBuffer(m_type, 0));
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+    VertexBuffer::VertexBuffer(GLenum usage, size_t size, void* data) : Buffer(GL_ARRAY_BUFFER, usage, size, data) {}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	VertexBuffer::~VertexBuffer() {}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	IndexBuffer::IndexBuffer(GLenum usage, size_t size, void* data) : Buffer(GL_ELEMENT_ARRAY_BUFFER, usage, size, data) {}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	IndexBuffer::~IndexBuffer() {}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	UniformBuffer::UniformBuffer(GLenum usage, size_t size, void* data) : Buffer(GL_UNIFORM_BUFFER, usage, size, data) {}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	UniformBuffer::~UniformBuffer() {}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+#if !defined(__EMSCRIPTEN__)
+	ShaderStorageBuffer::ShaderStorageBuffer(GLenum usage, size_t size, void* data) : Buffer(GL_SHADER_STORAGE_BUFFER, usage, size, data) {}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	ShaderStorageBuffer::~ShaderStorageBuffer() {}
+#endif
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	VertexArray::VertexArray(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[])
 	{
 #if defined(__EMSCRIPTEN__)
 		GL_CHECK_ERROR(glGenVertexArraysOES(1, &m_gl_vao));
@@ -1180,11 +1392,10 @@ namespace ezGL
 		GL_CHECK_ERROR(glGenVertexArrays(1, &m_gl_vao));
 		GL_CHECK_ERROR(glBindVertexArray(m_gl_vao));
 #endif
-
 		vbo->bind();
-
+ 
 		if (ibo)
-			ibo->bind();
+            ibo->bind();
 
 		for (uint32_t i = 0; i < attrib_count; i++)
 		{
@@ -1241,181 +1452,6 @@ namespace ezGL
 		GL_CHECK_ERROR(glBindVertexArray(0));
 #endif
 	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	UniformBuffer::UniformBuffer(GLenum usage, GLenum type, size_t size, void* data)
-	{
-		GL_CHECK_ERROR(glGenBuffers(1, &m_gl_ubo));
-		
-		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, m_gl_ubo));
-		GL_CHECK_ERROR(glBufferData(GL_UNIFORM_BUFFER, size, data, usage));
-		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, 0));
-
-#if defined(__EMSCRIPTEN__)
-		m_staging = malloc(size);
-#endif
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	UniformBuffer::~UniformBuffer()
-	{
-#if defined(__EMSCRIPTEN__)
-		free(m_staging);
-#endif
-		glDeleteBuffers(1, &m_gl_ubo);
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void UniformBuffer::bind_base(int index)
-	{
-		GL_CHECK_ERROR(glBindBufferBase(GL_UNIFORM_BUFFER, index, m_gl_ubo));
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void UniformBuffer::bind_range(int index, size_t offset, size_t size)
-	{
-		GL_CHECK_ERROR(glBindBufferRange(GL_UNIFORM_BUFFER, index, m_gl_ubo, offset, size));
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void UniformBuffer::unbind()
-	{
-		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, 0));
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void* UniformBuffer::map(GLenum access)
-	{
-#if defined(__EMSCRIPTEN__)
-		return m_staging;
-#else
-		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, m_gl_ubo));
-		GL_CHECK_ERROR(void* ptr = glMapBuffer(GL_UNIFORM_BUFFER, access));
-		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, 0));
-		return ptr;
-#endif
-	}
-
-	void* UniformBuffer::map_range(GLenum access, size_t offset, size_t size)
-	{
-#if defined(__EMSCRIPTEN__)
-		m_mapped_size = size;
-		m_mapped_offset = offset;
-		return static_cast<char*>(m_staging) + offset;
-#else
-		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, m_gl_ubo));
-		GL_CHECK_ERROR(void* ptr = glMapBufferRange(GL_UNIFORM_BUFFER, offset, size, access));
-		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, 0));
-		return ptr;
-#endif
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void UniformBuffer::unmap()
-	{
-#if defined(__EMSCRIPTEN__)
-		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, m_gl_ubo));
-		glBufferSubData(GL_UNIFORM_BUFFER, m_mapped_offset, m_mapped_size, static_cast<char*>(m_staging) + m_mapped_offset);
-		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, 0));
-#else
-		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, m_gl_ubo));
-		GL_CHECK_ERROR(glUnmapBuffer(GL_UNIFORM_BUFFER));
-		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, 0));
-#endif
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void UniformBuffer::set_data(size_t offset, size_t size, void* data)
-	{
-		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, m_gl_ubo));
-		glBufferSubData(GL_UNIFORM_BUFFER, offset, size, data);
-		GL_CHECK_ERROR(glBindBuffer(GL_UNIFORM_BUFFER, 0));
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-#if !defined(__EMSCRIPTEN__)
-	ShaderStorageBuffer::ShaderStorageBuffer(GLenum usage, GLenum type, size_t size, void* data)
-	{
-		GL_CHECK_ERROR(glGenBuffers(1, &m_gl_ssbo));
-
-		GL_CHECK_ERROR(glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_gl_ssbo));
-		GL_CHECK_ERROR(glBufferData(GL_SHADER_STORAGE_BUFFER, size, data, usage));
-		GL_CHECK_ERROR(glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0));
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	ShaderStorageBuffer::~ShaderStorageBuffer()
-	{
-		glDeleteBuffers(1, &m_gl_ssbo);
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void ShaderStorageBuffer::bind_base(int index)
-	{
-		GL_CHECK_ERROR(glBindBufferBase(GL_SHADER_STORAGE_BUFFER, index, m_gl_ssbo));
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void ShaderStorageBuffer::bind_range(int index, size_t offset, size_t size)
-	{
-		GL_CHECK_ERROR(glBindBufferRange(GL_SHADER_STORAGE_BUFFER, index, m_gl_ssbo, offset, size));
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void ShaderStorageBuffer::unbind()
-	{
-		GL_CHECK_ERROR(glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0));
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void* ShaderStorageBuffer::map(GLenum access)
-	{
-		GL_CHECK_ERROR(glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_gl_ssbo));
-		GL_CHECK_ERROR(void* ptr = glMapBuffer(GL_SHADER_STORAGE_BUFFER, access));
-		GL_CHECK_ERROR(glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0));
-		return ptr;
-	}
-
-	void* ShaderStorageBuffer::map_range(GLenum access, size_t offset, size_t size)
-	{
-		GL_CHECK_ERROR(glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_gl_ssbo));
-		GL_CHECK_ERROR(void* ptr = glMapBufferRange(GL_SHADER_STORAGE_BUFFER, offset, size, access));
-		GL_CHECK_ERROR(glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0));
-		return ptr;
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void ShaderStorageBuffer::unmap()
-	{
-		GL_CHECK_ERROR(glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_gl_ssbo));
-		GL_CHECK_ERROR(glUnmapBuffer(GL_SHADER_STORAGE_BUFFER));
-		GL_CHECK_ERROR(glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0));
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void ShaderStorageBuffer::set_data(size_t offset, size_t size, void* data)
-	{
-		GL_CHECK_ERROR(glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_gl_ssbo));
-		glBufferSubData(GL_SHADER_STORAGE_BUFFER, offset, size, data);
-		GL_CHECK_ERROR(glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0));
-	}
-#endif
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 } // namespace dw

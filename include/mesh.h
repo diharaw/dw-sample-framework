@@ -4,13 +4,8 @@
 #include <stdint.h>
 #include <glm.hpp>
 #include <unordered_map>
-
-// Forward declarations.
-class  RenderDevice;
-struct VertexArray;
-struct VertexBuffer;
-struct IndexBuffer;
-struct InputLayout;
+#include <memory>
+#include <ogl.h>
 
 namespace dw
 {
@@ -41,17 +36,17 @@ namespace dw
 	{
 	public:
 		// Static factory methods.
-		static Mesh* load(const std::string& path, RenderDevice* device, bool load_materials = true);
+		static Mesh* load(const std::string& path, bool load_materials = true);
 		static void unload(Mesh*& mesh);
 
 		// Rendering-related getters.
-		inline VertexArray* mesh_vertex_array()	{ return m_vao;			 }
+        inline VertexArray* mesh_vertex_array()	{ return m_vao.get();			 }
 		inline uint32_t sub_mesh_count()		{ return m_sub_mesh_count; }
 		inline SubMesh* sub_meshes()			{ return m_sub_meshes;	 }
 
 	private:
 		// Private constructor and destructor to prevent manual creation.
-		Mesh(const std::string& path, RenderDevice* device, bool load_materials);
+		Mesh(const std::string& path, bool load_materials);
 		~Mesh();
 
 		// Internal initialization methods.
@@ -73,12 +68,8 @@ namespace dw
 		glm::vec3 m_min_extents;
 
 		// GPU resources.
-		VertexArray * m_vao = nullptr;
-		VertexBuffer* m_vbo = nullptr;
-		IndexBuffer* m_ibo = nullptr;
-		InputLayout* m_il = nullptr;
-
-		// Cached RenderDevice pointer used in destructor for GPU resource clean up.
-		RenderDevice* m_device = nullptr;
+        std::unique_ptr<VertexArray> m_vao = nullptr;
+		std::unique_ptr<VertexBuffer> m_vbo = nullptr;
+		std::unique_ptr<IndexBuffer> m_ibo = nullptr;
 	};
 } // namespace dw
