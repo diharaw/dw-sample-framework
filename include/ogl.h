@@ -167,6 +167,9 @@ namespace dw
 
 		// Attach a given face from a cubemap or a specific layer of a cubemap array as a depth stencil target.
 		void attach_depth_stencil_target(TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level);
+        
+    private:
+        void check_status();
 
     private:
         GLuint m_gl_fbo;

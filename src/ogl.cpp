@@ -855,6 +855,8 @@ namespace dw
 		{
 			GL_CHECK_ERROR(glReadBuffer(GL_NONE));
 		}
+        
+        check_status();
 
 		unbind();
 		glBindTexture(texture->target(), 0);
@@ -893,6 +895,8 @@ namespace dw
 		{
 			GL_CHECK_ERROR(glReadBuffer(GL_NONE));
 		}
+        
+        check_status();
 
 		unbind();
 		glBindTexture(texture->target(), 0);
@@ -916,6 +920,8 @@ namespace dw
 
 		GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
 		GL_CHECK_ERROR(glReadBuffer(GL_NONE));
+        
+        check_status();
 
 		unbind();
 		glBindTexture(texture->target(), 0);
@@ -939,10 +945,59 @@ namespace dw
 
 		GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
 		GL_CHECK_ERROR(glReadBuffer(GL_NONE));
+        
+        check_status();
 
 		unbind();
 		glBindTexture(texture->target(), 0);
 	}
+    
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    
+    void Framebuffer::check_status()
+    {
+        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        
+        if (status != GL_FRAMEBUFFER_COMPLETE)
+        {
+            std::string error = "Framebuffer Incomplete: ";
+            
+            switch (status)
+            {
+                case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+                {
+                    error += "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT";
+                    break;
+                }
+#ifndef __EMSCRIPTEN__
+                case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+                {
+                    error += "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS";
+                    break;
+                }
+                case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+                {
+                    error += "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER";
+                    break;
+                }
+#endif
+                case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+                {
+                    error += "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT";
+                    break;
+                }
+                case GL_FRAMEBUFFER_UNSUPPORTED:
+                {
+                    error += "GL_FRAMEBUFFER_UNSUPPORTED";
+                    break;
+                }
+                default:
+                    break;
+            }
+            
+            DW_LOG_ERROR(error);
+        }
+    }
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -962,6 +1017,8 @@ namespace dw
         
         return new Shader(type, source);
     }
+    
+    // -----------------------------------------------------------------------------------------------------------------------------------
     
 	Shader::Shader(GLenum type, std::string source) : m_type(type)
 	{
