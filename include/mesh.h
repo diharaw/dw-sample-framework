@@ -37,6 +37,9 @@ namespace dw
 	public:
 		// Static factory methods.
 		static Mesh* load(const std::string& path, bool load_materials = true);
+		// Custom factory method for creating a mesh from provided data.
+		static Mesh* load(const std::string& name, int num_vertices, Vertex* vertices, int num_indices, uint32_t* indices, int num_sub_meshes, SubMesh* sub_meshes, glm::vec3 max_extents, glm::vec3 min_extents);
+		static bool is_loaded(const std::string& name);
 		static void unload(Mesh*& mesh);
 
 		// Rendering-related getters.
@@ -46,6 +49,7 @@ namespace dw
 
 	private:
 		// Private constructor and destructor to prevent manual creation.
+		Mesh();
 		Mesh(const std::string& path, bool load_materials);
 		~Mesh();
 

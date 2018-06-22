@@ -71,6 +71,46 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
+	Mesh*  Mesh::load(const std::string& name, int num_vertices, Vertex* vertices, int num_indices, uint32_t* indices, int num_sub_meshes, SubMesh* sub_meshes, glm::vec3 max_extents, glm::vec3 min_extents)
+	{
+		if (m_cache.find(name) == m_cache.end())
+		{
+			DW_LOG_INFO("Mesh Asset not in cache. Loading from disk.");
+
+			Mesh* mesh = new Mesh();
+
+			// Manually assign properties...
+			mesh->m_vertices = vertices;
+			mesh->m_vertex_count = num_vertices;
+			mesh->m_indices = indices;
+			mesh->m_index_count = num_indices;
+			mesh->m_sub_meshes = sub_meshes;
+			mesh->m_sub_mesh_count = num_sub_meshes;
+			mesh->m_max_extents = max_extents;
+			mesh->m_min_extents = min_extents;
+
+			// ...then manually call the method to create GPU objects.
+			mesh->create_gpu_objects();
+
+			m_cache[name] = mesh;
+			return mesh;
+		}
+		else
+		{
+			DW_LOG_INFO("Mesh Asset already loaded. Retrieving from cache.");
+			return m_cache[name];
+		}
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	bool Mesh::is_loaded(const std::string& name)
+	{
+		return m_cache.find(name) != m_cache.end();
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
 	void Mesh::unload(Mesh*& mesh)
 	{
 		for (auto itr : m_cache)
@@ -82,6 +122,9 @@ namespace dw
 				return;
 			}
 		}
+
+		// If loop exits, means mesh is not in the cache. Is so just delete.
+		DW_SAFE_DELETE(mesh);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -275,6 +318,10 @@ namespace dw
 		if (!m_vao)
 			DW_LOG_ERROR("Failed to create Vertex Array");
 	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	Mesh::Mesh() {}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
