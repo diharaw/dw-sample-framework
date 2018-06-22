@@ -248,10 +248,8 @@ namespace dw
 
 	Texture2D* Texture2D::create_from_files(std::string path, bool srgb)
 	{
-		std::string tex_path = utility::path_for_resource(path);
-
 		int x, y, n;
-		stbi_uc* data = stbi_load(tex_path.c_str(), &x, &y, &n, 0);
+		stbi_uc* data = stbi_load(path.c_str(), &x, &y, &n, 0);
 
 		if (!data)
 			return nullptr;
@@ -588,7 +586,7 @@ namespace dw
 		if (utility::file_extension(path[0]) == "hdr")
 		{
 			// Load the first image to determine format and dimensions.
-			std::string tex_path = utility::path_for_resource(path[0]);
+			std::string tex_path = path[0];
 
 			int x, y, n;
 			float* data = stbi_loadf(tex_path.c_str(), &x, &y, &n, 3);
@@ -608,7 +606,7 @@ namespace dw
 
 			for (int i = 1; i < 6; i++)
 			{
-				tex_path = utility::path_for_resource(path[i]);
+				tex_path = path[i];
 				data = stbi_loadf(tex_path.c_str(), &x, &y, &n, 3);
 
 				if (!data)
@@ -623,7 +621,7 @@ namespace dw
 		else
 		{
 			// Load the first image to determine format and dimensions.
-			std::string tex_path = utility::path_for_resource(path[0]);
+			std::string tex_path = path[0];
 
 			int x, y, n;
 			stbi_uc* data = stbi_load(tex_path.c_str(), &x, &y, &n, 3);
@@ -651,7 +649,7 @@ namespace dw
 
 			for (int i = 1; i < 6; i++)
 			{
-				tex_path = utility::path_for_resource(path[i]);
+				tex_path = path[i];
 				data = stbi_load(tex_path.c_str(), &x, &y, &n, 3);
 
 				if (!data)
@@ -722,15 +720,14 @@ namespace dw
 
 			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 
-			for (int i = 0; i < m_mip_levels; i++)
+			for (int face = 0; face < 6; face++)
 			{
-				for (int face = 0; face < 6; face++)
-				{
-					GL_CHECK_ERROR(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, i, m_internal_format, width, height, 0, m_format, m_type, NULL));
-				}
+				GL_CHECK_ERROR(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, m_internal_format, width, height, 0, m_format, m_type, NULL));
+			}
 
-				width = std::max(1, (width / 2));
-				height = std::max(1, (height / 2));
+			if (m_mip_levels > 1)
+			{
+				GL_CHECK_ERROR(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
 			}
 
 			GL_CHECK_ERROR(glBindTexture(m_target, 0));
@@ -753,7 +750,7 @@ namespace dw
 		int width = m_width;
 		int height = m_height;
 
-		for (int i = 0; i < m_mip_levels; i++)
+		for (int i = 0; i < mip_level; i++)
 		{
 			width = std::max(1, (width / 2));
 			height = std::max(1, (height / 2));

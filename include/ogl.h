@@ -1,12 +1,11 @@
 #pragma once
 
-//#include <gl/gl_core_4_5.h>
 #include <glad.h>
 #include <vector>
 #include <string>
 #include <unordered_map>
 #include <glm.hpp>
-
+//#define DW_ENABLE_GL_ERROR_CHECK
 // OpenGL error checking macro.
 #ifdef DW_ENABLE_GL_ERROR_CHECK
 #define GL_CHECK_ERROR(x)																		  \

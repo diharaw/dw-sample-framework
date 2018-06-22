@@ -122,9 +122,6 @@ namespace dw
 				return;
 			}
 		}
-
-		// If loop exits, means mesh is not in the cache. Is so just delete.
-		DW_SAFE_DELETE(mesh);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
