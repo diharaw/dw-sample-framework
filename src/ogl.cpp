@@ -915,9 +915,6 @@ namespace dw
 			GL_CHECK_ERROR(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, texture->id(), mip_level));
 		}
 
-		GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
-		GL_CHECK_ERROR(glReadBuffer(GL_NONE));
-        
         check_status();
 
 		unbind();
@@ -1170,7 +1167,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, int value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniform1i(m_location_map[name], value);
 	}
 
@@ -1178,7 +1178,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, float value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniform1f(m_location_map[name], value);
 	}
 
@@ -1186,7 +1189,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, glm::vec2 value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniform2f(m_location_map[name], value.x, value.y);
 	}
 
@@ -1194,7 +1200,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, glm::vec3 value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniform3f(m_location_map[name], value.x, value.y, value.z);
 	}
 
@@ -1202,7 +1211,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, glm::vec4 value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniform4f(m_location_map[name], value.x, value.y, value.z, value.w);
 	}
 
@@ -1210,7 +1222,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, glm::mat2 value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniformMatrix2fv(m_location_map[name], 1, GL_FALSE, glm::value_ptr(value));
 	}
 
@@ -1218,7 +1233,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, glm::mat3 value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniformMatrix3fv(m_location_map[name], 1, GL_FALSE, glm::value_ptr(value));
 	}
 
@@ -1226,7 +1244,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, glm::mat4 value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniformMatrix4fv(m_location_map[name], 1, GL_FALSE, glm::value_ptr(value));
 	}
 
@@ -1234,7 +1255,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, int count, int* value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniform1iv(m_location_map[name], count, value);
 	}
 
@@ -1242,7 +1266,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, int count, float* value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniform1fv(m_location_map[name], count, value);
 	}
 
@@ -1250,7 +1277,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, int count, glm::vec2* value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniform2fv(m_location_map[name], count, glm::value_ptr(value[0]));
 	}
 
@@ -1258,7 +1288,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, int count, glm::vec3* value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniform3fv(m_location_map[name], count, glm::value_ptr(value[0]));
 	}
 
@@ -1266,7 +1299,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, int count, glm::vec4* value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniform4fv(m_location_map[name], count, glm::value_ptr(value[0]));
 	}
 
@@ -1274,7 +1310,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, int count, glm::mat2* value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniformMatrix2fv(m_location_map[name], count, GL_FALSE, glm::value_ptr(value[0]));
 	}
 
@@ -1282,7 +1321,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, int count, glm::mat3* value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniformMatrix3fv(m_location_map[name], count, GL_FALSE, glm::value_ptr(value[0]));
 	}
 
@@ -1290,7 +1332,10 @@ namespace dw
 
 	void Program::set_uniform(std::string name, int count, glm::mat4* value)
 	{
-		assert(m_location_map.find(name) != m_location_map.end());
+#ifdef _DEBUG
+		if (m_location_map.find(name) == m_location_map.end())
+			return;
+#endif
 		glUniformMatrix4fv(m_location_map[name], count, GL_FALSE, glm::value_ptr(value[0]));
 	}
 
