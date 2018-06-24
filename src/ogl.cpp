@@ -861,6 +861,28 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
+	void Framebuffer::attach_multiple_render_targets(uint32_t attachment_count, Texture** texture)
+	{
+		bind();
+
+		GLuint attachments[16];
+
+		for (int i = 0; i < attachment_count; i++)
+		{
+			glBindTexture(texture[i]->target(), texture[i]->id());
+			GL_CHECK_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture[i]->target(), texture[i]->id(), 0));
+			attachments[i] = GL_COLOR_ATTACHMENT0 + i;
+		}
+
+		glDrawBuffers(attachment_count, attachments);
+
+		check_status();
+
+		unbind();
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
 	void Framebuffer::attach_render_target(uint32_t attachment, TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level, bool draw, bool read)
 	{
 		glBindTexture(texture->target(), texture->id());
@@ -1043,7 +1065,10 @@ namespace dw
 			log_error += std::string(log);
 
 			DW_LOG_ERROR(log_error);
+			m_compiled = false;
 		}
+		else
+			m_compiled = true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -1058,6 +1083,13 @@ namespace dw
 	GLenum Shader::type()
 	{
 		return m_type;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	bool Shader::compiled()
+	{
+		return m_compiled;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -1165,178 +1197,194 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, int value)
+	bool Program::set_uniform(std::string name, int value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniform1i(m_location_map[name], value);
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, float value)
+	bool Program::set_uniform(std::string name, float value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniform1f(m_location_map[name], value);
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, glm::vec2 value)
+	bool Program::set_uniform(std::string name, glm::vec2 value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniform2f(m_location_map[name], value.x, value.y);
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, glm::vec3 value)
+	bool Program::set_uniform(std::string name, glm::vec3 value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniform3f(m_location_map[name], value.x, value.y, value.z);
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, glm::vec4 value)
+	bool Program::set_uniform(std::string name, glm::vec4 value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniform4f(m_location_map[name], value.x, value.y, value.z, value.w);
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, glm::mat2 value)
+	bool Program::set_uniform(std::string name, glm::mat2 value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniformMatrix2fv(m_location_map[name], 1, GL_FALSE, glm::value_ptr(value));
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, glm::mat3 value)
+	bool Program::set_uniform(std::string name, glm::mat3 value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniformMatrix3fv(m_location_map[name], 1, GL_FALSE, glm::value_ptr(value));
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, glm::mat4 value)
+	bool Program::set_uniform(std::string name, glm::mat4 value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniformMatrix4fv(m_location_map[name], 1, GL_FALSE, glm::value_ptr(value));
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, int count, int* value)
+	bool Program::set_uniform(std::string name, int count, int* value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniform1iv(m_location_map[name], count, value);
+		
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, int count, float* value)
+	bool Program::set_uniform(std::string name, int count, float* value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniform1fv(m_location_map[name], count, value);
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, int count, glm::vec2* value)
+	bool Program::set_uniform(std::string name, int count, glm::vec2* value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniform2fv(m_location_map[name], count, glm::value_ptr(value[0]));
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, int count, glm::vec3* value)
+	bool Program::set_uniform(std::string name, int count, glm::vec3* value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniform3fv(m_location_map[name], count, glm::value_ptr(value[0]));
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, int count, glm::vec4* value)
+	bool Program::set_uniform(std::string name, int count, glm::vec4* value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniform4fv(m_location_map[name], count, glm::value_ptr(value[0]));
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, int count, glm::mat2* value)
+	bool Program::set_uniform(std::string name, int count, glm::mat2* value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniformMatrix2fv(m_location_map[name], count, GL_FALSE, glm::value_ptr(value[0]));
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, int count, glm::mat3* value)
+	bool Program::set_uniform(std::string name, int count, glm::mat3* value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniformMatrix3fv(m_location_map[name], count, GL_FALSE, glm::value_ptr(value[0]));
+		
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Program::set_uniform(std::string name, int count, glm::mat4* value)
+	bool Program::set_uniform(std::string name, int count, glm::mat4* value)
 	{
-#ifdef _DEBUG
 		if (m_location_map.find(name) == m_location_map.end())
-			return;
-#endif
+			return false;
+
 		glUniformMatrix4fv(m_location_map[name], count, GL_FALSE, glm::value_ptr(value[0]));
+
+		return true;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------

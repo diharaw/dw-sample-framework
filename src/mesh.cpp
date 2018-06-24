@@ -56,17 +56,12 @@ namespace dw
 	{
 		if (m_cache.find(path) == m_cache.end())
 		{
-			DW_LOG_INFO("Mesh Asset not in cache. Loading from disk.");
-
 			Mesh* mesh = new Mesh(path, load_materials);
 			m_cache[path] = mesh;
 			return mesh;
 		}
 		else
-		{
-			DW_LOG_INFO("Mesh Asset already loaded. Retrieving from cache.");
 			return m_cache[path];
-		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -75,8 +70,6 @@ namespace dw
 	{
 		if (m_cache.find(name) == m_cache.end())
 		{
-			DW_LOG_INFO("Mesh Asset not in cache. Loading from disk.");
-
 			Mesh* mesh = new Mesh();
 
 			// Manually assign properties...
@@ -96,10 +89,7 @@ namespace dw
 			return mesh;
 		}
 		else
-		{
-			DW_LOG_INFO("Mesh Asset already loaded. Retrieving from cache.");
 			return m_cache[name];
-		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------

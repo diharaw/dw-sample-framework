@@ -26,6 +26,7 @@ namespace dw
 		glm::mat3 m_model;
 		glm::mat4 m_projection;
 		glm::mat4 m_view_projection;
+		glm::mat4 m_prev_view_projection;
 		glm::mat4 m_rotate;
 		glm::mat4 m_translate;
 

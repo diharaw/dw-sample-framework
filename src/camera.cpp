@@ -25,6 +25,7 @@ namespace dw
 
 		m_orientation = glm::quat();
 		m_projection = glm::perspective(glm::radians(fov), aspect_ratio, near, far);
+		m_prev_view_projection = glm::mat4(1.0f);
 
 		//m_near_plane.n = glm::vec3(0.0f);
 
@@ -88,6 +89,7 @@ namespace dw
 
 		m_translate = glm::translate(glm::mat4(1.0f), -m_position);
 		m_view = m_rotate * m_translate;
+		m_prev_view_projection = m_view_projection;
 		m_view_projection = m_projection * m_view;
 
 		dw::frustum_from_matrix(m_frustum, m_view_projection);

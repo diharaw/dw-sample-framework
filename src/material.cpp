@@ -14,17 +14,12 @@ namespace dw
 	{
 		if (m_cache.find(name) == m_cache.end())
 		{
-			DW_LOG_INFO("Material Asset not in cache. Loading from disk.");
-
 			Material* mat = new Material(name, textures);
 			m_cache[name] = mat;
 			return mat;
 		}
 		else
-		{
-			DW_LOG_INFO("Material Asset already loaded. Retrieving from cache.");
 			return m_cache[name];
-		}	
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -33,8 +28,6 @@ namespace dw
 	{
 		if (m_cache.find(name) == m_cache.end())
 		{
-			DW_LOG_INFO("Material Asset not in cache. Loading from disk.");
-
 			Material* mat = new Material();
 
 			for (int i = 0; i < num_textures; i++)
@@ -46,10 +39,7 @@ namespace dw
 			return mat;
 		}
 		else
-		{
-			DW_LOG_INFO("Material Asset already loaded. Retrieving from cache.");
 			return m_cache[name];
-		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -70,10 +60,7 @@ namespace dw
 			return tex;
 		}
 		else
-		{
-			DW_LOG_INFO("Texture Asset already loaded. Retrieving from cache.");
 			return m_texture_cache[path];
-		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------

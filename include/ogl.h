@@ -158,6 +158,9 @@ namespace dw
 		// Attach entire texture or entire layer of a layered texture as a render target.
 		void attach_render_target(uint32_t attachment, Texture* texture, uint32_t layer, uint32_t mip_level, bool draw = true, bool read = true);
 
+		// Attach multiple render targets.
+		void attach_multiple_render_targets(uint32_t attachment_count, Texture** texture);
+
 		// Attach a given face from a cubemap or a specific layer of a cubemap array as a render target.
 		void attach_render_target(uint32_t attachment, TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level, bool draw = true, bool read = true);
 
@@ -184,8 +187,10 @@ namespace dw
         Shader(GLenum type, std::string source);
         ~Shader();
         GLenum type();
+		bool compiled();
         
     private:
+		bool m_compiled;
         GLuint m_gl_shader;
         GLenum m_type;
     };
@@ -197,22 +202,22 @@ namespace dw
         ~Program();
         void use();
 		void uniform_block_binding(std::string name, int binding);
-		void set_uniform(std::string name, int value);
-		void set_uniform(std::string name, float value);
-		void set_uniform(std::string name, glm::vec2 value);
-		void set_uniform(std::string name, glm::vec3 value);
-		void set_uniform(std::string name, glm::vec4 value);
-		void set_uniform(std::string name, glm::mat2 value);
-		void set_uniform(std::string name, glm::mat3 value);
-		void set_uniform(std::string name, glm::mat4 value);
-		void set_uniform(std::string name, int count, int* value);
-		void set_uniform(std::string name, int count, float* value);
-		void set_uniform(std::string name, int count, glm::vec2* value);
-		void set_uniform(std::string name, int count, glm::vec3* value);
-		void set_uniform(std::string name, int count, glm::vec4* value);
-		void set_uniform(std::string name, int count, glm::mat2* value);
-		void set_uniform(std::string name, int count, glm::mat3* value);
-		void set_uniform(std::string name, int count, glm::mat4* value);
+		bool set_uniform(std::string name, int value);
+		bool set_uniform(std::string name, float value);
+		bool set_uniform(std::string name, glm::vec2 value);
+		bool set_uniform(std::string name, glm::vec3 value);
+		bool set_uniform(std::string name, glm::vec4 value);
+		bool set_uniform(std::string name, glm::mat2 value);
+		bool set_uniform(std::string name, glm::mat3 value);
+		bool set_uniform(std::string name, glm::mat4 value);
+		bool set_uniform(std::string name, int count, int* value);
+		bool set_uniform(std::string name, int count, float* value);
+		bool set_uniform(std::string name, int count, glm::vec2* value);
+		bool set_uniform(std::string name, int count, glm::vec3* value);
+		bool set_uniform(std::string name, int count, glm::vec4* value);
+		bool set_uniform(std::string name, int count, glm::mat2* value);
+		bool set_uniform(std::string name, int count, glm::mat3* value);
+		bool set_uniform(std::string name, int count, glm::mat4* value);
         
     private:
         GLuint m_gl_program;
