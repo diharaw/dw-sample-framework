@@ -298,4 +298,19 @@ namespace dw
     private:
         GLuint m_gl_vao;
     };
+
+	class Query
+	{
+	public:
+		Query();
+		~Query();
+		void query_counter(GLenum type);
+		void begin(GLenum type);
+		void end(GLenum type);
+		void result_64(uint64_t* ptr);
+		bool result_available();
+
+	private:
+		GLuint m_query;
+	};
 }
