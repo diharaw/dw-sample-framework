@@ -106,6 +106,7 @@ namespace dw
         double                              m_mouse_delta_x;
         double                              m_mouse_delta_y;
         double                              m_delta;
+		double                              m_delta_seconds;
         std::string                         m_title;
         std::array<bool, MAX_KEYS>          m_keys;
         std::array<bool, MAX_MOUSE_BUTTONS> m_mouse_buttons;

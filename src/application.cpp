@@ -8,7 +8,7 @@ namespace dw
 {
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-    Application::Application() : m_mouse_x(0.0), m_mouse_y(0.0), m_last_mouse_x(0.0), m_last_mouse_y(0.0), m_mouse_delta_x(0.0), m_mouse_delta_y(0.0), m_delta(0.0), m_window(nullptr)
+    Application::Application() : m_mouse_x(0.0), m_mouse_y(0.0), m_last_mouse_x(0.0), m_last_mouse_y(0.0), m_mouse_delta_x(0.0), m_mouse_delta_y(0.0), m_delta(0.0), m_delta_seconds(0.0), m_window(nullptr)
     {
         
     }
@@ -204,6 +204,7 @@ namespace dw
         
         m_timer.stop();
         m_delta = m_timer.elapsed_time_milisec();
+		m_delta_seconds = m_timer.elapsed_time_sec();
     }
 
 	// -----------------------------------------------------------------------------------------------------------------------------------

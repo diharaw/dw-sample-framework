@@ -1027,7 +1027,7 @@ namespace dw
             
             // Force assertion failure for debug builds.
             assert(false);
-            
+			
             return nullptr;
         }
         
@@ -1547,12 +1547,24 @@ namespace dw
 		for (uint32_t i = 0; i < attrib_count; i++)
 		{
 			GL_CHECK_ERROR(glEnableVertexAttribArray(i));
-			GL_CHECK_ERROR(glVertexAttribPointer(i,
-												 attribs[i].num_sub_elements,
-												 attribs[i].type,
-												 attribs[i].normalized,
-												 vertex_size,
-												 (GLvoid*)((uint64_t)attribs[i].offset)));
+
+			if (attribs[i].type == GL_INT)
+			{
+				GL_CHECK_ERROR(glVertexAttribIPointer(i,
+					attribs[i].num_sub_elements,
+					attribs[i].type,
+					vertex_size,
+					(GLvoid*)((uint64_t)attribs[i].offset)));
+			}
+			else
+			{
+				GL_CHECK_ERROR(glVertexAttribPointer(i,
+					attribs[i].num_sub_elements,
+					attribs[i].type,
+					attribs[i].normalized,
+					vertex_size,
+					(GLvoid*)((uint64_t)attribs[i].offset)));
+			}
 		}
 
 #if defined(__EMSCRIPTEN__)
