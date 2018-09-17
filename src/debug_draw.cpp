@@ -425,6 +425,25 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
+	void DebugDraw::transform(const glm::mat4& trans, const float& axis_length)
+	{
+		glm::vec3 p = glm::vec3(trans[3][0], trans[3][1], trans[3][2]);
+		glm::vec3 x = glm::vec3(trans[0][0], trans[0][1], trans[0][2]);
+		glm::vec3 y = glm::vec3(trans[1][0], trans[1][1], trans[1][2]);
+		glm::vec3 z = glm::vec3(trans[2][0], trans[2][1], trans[2][2]);
+
+		// Draw X axis
+		line(p, p + x * axis_length, glm::vec3(1.0f, 0.0f, 0.0f));
+
+		// Draw Y axis
+		line(p, p + y * axis_length, glm::vec3(0.0f, 1.0f, 0.0f));
+
+		// Draw Z axis
+		line(p, p + z * axis_length, glm::vec3(0.0f, 0.0f, 1.0f));
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
 	void DebugDraw::render(Framebuffer* fbo, int width, int height, const glm::mat4& view_proj)
 	{
 		if (m_world_vertices.size() > 0)

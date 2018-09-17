@@ -64,6 +64,7 @@ namespace dw
 		void sphere(const float& radius, const glm::vec3& pos, const glm::vec3& c);
 		void frustum(const glm::mat4& view_proj, const glm::vec3& c);
 		void frustum(const glm::mat4& proj, const glm::mat4& view, const glm::vec3& c);
+		void transform(const glm::mat4& trans, const float& axis_length = 5.0f);
 		
 		// Render method. Pass in target Framebuffer, viewport size and view-projection matrix.
 		void render(Framebuffer* fbo, int width, int height, const glm::mat4& view_proj);
