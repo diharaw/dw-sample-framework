@@ -5,6 +5,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#if defined(__EMSCRIPTEN__)
+#define glTexImage3DMultisample glTexStorage3DMultisampleOES
+#define glTexImage3D glTexImage3DOES 
+#endif
+
 namespace dw
 {
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -108,6 +113,7 @@ namespace dw
     
     // -----------------------------------------------------------------------------------------------------------------------------------
     
+#if !defined(__EMSCRIPTEN__)
     void Texture::bind_image(uint32_t unit, uint32_t mip_level, uint32_t layer, GLenum access, GLenum format)
     {
         bind(unit);
@@ -136,9 +142,11 @@ namespace dw
 		GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_COMPARE_FUNC, func));
 		GL_CHECK_ERROR(glBindTexture(m_target, 0));
 	}
+#endif
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
+#if !defined(__EMSCRIPTEN__)
 	Texture1D::Texture1D(uint32_t w, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type) : Texture()
 	{
 		m_array_size = array_size;
@@ -243,6 +251,7 @@ namespace dw
 	{
 		return m_mip_levels;
 	}
+#endif
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -256,6 +265,7 @@ namespace dw
 
 		GLenum internal_format, format;
 
+#if !defined(__EMSCRIPTEN__)
 		if (n == 1)
 		{
 			internal_format = GL_R8;
@@ -278,6 +288,7 @@ namespace dw
 			}
 			else
 			{
+#endif
 				if (n == 4)
 				{
 					internal_format = GL_RGBA8;
@@ -288,8 +299,10 @@ namespace dw
 					internal_format = GL_RGB8;
 					format = GL_RGB;
 				}
+#if !defined(__EMSCRIPTEN__)
 			}
 		}
+#endif
 
 		Texture2D* texture = new Texture2D(x, y, 1, -1, 1, internal_format, format, GL_UNSIGNED_BYTE);
 		texture->set_data(0, 0, data);
@@ -356,7 +369,7 @@ namespace dw
 				for (int i = 0; i < m_mip_levels; i++)
 				{
 					GL_CHECK_ERROR(glTexImage3D(m_target, i, m_internal_format, width, height, m_array_size, 0, m_format, m_type, NULL));
-
+	
 					width = std::max(1, (width / 2));
 					height = std::max(1, (height / 2));
 				}
@@ -585,6 +598,7 @@ namespace dw
 	{
 		if (utility::file_extension(path[0]) == "hdr")
 		{
+#if !defined(__EMSCRIPTEN__)
 			// Load the first image to determine format and dimensions.
 			std::string tex_path = path[0];
 
@@ -617,6 +631,10 @@ namespace dw
 			}
 
 			return cube;
+#else
+			// TODO: Handle HDR textures in WebGL
+			return nullptr;
+#endif
 		}
 		else
 		{
@@ -631,12 +649,14 @@ namespace dw
 
 			GLenum internal_format, format;
 
+#if !defined(__EMSCRIPTEN__)
 			if (srgb)
 			{
 				internal_format = GL_SRGB8;
 				format = GL_RGB;
 			}
 			else
+#endif
 			{
 				internal_format = GL_RGBA8;
 				format = GL_RGB;
@@ -692,6 +712,7 @@ namespace dw
 		else
 			m_mip_levels = mip_levels;
 
+#if !defined(__EMSCRIPTEN__)
 		// Allocate memory for mip levels.
 		if (array_size > 1)
 		{
@@ -712,6 +733,7 @@ namespace dw
 			GL_CHECK_ERROR(glBindTexture(m_target, 0));
 		}
 		else
+#endif
 		{
 			m_target = GL_TEXTURE_CUBE_MAP;
 
@@ -756,6 +778,7 @@ namespace dw
 			height = std::max(1, (height / 2));
 		}
 
+#if !defined(__EMSCRIPTEN__)
 		if (m_array_size > 1)
 		{
 			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
@@ -763,6 +786,7 @@ namespace dw
 			GL_CHECK_ERROR(glBindTexture(m_target, 0));
 		}
 		else
+#endif
 		{
 			GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 			GL_CHECK_ERROR(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face_index, mip_level, m_internal_format, width, height, 0, m_format, m_type, data));

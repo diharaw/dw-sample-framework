@@ -450,8 +450,12 @@ namespace dw
 		{
 			m_uniforms.view_proj = view_proj;
 
+			#if defined(__EMSCRIPTEN__)
+			void* ptr = m_line_vbo->map(0);
+			#else
 			void* ptr = m_line_vbo->map(GL_WRITE_ONLY);
-
+			#endif
+			
 			if (m_world_vertices.size() > MAX_VERTICES)
 				DW_LOG_ERROR("Vertex count above allowed limit!");
 			else
@@ -459,7 +463,12 @@ namespace dw
 
 			m_line_vbo->unmap();
 
+			#if defined(__EMSCRIPTEN__)
+			ptr = m_ubo->map(0);
+			#else
 			ptr = m_ubo->map(GL_WRITE_ONLY);
+			#endif
+
 			memcpy(ptr, &m_uniforms, sizeof(CameraUniforms));
 			m_ubo->unmap();
 
