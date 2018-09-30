@@ -2,10 +2,22 @@
 #include <iostream>
 #include <imgui_impl_glfw_gl3.h>
 
+#if defined(__EMSCRIPTEN__)
+#include<emscripten/emscripten.h>
+#endif
+
 #include "utility.h"
 
 namespace dw
 {
+#if defined(__EMSCRIPTEN__)
+	void Application::run_frame(void* arg)
+	{
+		dw::Application* app = (dw::Application*)arg;
+		app->update_base(app->m_delta);
+	}
+#endif
+
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
     Application::Application() : m_mouse_x(0.0), m_mouse_y(0.0), m_last_mouse_x(0.0), m_last_mouse_y(0.0), m_mouse_delta_x(0.0), m_mouse_delta_y(0.0), m_delta(0.0), m_delta_seconds(0.0), m_window(nullptr)
@@ -27,8 +39,12 @@ namespace dw
         if(!init_base(argc, argv))
             return 1;
         
-        while(!exit_requested())
-            update_base(m_delta);
+#if defined(__EMSCRIPTEN__)
+		emscripten_set_main_loop_arg(run_frame, this, 0, 1);
+#else
+		while (!exit_requested())
+			update_base(m_delta);
+#endif
         
         shutdown_base();
         
@@ -98,9 +114,12 @@ namespace dw
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, minor_ver);
         glfwWindowHint(GLFW_MAXIMIZED, maximized);
         glfwWindowHint(GLFW_REFRESH_RATE, refresh_rate);
+
+#if !defined(__EMSCRIPTEN__)
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_SAMPLES, 8);
-        
+#endif
+
 #if __APPLE__
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
@@ -125,8 +144,10 @@ namespace dw
         
         DW_LOG_INFO("Successfully initialized platform!");
 
+#if !defined(__EMSCRIPTEN__)
 		if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 			return false;
+#endif
 	
 		ImGui::CreateContext();
         ImGui_ImplGlfwGL3_Init(m_window, false);

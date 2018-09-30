@@ -53,7 +53,7 @@ endif()
 target_link_libraries(dwSampleFramework assimp)
 
 if(EMSCRIPTEN)
-	set_target_properties(dwSampleFramework PROPERTIES LINK_FLAGS "-O3 -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s USE_GLFW=3 -s USE_WEBGL2=1 -s FULL_ES3=1")
+	set_target_properties(dwSampleFramework PROPERTIES LINK_FLAGS "-O3 -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s USE_GLFW=3 -s USE_WEBGL2=1")
 else()
 	target_link_libraries(dwSampleFramework glfw)
 	target_link_libraries(dwSampleFramework ${OPENGL_LIBRARIES})

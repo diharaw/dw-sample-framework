@@ -5,11 +5,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#if defined(__EMSCRIPTEN__)
-#define glTexImage3DMultisample glTexStorage3DMultisampleOES
-#define glTexImage3D glTexImage3DOES 
-#endif
-
 namespace dw
 {
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -87,10 +82,12 @@ namespace dw
     
     void Texture::set_border_color(float r, float g, float b, float a)
     {
+#if !defined(__EMSCRIPTEN__)
         float border_color[] = { r, g, b, a };
         GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
         GL_CHECK_ERROR(glTexParameterfv(m_target, GL_TEXTURE_BORDER_COLOR, border_color));
         GL_CHECK_ERROR(glBindTexture(m_target, 0));
+#endif
     }
     
     // -----------------------------------------------------------------------------------------------------------------------------------
@@ -265,7 +262,6 @@ namespace dw
 
 		GLenum internal_format, format;
 
-#if !defined(__EMSCRIPTEN__)
 		if (n == 1)
 		{
 			internal_format = GL_R8;
@@ -288,7 +284,6 @@ namespace dw
 			}
 			else
 			{
-#endif
 				if (n == 4)
 				{
 					internal_format = GL_RGBA8;
@@ -299,10 +294,8 @@ namespace dw
 					internal_format = GL_RGB8;
 					format = GL_RGB;
 				}
-#if !defined(__EMSCRIPTEN__)
 			}
 		}
-#endif
 
 		Texture2D* texture = new Texture2D(x, y, 1, -1, 1, internal_format, format, GL_UNSIGNED_BYTE);
 		texture->set_data(0, 0, data);
@@ -347,7 +340,14 @@ namespace dw
 		if (array_size > 1)
 		{
 			if (m_num_samples > 1)
+			{
+#if defined(__EMSCRIPTEN__)
+				assert(false);
+				DW_LOG_FATAL("WEBGL: GL_TEXTURE_2D_MULTISAMPLE_ARRAY Not Supported!");
+#else
 				m_target = GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
+#endif
+			}
 			else
 				m_target = GL_TEXTURE_2D_ARRAY;
 
@@ -358,11 +358,15 @@ namespace dw
 
 			if (m_num_samples > 1)
 			{
+#if defined(__EMSCRIPTEN__)
+				DW_LOG_FATAL("WEBGL: glTexImage3DMultisample unsupported on WebGL!");
+#else
 				if (m_mip_levels > 1)
 					DW_LOG_WARNING("OPENGL: Multisampled textures cannot have mipmaps. Setting mip levels to 1...");
 
 				m_mip_levels = 1;
 				GL_CHECK_ERROR(glTexImage3DMultisample(m_target, m_num_samples, m_internal_format, width, height, m_array_size, true));
+#endif
 			}
 			else
 			{
@@ -391,11 +395,15 @@ namespace dw
 
 			if (m_num_samples > 1)
 			{
+#if defined(__EMSCRIPTEN__)
+				DW_LOG_FATAL("WEBG  L: glTexImage2DMultisample unsupported on WebGL!");
+#else
 				if (m_mip_levels > 1)
 					DW_LOG_WARNING("OPENGL: Multisampled textures cannot have mipmaps. Setting mip levels to 1...");
 
 				m_mip_levels = 1;
 				GL_CHECK_ERROR(glTexImage2DMultisample(m_target, m_num_samples, m_internal_format, width, height, true));
+#endif
 			}
 			else
 			{
@@ -598,7 +606,6 @@ namespace dw
 	{
 		if (utility::file_extension(path[0]) == "hdr")
 		{
-#if !defined(__EMSCRIPTEN__)
 			// Load the first image to determine format and dimensions.
 			std::string tex_path = path[0];
 
@@ -631,10 +638,6 @@ namespace dw
 			}
 
 			return cube;
-#else
-			// TODO: Handle HDR textures in WebGL
-			return nullptr;
-#endif
 		}
 		else
 		{
@@ -649,14 +652,12 @@ namespace dw
 
 			GLenum internal_format, format;
 
-#if !defined(__EMSCRIPTEN__)
 			if (srgb)
 			{
 				internal_format = GL_SRGB8;
 				format = GL_RGB;
 			}
 			else
-#endif
 			{
 				internal_format = GL_RGBA8;
 				format = GL_RGB;
@@ -859,6 +860,12 @@ namespace dw
 			GL_CHECK_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment, texture->target(), texture->id(), mip_level));
 		}
 		
+#if defined(__EMSCRIPTEN__)
+		if (draw)
+			m_attachments[m_render_target_count++] = GL_COLOR_ATTACHMENT0 + attachment;
+
+		glDrawBuffers(m_render_target_count, m_attachments);
+#else
 		if (draw)
 		{
 			GL_CHECK_ERROR(glDrawBuffer(GL_COLOR_ATTACHMENT0 + attachment));
@@ -867,6 +874,7 @@ namespace dw
 		{
 			GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
 		}
+#endif
 
 		if (read)
 		{
@@ -889,16 +897,16 @@ namespace dw
 	{
 		bind();
 
-		GLuint attachments[16];
+		m_render_target_count = attachment_count;
 
-		for (int i = 0; i < attachment_count; i++)
+		for (int i = 0; i < m_render_target_count; i++)
 		{
 			glBindTexture(texture[i]->target(), texture[i]->id());
 			GL_CHECK_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture[i]->target(), texture[i]->id(), 0));
-			attachments[i] = GL_COLOR_ATTACHMENT0 + i;
+			m_attachments[i] = GL_COLOR_ATTACHMENT0 + i;
 		}
 
-		glDrawBuffers(attachment_count, attachments);
+		glDrawBuffers(m_render_target_count, m_attachments);
 
 		check_status();
 
@@ -914,13 +922,23 @@ namespace dw
 
 		if (texture->array_size() > 1)
 		{
+#if defined(__EMSCRIPTEN__)
+			DW_LOG_ERROR("WEBGL: glFramebufferTexture3D unsupported!");
+#else
 			GL_CHECK_ERROR(glFramebufferTexture3D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level, layer));
+#endif
 		}
 		else
 		{
 			GL_CHECK_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level));
 		}
 
+#if defined(__EMSCRIPTEN__)
+		if (draw)
+			m_attachments[m_render_target_count++] = GL_COLOR_ATTACHMENT0 + attachment;
+
+		glDrawBuffers(m_render_target_count, m_attachments);
+#else
 		if (draw)
 		{
 			GL_CHECK_ERROR(glDrawBuffer(GL_COLOR_ATTACHMENT0 + attachment));
@@ -929,6 +947,7 @@ namespace dw
 		{
 			GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
 		}
+#endif
 
 		if (read)
 		{
@@ -958,7 +977,11 @@ namespace dw
 		}
 		else
 		{
+#if defined(__EMSCRIPTEN__)
+			DW_LOG_ERROR("WEBGL: glFramebufferTexture unsupported!");
+#else
 			GL_CHECK_ERROR(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, texture->id(), mip_level));
+#endif
 		}
 
         check_status();
@@ -976,14 +999,20 @@ namespace dw
 
 		if (texture->array_size() > 1)
 		{
+#if defined(__EMSCRIPTEN__)
+			DW_LOG_ERROR("WEBGL: glFramebufferTexture3D unsupported!");
+#else
 			GL_CHECK_ERROR(glFramebufferTexture3D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level, layer));
+#endif
 		}
 		else
 		{
 			GL_CHECK_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level));
 		}
 
+#if !defined(__EMSCRIPTEN__)
 		GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
+#endif
 		GL_CHECK_ERROR(glReadBuffer(GL_NONE));
         
         check_status();
@@ -1041,6 +1070,13 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
+	uint32_t Framebuffer::render_targets()
+	{
+		return m_render_target_count;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
     Shader* Shader::create_from_file(GLenum type, std::string path)
     {
         std::string source;
@@ -1067,7 +1103,7 @@ namespace dw
 #if defined(__APPLE__)
 		source = "#version 410 core\n" + std::string(source);
 #elif defined(__EMSCRIPTEN__)
-		source = "#version 200 es\n" + std::string(source);
+		source = "#version 300 es\n precision highp float;\n" + std::string(source);
 #else
 		source = "#version 430 core\n" + std::string(source);
 #endif
@@ -1177,14 +1213,14 @@ namespace dw
 #if defined(__EMSCRIPTEN__)
 		// Bind attributes in OpenGL ES/WebGL versions.
 
-		int attrib_count = 0;
-		GL_CHECK_ERROR(glGetProgramiv(m_gl_program, GL_ACTIVE_ATTRIBUTES, &attrib_count));
+		//int attrib_count = 0;
+		//GL_CHECK_ERROR(glGetProgramiv(m_gl_program, GL_ACTIVE_ATTRIBUTES, &attrib_count));
 
-		for (int i = 0; i < attrib_count; i++)
-		{
-			GL_CHECK_ERROR(glGetActiveAttrib(m_gl_program, (GLuint)i, buf_size, &length, &size, &type, name));
-			GL_CHECK_ERROR(glBindAttribLocation(m_gl_program, i, name));
-		}
+		//for (int i = 0; i < attrib_count; i++)
+		//{
+		//	GL_CHECK_ERROR(glGetActiveAttrib(m_gl_program, (GLuint)i, buf_size, &length, &size, &type, name));
+		//	GL_CHECK_ERROR(glBindAttribLocation(m_gl_program, i, name));
+		//}
 #endif
 	}
 
@@ -1469,6 +1505,8 @@ namespace dw
 	void* Buffer::map(GLenum access)
 	{
 #if defined(__EMSCRIPTEN__)
+		m_mapped_size = m_size;
+		m_mapped_offset = 0;
 		return m_staging;
 #else
 		GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
@@ -1556,13 +1594,8 @@ namespace dw
 
 	VertexArray::VertexArray(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[])
 	{
-#if defined(__EMSCRIPTEN__)
-		GL_CHECK_ERROR(glGenVertexArraysOES(1, &m_gl_vao));
-		GL_CHECK_ERROR(glBindVertexArrayOES(m_gl_vao));
-#else
 		GL_CHECK_ERROR(glGenVertexArrays(1, &m_gl_vao));
 		GL_CHECK_ERROR(glBindVertexArray(m_gl_vao));
-#endif
 		vbo->bind();
  
 		if (ibo)
@@ -1591,11 +1624,7 @@ namespace dw
 			}
 		}
 
-#if defined(__EMSCRIPTEN__)
-		GL_CHECK_ERROR(glBindVertexArrayOES(0));
-#else
 		GL_CHECK_ERROR(glBindVertexArray(0));
-#endif
 
 		vbo->unbind();
 		
@@ -1607,33 +1636,21 @@ namespace dw
 
 	VertexArray::~VertexArray()
 	{
-#if defined(__EMSCRIPTEN__)
-		glDeleteVertexArraysOES(1, &m_gl_vao);
-#else
 		glDeleteVertexArrays(1, &m_gl_vao);
-#endif
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
 	void VertexArray::bind()
 	{
-#if defined(__EMSCRIPTEN__)
-		GL_CHECK_ERROR(glBindVertexArrayOES(m_gl_vao));
-#else
 		GL_CHECK_ERROR(glBindVertexArray(m_gl_vao));
-#endif
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
 	void VertexArray::unbind()
 	{
-#if defined(__EMSCRIPTEN__)
-		GL_CHECK_ERROR(glBindVertexArrayOES(0));
-#else
 		GL_CHECK_ERROR(glBindVertexArray(0));
-#endif
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -1654,7 +1671,11 @@ namespace dw
 
 	void Query::query_counter(GLenum type)
 	{
+#if defined(__EMSCRIPTEN__)
+		DW_LOG_FATAL("OPENGL ES: glQueryCounter unsupported on OpenGL ES!");
+#else
 		GL_CHECK_ERROR(glQueryCounter(m_query, type));
+#endif
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -1675,15 +1696,24 @@ namespace dw
 
 	void Query::result_64(uint64_t* ptr)
 	{
+#if defined(__EMSCRIPTEN__)
+		DW_LOG_FATAL("OPENGL ES: glGetQueryObjectui64v unsupported on OpenGL ES!");
+#else
 		GL_CHECK_ERROR(glGetQueryObjectui64v(m_query, GL_QUERY_RESULT, ptr));
+#endif
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
 	bool Query::result_available()
 	{
+#if defined(__EMSCRIPTEN__)
+		GLuint done = 0;
+		GL_CHECK_ERROR(glGetQueryObjectuiv(m_query, GL_QUERY_RESULT_AVAILABLE, &done));
+#else
 		int done = 0;
 		GL_CHECK_ERROR(glGetQueryObjectiv(m_query, GL_QUERY_RESULT_AVAILABLE, &done));
+#endif
 		return done == 1;
 	}
 

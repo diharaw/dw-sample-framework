@@ -43,6 +43,10 @@ namespace dw
     class Application
     {
     public:
+#if defined(__EMSCRIPTEN__)
+		static void run_frame(void* arg);
+#endif
+
         Application();
         ~Application();
 

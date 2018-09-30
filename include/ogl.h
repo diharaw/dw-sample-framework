@@ -1,8 +1,10 @@
 #pragma once
 
 #if defined(__EMSCRIPTEN__)
-#define GL_GLEXT_PROTOTYPES 1
-#include <SDL_opengles2.h>
+#define GLFW_INCLUDE_ES3
+#include <GLFW/glfw3.h>
+#include <GLES3/gl3.h>
+#include <GLES3/gl2ext.h>
 #else
 #include <glad.h>
 #endif
@@ -32,12 +34,18 @@ case GL_INVALID_FRAMEBUFFER_OPERATION:  error = "INVALID_FRAMEBUFFER_OPERATION";
 																								  \
 std::string formatted_error = "OPENGL: ";														  \
 formatted_error = formatted_error + error;														  \
+formatted_error = formatted_error + ", LINE:";												      \
+formatted_error = formatted_error + std::to_string(__LINE__);									  \
 DW_LOG_ERROR(formatted_error);																	  \
 err = glGetError();																				  \
 }																								  \
 }
 #else
 #define GL_CHECK_ERROR(x)	x
+#endif
+
+#if defined(__EMSCRIPTEN__)
+#define GL_WRITE_ONLY 0
 #endif
 
 namespace dw
@@ -175,10 +183,14 @@ namespace dw
 		// Attach a given face from a cubemap or a specific layer of a cubemap array as a depth stencil target.
 		void attach_depth_stencil_target(TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level);
         
+		uint32_t render_targets();
+
     private:
         void check_status();
 
     private:
+		uint32_t m_render_target_count = 0;
+		GLuint m_attachments[16];
         GLuint m_gl_fbo;
     };
     
