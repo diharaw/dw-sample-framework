@@ -1,7 +1,10 @@
 #include "utility.h"
+#include "logger.h"
+#include "ogl.h"
 
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 
 #ifdef WIN32
 #include <Windows.h>
@@ -128,6 +131,23 @@ namespace dw
 
 		// -----------------------------------------------------------------------------------------------------------------------------------
 
+		std::string file_name_from_path(std::string filepath)
+		{
+			std::size_t slash = filepath.find_last_of("/");
+
+			if (slash == std::string::npos)
+				slash = 0;
+			else
+				slash++;
+
+			std::size_t dot = filepath.find_last_of(".");
+			std::string filename = filepath.substr(slash, dot - slash);
+
+			return filename;
+		}
+
+		// -----------------------------------------------------------------------------------------------------------------------------------
+
 		bool read_text(std::string path, std::string& out)
 		{
 			std::ifstream file;
@@ -141,6 +161,127 @@ namespace dw
 				out.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
 				return true;
+			}
+			else
+				return false;
+		}
+
+		// -----------------------------------------------------------------------------------------------------------------------------------
+
+		template<typename T>
+		bool contains(const std::vector<T>& vec, const T& obj)
+		{
+			for (auto& e : vec)
+			{
+				if (e == obj)
+					return true;
+			}
+
+			return false;
+		}
+
+		// -----------------------------------------------------------------------------------------------------------------------------------
+
+		bool read_shader(const std::string& path, std::string& out, std::vector<std::string> defines)
+		{
+			std::string og_source;
+
+			if (!utility::read_text(path, og_source))
+				return false;
+
+			if (defines.size() > 0)
+			{
+				for (auto define : defines)
+					out += "#define " + define + "\n";
+
+				out += "\n";
+			}
+
+			return preprocess_shader(path, og_source, out);
+		}
+
+		// -----------------------------------------------------------------------------------------------------------------------------------
+
+		std::string header_guard_from_path(const std::string& path)
+		{
+			std::string out = file_name_from_path(path);
+			std::transform(out.begin(), out.end(), out.begin(), ::toupper);
+
+			return out + "_H";
+		}
+
+		// -----------------------------------------------------------------------------------------------------------------------------------
+
+		bool preprocess_shader(const std::string& path, const std::string& src, std::string& out)
+		{
+			std::istringstream stream(src);
+			std::string line;
+			std::vector<std::string> included_headers;
+
+			while (std::getline(stream, line))
+			{
+				if (line.find("#include") != std::string::npos)
+				{
+					size_t start = line.find_first_of("<") + 1;
+					size_t end = line.find_last_of(">");
+					std::string include_path = line.substr(start, end - start);
+
+					std::string path_to_shader = "";
+					size_t slash_pos = path.find_last_of("/");
+
+					if (slash_pos != std::string::npos)
+						path_to_shader = path.substr(0, slash_pos + 1);
+
+					std::string include_source;
+
+					std::string og_source;
+
+					if (!utility::read_text(path_to_shader + include_path, og_source))
+						return false;
+
+					if (!preprocess_shader(path_to_shader + include_path, og_source, include_source))
+					{
+						DW_LOG_ERROR("Included file <" + include_path + "> cannot be opened!");
+						return false;
+					}
+					if (contains(included_headers, include_path))
+						DW_LOG_WARNING("Header <" + include_path + "> has been included twice!");
+					else
+					{
+						included_headers.push_back(include_path);
+
+						std::string header_guard = header_guard_from_path(include_path);
+
+						out += "#ifndef ";
+						out += header_guard;
+						out += "\n#define ";
+						out += header_guard;
+						out += "\n\n";
+						out += include_source + "\n\n";
+						out += "#endif\n\n";
+					}
+				}
+				else
+					out += line + "\n";
+			}
+
+			return true;
+		}
+
+		// -----------------------------------------------------------------------------------------------------------------------------------
+
+		bool create_compute_program(const std::string& path, Shader** shader, Program** program)
+		{
+			shader[0] = Shader::create_from_file(GL_COMPUTE_SHADER, path);
+
+			if (shader[0])
+			{
+				program[0] = new Program(1, shader);
+
+				if (program[0])
+					return true;
+				else
+					return false;
 			}
 			else
 				return false;
