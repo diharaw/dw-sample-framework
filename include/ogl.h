@@ -70,6 +70,9 @@ namespace dw
         // Getters.
 		GLuint id();
 		GLenum target();
+		GLenum internal_format();
+		GLenum format();
+		GLenum type();
 		uint32_t array_size();
         
         // Texture sampler functions.
