@@ -202,7 +202,7 @@ namespace dw
         friend class Program;
         
     public:
-        static Shader* create_from_file(GLenum type, std::string path);
+        static Shader* create_from_file(GLenum type, std::string path, std::vector<std::string> defines = std::vector<std::string>());
         
         Shader(GLenum type, std::string source);
         ~Shader();

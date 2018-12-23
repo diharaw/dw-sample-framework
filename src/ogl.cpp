@@ -1098,11 +1098,11 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-    Shader* Shader::create_from_file(GLenum type, std::string path)
+    Shader* Shader::create_from_file(GLenum type, std::string path, std::vector<std::string> defines)
     {
         std::string source;
         
-        if (!utility::read_text(path, source))
+        if (!utility::read_shader(path, source, defines))
         {
             DW_LOG_ERROR("Failed to read GLSL shader source: " + path);
             
