@@ -270,18 +270,22 @@ namespace dw
 
 		// -----------------------------------------------------------------------------------------------------------------------------------
 
-		bool create_compute_program(const std::string& path, Shader** shader, Program** program)
+		bool create_compute_program(const std::string& path, Shader** shader, Program** program, std::vector<std::string> defines)
 		{
-			shader[0] = Shader::create_from_file(GL_COMPUTE_SHADER, path);
+			std::string source = "";
 
-			if (shader[0])
+			if (!read_shader(path, source, defines))
+			{
+				DW_LOG_ERROR("Failed to read shader source: " + path);
+				return false;
+			}
+
+			shader[0] = new dw::Shader(GL_COMPUTE_SHADER, source);
+			
+			if (shader[0]->compiled())
 			{
 				program[0] = new Program(1, shader);
-
-				if (program[0])
-					return true;
-				else
-					return false;
+				return true;
 			}
 			else
 				return false;

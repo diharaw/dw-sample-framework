@@ -43,6 +43,6 @@ namespace dw
 		extern void change_current_working_directory(std::string path);
 
 		// Create compute program
-		extern bool create_compute_program(const std::string& path, Shader** shader, Program** program);
+		extern bool create_compute_program(const std::string& path, Shader** shader, Program** program, std::vector<std::string> defines = std::vector<std::string>());
 	} // namespace utility
 } // namespace dw
