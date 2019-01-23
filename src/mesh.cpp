@@ -175,7 +175,8 @@ namespace dw
 						m_sub_meshes[i].mat = Material::load(current_mat_name, &material_paths[0]);
 						mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
 					}
-
+                    else
+                        m_sub_meshes[i].mat = nullptr;
 				}
 				else // if already exists, find the pointer.
 					m_sub_meshes[i].mat = mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex];
