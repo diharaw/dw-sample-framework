@@ -152,6 +152,9 @@ namespace dw
 
 					temp_material = Scene->mMaterials[Scene->mMeshes[i]->mMaterialIndex];
 					current_mat_name = path + std::to_string(i);
+                    
+                    aiColor3D diffuse = aiColor3D(1.0f, 1.0f, 1.0f);
+                    bool has_diifuse_val = false;
 
 					for (uint32_t i = 0; i < 11; i++)
 					{
@@ -168,6 +171,11 @@ namespace dw
 								has_least_one_texture = true;
 							}
 						}
+                        else if (i == 0)
+                        {
+                            // Try loading in a Diffuse material property
+                            has_diifuse_val = temp_material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse) == aiReturn_SUCCESS;
+                        }
 					}
 
 					if (has_least_one_texture)
@@ -175,6 +183,11 @@ namespace dw
 						m_sub_meshes[i].mat = Material::load(current_mat_name, &material_paths[0]);
 						mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
 					}
+                    else if (has_diifuse_val)
+                    {
+                        m_sub_meshes[i].mat = Material::load(current_mat_name, 0, nullptr, glm::vec4(diffuse.r, diffuse.g, diffuse.b, 1.0f));
+                        mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
+                    }
                     else
                         m_sub_meshes[i].mat = nullptr;
 				}
