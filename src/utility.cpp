@@ -202,12 +202,15 @@ namespace dw
 
 		// -----------------------------------------------------------------------------------------------------------------------------------
 
-		std::string header_guard_from_path(const std::string& path)
+		std::string header_guard_from_path(std::string path)
 		{
-			std::string out = file_name_from_path(path);
-			std::transform(out.begin(), out.end(), out.begin(), ::toupper);
+			std::replace(path.begin(), path.end(), '/', '_');
+			std::replace(path.begin(), path.end(), '\\', '_');
+			std::replace(path.begin(), path.end(), '.', '_');
 
-			return out + "_H";
+			std::transform(path.begin(), path.end(), path.begin(), ::toupper);
+
+			return path + "_H";
 		}
 
 		// -----------------------------------------------------------------------------------------------------------------------------------
@@ -250,7 +253,7 @@ namespace dw
 					{
 						included_headers.push_back(include_path);
 
-						std::string header_guard = header_guard_from_path(include_path);
+						std::string header_guard = header_guard_from_path(path_to_shader + include_path);
 
 						out += "#ifndef ";
 						out += header_guard;

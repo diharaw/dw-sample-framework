@@ -486,6 +486,29 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
+	void Texture2D::data(int mip_level, int array_index, void* data)
+	{
+		GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0));
+		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+		GL_CHECK_ERROR(glGetTexImage(m_target, mip_level, m_format, m_type, data));
+		GL_CHECK_ERROR(glBindTexture(m_target, 0));
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Texture2D::extents(int mip_level, int& width, int& height)
+	{
+		GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0));
+		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+
+		GL_CHECK_ERROR(glGetTexLevelParameteriv(m_target, mip_level, GL_TEXTURE_WIDTH, &width));
+		GL_CHECK_ERROR(glGetTexLevelParameteriv(m_target, mip_level, GL_TEXTURE_HEIGHT, &height));
+
+		GL_CHECK_ERROR(glBindTexture(m_target, 0));
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
 	uint32_t Texture2D::width()
 	{
 		return m_width;
@@ -590,6 +613,30 @@ namespace dw
 
 		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 		GL_CHECK_ERROR(glTexImage3D(m_target, mip_level, m_internal_format, width, height, depth, 0, m_format, m_type, data));
+		GL_CHECK_ERROR(glBindTexture(m_target, 0));
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Texture3D::data(int mip_level, void* data)
+	{
+		GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0));
+		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+		GL_CHECK_ERROR(glGetTexImage(m_target, mip_level, m_format, m_type, data));
+		GL_CHECK_ERROR(glBindTexture(m_target, 0));
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------------------------
+
+	void Texture3D::extents(int mip_level, int& width, int& height, int& depth)
+	{
+		GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0));
+		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+
+		GL_CHECK_ERROR(glGetTexLevelParameteriv(m_target, mip_level, GL_TEXTURE_WIDTH, &width));
+		GL_CHECK_ERROR(glGetTexLevelParameteriv(m_target, mip_level, GL_TEXTURE_HEIGHT, &height));
+		GL_CHECK_ERROR(glGetTexLevelParameteriv(m_target, mip_level, GL_TEXTURE_DEPTH, &depth));
+
 		GL_CHECK_ERROR(glBindTexture(m_target, 0));
 	}
 
@@ -1146,6 +1193,7 @@ namespace dw
 			log_error += std::string(log);
 
 			DW_LOG_ERROR(log_error);
+			DW_LOG_ERROR(source);
 			m_compiled = false;
 		}
 		else
