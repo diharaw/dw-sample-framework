@@ -17,7 +17,8 @@ set(DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/external/imgui/imgui.cpp
 				 ${PROJECT_SOURCE_DIR}/src/ogl.cpp
 				 ${PROJECT_SOURCE_DIR}/src/mesh.cpp
 				 ${PROJECT_SOURCE_DIR}/src/material.cpp
-				 ${PROJECT_SOURCE_DIR}/src/application.cpp)
+				 ${PROJECT_SOURCE_DIR}/src/application.cpp
+				 ${PROJECT_SOURCE_DIR}/src/profiler.cpp)
 
 set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 				  ${PROJECT_SOURCE_DIR}/external/imgui/imconfig.h
@@ -37,7 +38,8 @@ set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 				  ${PROJECT_SOURCE_DIR}/include/timer.h
 				  ${PROJECT_SOURCE_DIR}/include/application.h
 				  ${PROJECT_SOURCE_DIR}/include/logger.h
-				  ${PROJECT_SOURCE_DIR}/include/utility.h)
+				  ${PROJECT_SOURCE_DIR}/include/utility.h
+				  ${PROJECT_SOURCE_DIR}/include/profiler.h)
 
 if(NOT EMSCRIPTEN)
 	list(APPEND DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/glad.h)

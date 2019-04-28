@@ -9,40 +9,40 @@
 
 namespace dw
 {
-	class Shader;
-	class Program;
+class Shader;
+class Program;
 
-	namespace utility
-	{
-		// Returns the absolute path to the resource. It also resolves the path to the 'Resources' directory is macOS app bundles.
-		extern std::string path_for_resource(const std::string& resource);
+namespace utility
+{
+// Returns the absolute path to the resource. It also resolves the path to the 'Resources' directory is macOS app bundles.
+extern std::string path_for_resource(const std::string& resource);
 
-		// Returns the absolute path of the executable.
-		extern std::string executable_path();
+// Returns the absolute path of the executable.
+extern std::string executable_path();
 
-		// Reads the contents of a text file into an std::string. Returns false if file does not exist.
-		extern bool read_text(std::string path, std::string& out);
+// Reads the contents of a text file into an std::string. Returns false if file does not exist.
+extern bool read_text(std::string path, std::string& out);
 
-		// Reads the specified shader source.
-		extern bool read_shader(const std::string& path, std::string& out, std::vector<std::string> defines = std::vector<std::string>());
+// Reads the specified shader source.
+extern bool read_shader(const std::string& path, std::string& out, std::vector<std::string> defines = std::vector<std::string>());
 
-		extern bool preprocess_shader(const std::string& path, const std::string& src, std::string& out);
+extern bool preprocess_shader(const std::string& path, const std::string& src, std::string& out);
 
-		// Removes the filename from a file path.
-		extern std::string path_without_file(std::string filepath);
+// Removes the filename from a file path.
+extern std::string path_without_file(std::string filepath);
 
-		// Returns the extension of a given file.
-		extern std::string file_extension(std::string filepath);
+// Returns the extension of a given file.
+extern std::string file_extension(std::string filepath);
 
-		extern std::string file_name_from_path(std::string filepath);
+extern std::string file_name_from_path(std::string filepath);
 
-		// Queries the current working directory.
-		extern std::string current_working_directory();
+// Queries the current working directory.
+extern std::string current_working_directory();
 
-		// Changes the current working directory.
-		extern void change_current_working_directory(std::string path);
+// Changes the current working directory.
+extern void change_current_working_directory(std::string path);
 
-		// Create compute program
-		extern bool create_compute_program(const std::string& path, Shader** shader, Program** program, std::vector<std::string> defines = std::vector<std::string>());
-	} // namespace utility
+// Create compute program
+extern bool create_compute_program(const std::string& path, Shader** shader, Program** program, std::vector<std::string> defines = std::vector<std::string>());
+} // namespace utility
 } // namespace dw

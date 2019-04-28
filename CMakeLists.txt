@@ -5,6 +5,7 @@ project("dwSampleFramework")
 # Options
 set(BUILD_SAMPLES true CACHE BOOL "Build example projects.")
 set(BUILD_SHARED_LIBRARY false CACHE BOOL "Build shared library.")
+set(ENABLE_CLANG_FORMATTING false CACHE BOOL "Enable clang formatting.")
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
@@ -44,4 +45,18 @@ add_subdirectory(src)
 
 if (BUILD_SAMPLES)
     add_subdirectory(sample)
+endif()
+
+if (ENABLE_CLANG_FORMATTING)
+    find_program(CLANG_FORMAT_EXE NAMES "clang-format" DOC "Path to clang-format executable")
+
+    file(GLOB_RECURSE DWSF_HEADERS ${PROJECT_SOURCE_DIR}/include/*.h)
+    file(GLOB_RECURSE DWSF_SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
+
+    file(GLOB_RECURSE DWSF_SAMPLE_HEADERS ${PROJECT_SOURCE_DIR}/sample/*.h)
+    file(GLOB_RECURSE DWSF_SAMPLE_SOURCES ${PROJECT_SOURCE_DIR}/sample/*.cpp)
+
+    if(CLANG_FORMAT_EXE)
+        add_custom_target(clang-format-project-files COMMAND ${CLANG_FORMAT_EXE} -i -style=file ${DWSF_HEADERS} ${DWSF_SOURCES} ${DWSF_SAMPLE_HEADERS} ${DWSF_SAMPLE_SOURCES})
+    endif()
 endif()

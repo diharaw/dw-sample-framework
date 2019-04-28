@@ -1,9 +1,9 @@
 #pragma once
 
 #if defined(WIN32)
-#include <windows.h>
+#    include <windows.h>
 #else
-#include <sys/time.h>
+#    include <sys/time.h>
 #endif
 
 class Timer
@@ -11,14 +11,14 @@ class Timer
 public:
     Timer();
     ~Timer();
-    
+
     void   start();
     void   stop();
     double elapsed_time();
     double elapsed_time_sec();
     double elapsed_time_milisec();
     double elapsed_time_microsec();
-    
+
 private:
     double _start_time_microsec;
     double _end_time_microsec;

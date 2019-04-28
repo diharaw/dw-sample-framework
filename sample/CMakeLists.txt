@@ -17,3 +17,4 @@ endif()
 
 target_link_libraries(sample dwSampleFramework)
 
+set_property(TARGET sample PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/$(Configuration)")
