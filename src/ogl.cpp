@@ -273,58 +273,80 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	Texture2D* Texture2D::create_from_files(std::string path, bool srgb)
+	Texture2D* Texture2D::create_from_files(std::string path, bool flip_vertical, bool srgb)
 	{
 		int x, y, n;
-		stbi_uc* data = stbi_load(path.c_str(), &x, &y, &n, 0);
+		stbi_set_flip_vertically_on_load(flip_vertical);
 
-		if (!data)
-			return nullptr;
+		std::string ext = utility::file_extension(path);
 
-		GLenum internal_format, format;
-
-		if (n == 1)
+		if (ext == "hdr")
 		{
-			internal_format = GL_R8;
-			format = GL_RED;
+			float* data = stbi_loadf(path.c_str(), &x, &y, &n, 0);
+
+			if (!data)
+				return nullptr;
+
+			Texture2D* texture = new Texture2D(x, y, 1, -1, 1, GL_RGB32F, GL_RGB, GL_FLOAT);
+			texture->set_data(0, 0, data);
+			texture->generate_mipmaps();
+
+			stbi_image_free(data);
+
+			return texture;
 		}
 		else
 		{
-			if (srgb)
+			stbi_uc* data = stbi_load(path.c_str(), &x, &y, &n, 0);
+
+			if (!data)
+				return nullptr;
+
+			GLenum internal_format, format;
+
+			if (n == 1)
 			{
-				if (n == 4)
-				{
-					internal_format = GL_SRGB8_ALPHA8;
-					format = GL_RGBA;
-				}
-				else
-				{
-					internal_format = GL_SRGB8;
-					format = GL_RGB;
-				}
+				internal_format = GL_R8;
+				format = GL_RED;
 			}
 			else
 			{
-				if (n == 4)
+				if (srgb)
 				{
-					internal_format = GL_RGBA8;
-					format = GL_RGBA;
+					if (n == 4)
+					{
+						internal_format = GL_SRGB8_ALPHA8;
+						format = GL_RGBA;
+					}
+					else
+					{
+						internal_format = GL_SRGB8;
+						format = GL_RGB;
+					}
 				}
 				else
 				{
-					internal_format = GL_RGB8;
-					format = GL_RGB;
+					if (n == 4)
+					{
+						internal_format = GL_RGBA8;
+						format = GL_RGBA;
+					}
+					else
+					{
+						internal_format = GL_RGB8;
+						format = GL_RGB;
+					}
 				}
 			}
+
+			Texture2D* texture = new Texture2D(x, y, 1, -1, 1, internal_format, format, GL_UNSIGNED_BYTE);
+			texture->set_data(0, 0, data);
+			texture->generate_mipmaps();
+
+			stbi_image_free(data);
+
+			return texture;
 		}
-
-		Texture2D* texture = new Texture2D(x, y, 1, -1, 1, internal_format, format, GL_UNSIGNED_BYTE);
-		texture->set_data(0, 0, data);
-        texture->generate_mipmaps();
-
-		stbi_image_free(data);
-
-		return texture;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
@@ -486,29 +508,6 @@ namespace dw
 
 	// -----------------------------------------------------------------------------------------------------------------------------------
 
-	void Texture2D::data(int mip_level, int array_index, void* data)
-	{
-		GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0));
-		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-		GL_CHECK_ERROR(glGetTexImage(m_target, mip_level, m_format, m_type, data));
-		GL_CHECK_ERROR(glBindTexture(m_target, 0));
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void Texture2D::extents(int mip_level, int& width, int& height)
-	{
-		GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0));
-		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-
-		GL_CHECK_ERROR(glGetTexLevelParameteriv(m_target, mip_level, GL_TEXTURE_WIDTH, &width));
-		GL_CHECK_ERROR(glGetTexLevelParameteriv(m_target, mip_level, GL_TEXTURE_HEIGHT, &height));
-
-		GL_CHECK_ERROR(glBindTexture(m_target, 0));
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
 	uint32_t Texture2D::width()
 	{
 		return m_width;
@@ -613,30 +612,6 @@ namespace dw
 
 		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
 		GL_CHECK_ERROR(glTexImage3D(m_target, mip_level, m_internal_format, width, height, depth, 0, m_format, m_type, data));
-		GL_CHECK_ERROR(glBindTexture(m_target, 0));
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void Texture3D::data(int mip_level, void* data)
-	{
-		GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0));
-		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-		GL_CHECK_ERROR(glGetTexImage(m_target, mip_level, m_format, m_type, data));
-		GL_CHECK_ERROR(glBindTexture(m_target, 0));
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------------------------
-
-	void Texture3D::extents(int mip_level, int& width, int& height, int& depth)
-	{
-		GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0));
-		GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-
-		GL_CHECK_ERROR(glGetTexLevelParameteriv(m_target, mip_level, GL_TEXTURE_WIDTH, &width));
-		GL_CHECK_ERROR(glGetTexLevelParameteriv(m_target, mip_level, GL_TEXTURE_HEIGHT, &height));
-		GL_CHECK_ERROR(glGetTexLevelParameteriv(m_target, mip_level, GL_TEXTURE_DEPTH, &depth));
-
 		GL_CHECK_ERROR(glBindTexture(m_target, 0));
 	}
 
@@ -1193,7 +1168,6 @@ namespace dw
 			log_error += std::string(log);
 
 			DW_LOG_ERROR(log_error);
-			DW_LOG_ERROR(source);
 			m_compiled = false;
 		}
 		else

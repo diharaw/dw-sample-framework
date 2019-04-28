@@ -112,12 +112,10 @@ namespace dw
     class Texture2D : public Texture
     {
     public:
-		static Texture2D* create_from_files(std::string path, bool srgb = true);
+		static Texture2D* create_from_files(std::string path, bool flip_vertical = false, bool srgb = true);
         Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, uint32_t num_samples, GLenum internal_format, GLenum format, GLenum type);
         ~Texture2D();
 		void set_data(int array_index, int mip_level, void* data);
-		void data(int mip_level, int array_index, void* data);
-		void extents(int mip_level, int& width, int& height);
         uint32_t width();
         uint32_t height();
 		uint32_t mip_levels();
@@ -136,8 +134,6 @@ namespace dw
 		Texture3D(uint32_t w, uint32_t h, uint32_t d, int mip_levels, GLenum internal_format, GLenum format, GLenum type);
 		~Texture3D();
 		void set_data(int mip_level, void* data);
-		void data(int mip_level, void* data);
-		void extents(int mip_level, int& width, int& height, int& depth);
 		uint32_t width();
 		uint32_t height();
 		uint32_t depth();
