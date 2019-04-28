@@ -14,6 +14,7 @@ A simple C++ framework for implementing graphics technique samples using OpenGL.
 * Debug drawing
 * ImGui integration
 * Camera class
+* CPU-GPU profiler
 
 ## What it looks like
 Creating a project using dwSampleFramework is as easy as inheriting from the dw::Application class and overriding the methods you need.
