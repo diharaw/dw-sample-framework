@@ -113,10 +113,10 @@ void Texture::bind_image(uint32_t unit, uint32_t mip_level, uint32_t layer, GLen
 {
     bind(unit);
 
-    // GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer,
-    // GLenum access, GLenum format
     if (m_array_size > 1)
         glBindImageTexture(unit, m_gl_tex, mip_level, GL_TRUE, layer, access, format);
+    else if (m_target == GL_TEXTURE_CUBE_MAP)
+        glBindImageTexture(unit, m_gl_tex, mip_level, GL_TRUE, 0, access, format);
     else
         glBindImageTexture(unit, m_gl_tex, mip_level, GL_FALSE, 0, access, format);
 }
