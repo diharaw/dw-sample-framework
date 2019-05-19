@@ -69,7 +69,8 @@ struct Profiler
         sample->cpu_time = cpu_time.QuadPart * (1000000.0 / m_frequency.QuadPart);
 #else
         timeval cpu_time;
-        gettimeofday(&sample->cpu_time, nullptr);
+        gettimeofday(&cpu_time, nullptr);
+        sample->cpu_time = (cpu_time.tv_sec * 1000000.0) + cpu_time.tv_usec;
 #endif
 
         m_sample_stack.push(sample.get());
@@ -97,7 +98,8 @@ struct Profiler
         sample->cpu_time = cpu_time.QuadPart * (1000000.0 / m_frequency.QuadPart);
 #else
         timeval cpu_time;
-        gettimeofday(&sample->cpu_time, nullptr);
+        gettimeofday(&cpu_time, nullptr);
+        sample->cpu_time = (cpu_time.tv_sec * 1000000.0) + cpu_time.tv_usec;
 #endif
 
         Sample* start = m_sample_stack.top();
