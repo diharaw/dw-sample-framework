@@ -1105,7 +1105,12 @@ Shader* Shader::create_from_file(GLenum type, std::string path, std::vector<std:
         return nullptr;
     }
 
-    return new Shader(type, source);
+    Shader* shader = new Shader(type, source);
+    
+    if (shader->compiled())
+        return shader;
+    
+    return nullptr;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
