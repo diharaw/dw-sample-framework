@@ -77,7 +77,7 @@ Note: If you wish to use dwSampleFramework as a precompiled library, make sure y
 
 ## License
 ```
-Copyright (c) 2018 Dihara Wijetunga
+Copyright (c) 2019 Dihara Wijetunga
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
 associated documentation files (the "Software"), to deal in the Software without restriction, 
