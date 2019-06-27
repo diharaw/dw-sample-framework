@@ -4,6 +4,8 @@
 #include <utility.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
 
 namespace dw
 {
@@ -451,7 +453,7 @@ Texture2D::~Texture2D() {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Texture2D::set_data(int array_index, int mip_level, void* data)
+void Texture2D::set_data(int32_t array_index, int32_t mip_level, void* data)
 {
     if (m_num_samples > 1)
     {
@@ -499,6 +501,78 @@ uint32_t Texture2D::mip_levels() { return m_mip_levels; }
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 uint32_t Texture2D::num_samples() { return m_num_samples; }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+    
+void Texture2D::save_to_disk(std::string path, int32_t array_index, int32_t mip_level)
+{
+#if defined(__APPLE__)
+    if (array_index > 0)
+        DW_LOG_WARNING("Saving specific slice of texture not supported on macOS, saving entire texture instead...");
+    
+    int width  = m_width;
+    int height = m_height;
+    
+    for (int i = 0; i < mip_level; i++)
+    {
+        width  = std::max(1, width / 2);
+        height = std::max(1, (height / 2));
+    }
+    
+    int pixel_size = 1;
+    
+    if (m_type == GL_FLOAT)
+        pixel_size = 4;
+    else if (m_type == GL_HALF_FLOAT)
+        pixel_size = 2;
+    
+    int num_comp = 1;
+    
+    if (m_format == GL_RG)
+        num_comp = 2;
+    else if (m_format == GL_RGB)
+        num_comp = 3;
+    else if (m_format == GL_RGBA)
+        num_comp = 4;
+
+    void* data = malloc(width * height * num_comp * m_array_size * pixel_size);
+    
+    GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0));
+    GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+    GL_CHECK_ERROR(glGetTexImage(m_target, mip_level, m_format, m_type, data));
+    GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    
+    if (m_type == GL_FLOAT)
+    {
+        std::string full_path = path + ".hdr";
+        stbi_write_hdr(full_path.c_str(), width, height, num_comp, (float*)data);
+    }
+    else if (m_type == GL_HALF_FLOAT)
+    {
+        int pixel_count = width * height * num_comp * m_array_size;
+        
+        int16_t* pixels = (int16_t*)data;
+        float* new_pixels = (float*)malloc(pixel_count * sizeof(float));
+        
+        for (int i = 0; i < pixel_count; i++)
+            new_pixels[i] = pixels[i];
+        
+        std::string full_path = path + ".hdr";
+        stbi_write_hdr(full_path.c_str(), width, height, num_comp, new_pixels);
+        
+        free(new_pixels);
+    }
+    else
+    {
+        std::string full_path = path + ".tga";
+        stbi_write_tga(full_path.c_str(), width, height, num_comp, data);
+    }
+    
+    free(data);
+#else
+    
+#endif
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
