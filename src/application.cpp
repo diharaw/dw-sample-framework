@@ -142,6 +142,18 @@ bool Application::init_base(int argc, const char* argv[])
     ImGui_ImplGlfwGL3_Init(m_window, false);
     ImGui::StyleColorsDark();
 
+	GLFWmonitor* primary = glfwGetPrimaryMonitor();
+
+    float xscale, yscale;
+    glfwGetMonitorContentScale(primary, &xscale, &yscale);
+
+    ImGuiStyle* style = &ImGui::GetStyle();
+
+    style->ScaleAllSizes(xscale > yscale ? xscale : yscale);
+
+	ImGuiIO& io        = ImGui::GetIO();
+    io.FontGlobalScale = xscale > yscale ? xscale : yscale;
+
     int display_w, display_h;
     glfwGetFramebufferSize(m_window, &display_w, &display_h);
     m_width  = display_w;
