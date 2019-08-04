@@ -115,11 +115,12 @@ public:
     static Texture2D* create_from_files(std::string path, bool flip_vertical = false, bool srgb = true);
     Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, uint32_t num_samples, GLenum internal_format, GLenum format, GLenum type);
     ~Texture2D();
-    void     set_data(int array_index, int mip_level, void* data);
+    void     set_data(int32_t array_index, int32_t mip_level, void* data);
     uint32_t width();
     uint32_t height();
     uint32_t mip_levels();
     uint32_t num_samples();
+    void save_to_disk(std::string path, int32_t array_index, int32_t mip_level);
 
 private:
     uint32_t m_width;
