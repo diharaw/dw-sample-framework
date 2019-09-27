@@ -48,6 +48,8 @@ public:
     inline SubMesh*     sub_meshes() { return m_sub_meshes; }
     inline uint32_t     vertex_count() { return m_vertex_count; }
     inline uint32_t     index_count() { return m_index_count; }
+    inline uint32_t*    indices() { return m_indices; }
+    inline Vertex*      vertices() { return m_vertices; }
 
 private:
     // Private constructor and destructor to prevent manual creation.
