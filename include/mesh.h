@@ -46,6 +46,8 @@ public:
     inline VertexArray* mesh_vertex_array() { return m_vao.get(); }
     inline uint32_t     sub_mesh_count() { return m_sub_mesh_count; }
     inline SubMesh*     sub_meshes() { return m_sub_meshes; }
+    inline uint32_t     vertex_count() { return m_vertex_count; }
+    inline uint32_t     index_count() { return m_index_count; }
 
 private:
     // Private constructor and destructor to prevent manual creation.
