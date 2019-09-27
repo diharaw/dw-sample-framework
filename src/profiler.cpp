@@ -154,15 +154,15 @@ struct Profiler
 
                     std::string id = std::to_string(i);
 
-                    uint64_t time = 0;
+                    uint64_t start_time = 0;
+                    uint64_t end_time   = 0;
 
-                    sample->query.result_64(&time);
-                    float gpu_start_time = time / 1000000.0f;
+                    sample->query.result_64(&start_time);
+                    sample->end_sample->query.result_64(&end_time);
 
-                    sample->end_sample->query.result_64(&time);
-                    float gpu_end_time = time / 1000000.0f;
+                    uint64_t gpu_time_diff = end_time - start_time;
 
-                    float gpu_time = gpu_end_time - gpu_start_time;
+                    float gpu_time = float(gpu_time_diff / 1000000.0);
                     float cpu_time = (sample->end_sample->cpu_time - sample->cpu_time) * 0.001f;
 
                     if (ImGui::TreeNode(id.c_str(), "%s | %f ms (CPU) | %f ms (GPU)", sample->name.c_str(), cpu_time, gpu_time))
