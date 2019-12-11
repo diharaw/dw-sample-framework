@@ -148,7 +148,7 @@ void Mesh::load_from_disk(const std::string& path, bool load_materials)
                         if (texture.length() > 4 && texture[0] != ' ')
                         {
                             DW_LOG_INFO("Found " + kTextureTypeStrings[i] + ": " + texture);
-                            material_paths[i]     = texture;
+                            material_paths[kTextureTypes[i]] = texture;
                             has_least_one_texture = true;
                         }
                     }
