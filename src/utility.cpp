@@ -1,6 +1,5 @@
 #include "utility.h"
 #include "logger.h"
-#include "ogl.h"
 
 #include <algorithm>
 #include <fstream>
@@ -270,18 +269,22 @@ bool preprocess_shader(const std::string& path, const std::string& src, std::str
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool create_compute_program(const std::string& path, Shader** shader, Program** program, std::vector<std::string> defines)
+#if !defined(DWSF_VULKAN)
+
+bool create_compute_program(const std::string& path, gl::Shader** shader, gl::Program** program, std::vector<std::string> defines)
 {
-    shader[0] = dw::Shader::create_from_file(GL_COMPUTE_SHADER, path, defines);
+    shader[0] = gl::Shader::create_from_file(GL_COMPUTE_SHADER, path, defines);
 
     if (shader[0] && shader[0]->compiled())
     {
-        program[0] = new Program(1, shader);
+        program[0] = new gl::Program(1, shader);
         return true;
     }
     else
         return false;
 }
+
+#endif
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 } // namespace utility

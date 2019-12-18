@@ -18,7 +18,7 @@ struct Profiler
     struct Sample
     {
         std::string name;
-        Query       query;
+        gl::Query   query;
         bool        start = true;
         double      cpu_time;
         Sample*     end_sample;

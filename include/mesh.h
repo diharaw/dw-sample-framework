@@ -43,7 +43,7 @@ public:
     static void  unload(Mesh*& mesh);
 
     // Rendering-related getters.
-    inline VertexArray* mesh_vertex_array() { return m_vao.get(); }
+    inline gl::VertexArray* mesh_vertex_array() { return m_vao.get(); }
     inline uint32_t     sub_mesh_count() { return m_sub_mesh_count; }
     inline SubMesh*     sub_meshes() { return m_sub_meshes; }
     inline uint32_t     vertex_count() { return m_vertex_count; }
@@ -76,8 +76,8 @@ private:
     glm::vec3 m_min_extents;
 
     // GPU resources.
-    std::unique_ptr<VertexArray>  m_vao = nullptr;
-    std::unique_ptr<VertexBuffer> m_vbo = nullptr;
-    std::unique_ptr<IndexBuffer>  m_ibo = nullptr;
+    std::unique_ptr<gl::VertexArray> m_vao = nullptr;
+    std::unique_ptr<gl::VertexBuffer> m_vbo = nullptr;
+    std::unique_ptr<gl::IndexBuffer>  m_ibo = nullptr;
 };
 } // namespace dw

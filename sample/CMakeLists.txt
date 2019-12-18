@@ -3,10 +3,14 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set (CMAKE_CXX_STANDARD 14)
 
-if(APPLE)
+if (USE_VULKAN)
+    add_definitions(-DDWSF_VULKAN)
+endif()
+
+if (APPLE)
     add_executable(sample MACOSX_BUNDLE main.cpp)
     set(MACOSX_BUNDLE_BUNDLE_NAME "com.dihara.sample")
-elseif(EMSCRIPTEN)
+elseif (EMSCRIPTEN)
     message(STATUS "Building for Emscripten")
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
     add_executable(sample ${SAMPLE_SOURCES})

@@ -6,12 +6,10 @@
 #include <cassert>
 #include <algorithm>
 #include <stdio.h>
+#include <ogl.h>
 
 namespace dw
 {
-class Shader;
-class Program;
-
 namespace utility
 {
 // Returns the absolute path to the resource. It also resolves the path to the 'Resources' directory is macOS app bundles.
@@ -42,7 +40,10 @@ extern std::string current_working_directory();
 // Changes the current working directory.
 extern void change_current_working_directory(std::string path);
 
+#if !defined(DWSF_VULKAN)
 // Create compute program
-extern bool create_compute_program(const std::string& path, Shader** shader, Program** program, std::vector<std::string> defines = std::vector<std::string>());
+extern bool create_compute_program(const std::string& path, gl::Shader** shader, gl::Program** program, std::vector<std::string> defines = std::vector<std::string>());
+#endif
+
 } // namespace utility
 } // namespace dw

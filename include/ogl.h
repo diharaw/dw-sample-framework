@@ -51,6 +51,8 @@
 
 namespace dw
 {
+namespace gl
+{
 // Texture base class.
 class Texture
 {
@@ -334,4 +336,5 @@ public:
 private:
     GLuint m_query;
 };
+} // namespace gl
 } // namespace dw

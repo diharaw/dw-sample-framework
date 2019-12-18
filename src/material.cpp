@@ -6,7 +6,7 @@
 namespace dw
 {
 std::unordered_map<std::string, Material*>  Material::m_cache;
-std::unordered_map<std::string, Texture2D*> Material::m_texture_cache;
+std::unordered_map<std::string, gl::Texture2D*> Material::m_texture_cache;
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -24,7 +24,7 @@ Material* Material::load(const std::string& name, const std::string* textures)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Material* Material::load(const std::string& name, int num_textures, Texture2D** textures, glm::vec4 albedo, float roughness, float metalness)
+Material* Material::load(const std::string& name, int num_textures, gl::Texture2D** textures, glm::vec4 albedo, float roughness, float metalness)
 {
     if (m_cache.find(name) == m_cache.end())
     {
@@ -51,11 +51,11 @@ bool Material::is_loaded(const std::string& name)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Texture2D* Material::load_texture(const std::string& path, bool srgb)
+gl::Texture2D* Material::load_texture(const std::string& path, bool srgb)
 {
     if (m_texture_cache.find(path) == m_texture_cache.end())
     {
-        Texture2D* tex        = Texture2D::create_from_files(path, srgb);
+        gl::Texture2D* tex    = gl::Texture2D::create_from_files(path, srgb);
         m_texture_cache[path] = tex;
         return tex;
     }
@@ -80,7 +80,7 @@ void Material::unload(Material*& mat)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Material::unload_texture(Texture2D*& tex)
+void Material::unload_texture(gl::Texture2D*& tex)
 {
     for (auto itr : m_texture_cache)
     {

@@ -6,6 +6,7 @@
 #include <material.h>
 #include <mesh.h>
 #include <stdio.h>
+#include <ogl.h>
 
 namespace dw
 {
@@ -277,28 +278,28 @@ void Mesh::load_from_disk(const std::string& path, bool load_materials)
 void Mesh::create_gpu_objects()
 {
     // Create vertex buffer.
-    m_vbo = std::make_unique<VertexBuffer>(
+    m_vbo = std::make_unique<gl::VertexBuffer>(
         GL_STATIC_DRAW, sizeof(Vertex) * m_vertex_count, m_vertices);
 
     if (!m_vbo)
         DW_LOG_ERROR("Failed to create Vertex Buffer");
 
     // Create index buffer.
-    m_ibo = std::make_unique<IndexBuffer>(
+    m_ibo = std::make_unique<gl::IndexBuffer>(
         GL_STATIC_DRAW, sizeof(uint32_t) * m_index_count, m_indices);
 
     if (!m_ibo)
         DW_LOG_ERROR("Failed to create Index Buffer");
 
     // Declare vertex attributes.
-    VertexAttrib attribs[] = { { 3, GL_FLOAT, false, 0 },
+    gl::VertexAttrib attribs[] = { { 3, GL_FLOAT, false, 0 },
                                { 2, GL_FLOAT, false, offsetof(Vertex, tex_coord) },
                                { 3, GL_FLOAT, false, offsetof(Vertex, normal) },
                                { 3, GL_FLOAT, false, offsetof(Vertex, tangent) },
                                { 3, GL_FLOAT, false, offsetof(Vertex, bitangent) } };
 
     // Create vertex array.
-    m_vao = std::make_unique<VertexArray>(m_vbo.get(), m_ibo.get(), sizeof(Vertex), 5, attribs);
+    m_vao = std::make_unique<gl::VertexArray>(m_vbo.get(), m_ibo.get(), sizeof(Vertex), 5, attribs);
 
     if (!m_vao)
         DW_LOG_ERROR("Failed to create Vertex Array");

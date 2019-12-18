@@ -4,6 +4,7 @@
 #include <mesh.h>
 #include <ogl.h>
 #include <profiler.h>
+#include <assimp/scene.h>
 
 // Embedded vertex shader source.
 const char* g_sample_vs_src = R"(
@@ -163,8 +164,8 @@ private:
     bool create_shaders()
     {
         // Create shaders
-        m_vs = std::make_unique<dw::Shader>(GL_VERTEX_SHADER, g_sample_vs_src);
-        m_fs = std::make_unique<dw::Shader>(GL_FRAGMENT_SHADER, g_sample_fs_src);
+        m_vs = std::make_unique<dw::gl::Shader>(GL_VERTEX_SHADER, g_sample_vs_src);
+        m_fs = std::make_unique<dw::gl::Shader>(GL_FRAGMENT_SHADER, g_sample_fs_src);
 
         if (!m_vs || !m_fs)
         {
@@ -173,8 +174,8 @@ private:
         }
 
         // Create shader program
-        dw::Shader* ezshaders[] = { m_vs.get(), m_fs.get() };
-        m_program               = std::make_unique<dw::Program>(2, ezshaders);
+        dw::gl::Shader* ezshaders[] = { m_vs.get(), m_fs.get() };
+        m_program                   = std::make_unique<dw::gl::Program>(2, ezshaders);
 
         if (!m_program)
         {
@@ -200,7 +201,7 @@ private:
     bool create_uniform_buffer()
     {
         // Create uniform buffer for matrix data
-        m_ubo = std::make_unique<dw::UniformBuffer>(GL_DYNAMIC_DRAW,
+        m_ubo = std::make_unique<dw::gl::UniformBuffer>(GL_DYNAMIC_DRAW,
                                                     sizeof(Transforms),
                                                     nullptr);
 
@@ -254,7 +255,7 @@ private:
             dw::SubMesh& submesh = m_mesh->sub_meshes()[i];
 
             // Bind texture.
-            submesh.mat->texture(0)->bind(0);
+            submesh.mat->texture(aiTextureType_DIFFUSE)->bind(0);
 
             // Issue draw call.
             glDrawElementsBaseVertex(
@@ -284,10 +285,10 @@ private:
 
 private:
     // GPU resources.
-    std::unique_ptr<dw::Shader>        m_vs;
-    std::unique_ptr<dw::Shader>        m_fs;
-    std::unique_ptr<dw::Program>       m_program;
-    std::unique_ptr<dw::UniformBuffer> m_ubo;
+    std::unique_ptr<dw::gl::Shader>    m_vs;
+    std::unique_ptr<dw::gl::Shader>    m_fs;
+    std::unique_ptr<dw::gl::Program>   m_program;
+    std::unique_ptr<dw::gl::UniformBuffer> m_ubo;
 
     // Camera.
     std::unique_ptr<dw::Camera> m_main_camera;

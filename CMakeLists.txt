@@ -6,6 +6,7 @@ project("dwSampleFramework")
 set(BUILD_SAMPLES true CACHE BOOL "Build example projects.")
 set(BUILD_SHARED_LIBRARY false CACHE BOOL "Build shared library.")
 set(ENABLE_CLANG_FORMATTING false CACHE BOOL "Enable clang formatting.")
+set(USE_VULKAN false CACHE BOOL "Use Vulkan graphics API.")
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
@@ -18,6 +19,13 @@ set(STB_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/stb")
 set(IMGUI_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/imgui")
 set(ASSIMP_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/assimp/include" "${CMAKE_CURRENT_BINARY_DIR}/external/assimp/include")
 set(JSON_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/json/single_include/nlohmann")
+set(VMA_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/VulkanMemoryAllocator/src")
+
+if (USE_VULKAN)
+    find_package(Vulkan REQUIRED)
+else()
+    find_package(OpenGL REQUIRED)
+endif()
 
 set(DW_SAMPLE_FRAMEWORK_INCLUDES ${DWSFW_INCLUDE_DIRS}
                                  ${GLFW_INCLUDE_DIRS}
@@ -25,7 +33,9 @@ set(DW_SAMPLE_FRAMEWORK_INCLUDES ${DWSFW_INCLUDE_DIRS}
                                  ${STB_INCLUDE_DIRS}
                                  ${IMGUI_INCLUDE_DIRS}
                                  ${ASSIMP_INCLUDE_DIRS}
-                                 ${JSON_INCLUDE_DIRS} 
+                                 ${JSON_INCLUDE_DIRS}
+                                 ${VMA_INCLUDE_DIRS}
+                                 ${VULKAN_INCLUDE_DIR}
                                  PARENT_SCOPE)
 
 include_directories(${DWSFW_INCLUDE_DIRS}
@@ -34,6 +44,8 @@ include_directories(${DWSFW_INCLUDE_DIRS}
                     ${STB_INCLUDE_DIRS}
                     ${IMGUI_INCLUDE_DIRS}
                     ${ASSIMP_INCLUDE_DIRS}
+                    ${VMA_INCLUDE_DIRS}
+                    ${VULKAN_INCLUDE_DIR}
                     ${JSON_INCLUDE_DIRS})
 
 if (NOT EMSCRIPTEN)
