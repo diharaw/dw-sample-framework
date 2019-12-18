@@ -1,5 +1,7 @@
 #pragma once
 
+#if defined(DWSF_VULKAN)
+
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <string>
@@ -54,7 +56,7 @@ class Backend
 public:
     using Ptr = std::shared_ptr<Backend>;
 
-    static Backend::Ptr create(GLFWwindow* window, bool enable_validation_layers = false);
+    static Backend::Ptr create(GLFWwindow* window, bool enable_validation_layers = false, bool require_ray_tracing = false);
 
     ~Backend();
 
@@ -62,18 +64,20 @@ public:
     VmaAllocator_T* allocator();
     VkFormat        find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
+	inline const QueueInfos& queue_infos() { return m_selected_queues; }
+
 private:
-    Backend(GLFWwindow* window, bool enable_validation_layers = false);
+    Backend(GLFWwindow* window, bool enable_validation_layers = false, bool require_ray_tracing = false);
     VkFormat                 find_depth_format();
     bool                     check_validation_layer_support(std::vector<const char*> layers);
-    bool                     check_device_extension_support(VkPhysicalDevice device);
+    bool                     check_device_extension_support(VkPhysicalDevice device, bool require_ray_tracing);
     void                     query_swap_chain_support(VkPhysicalDevice device, SwapChainSupportDetails& details);
     std::vector<const char*> required_extensions(bool enable_validation_layers);
     VkResult                 create_debug_utils_messenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
     void                     destroy_debug_utils_messenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
     bool                     create_surface(GLFWwindow* window);
-    bool                     find_physical_device();
-    bool                     is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType type, QueueInfos& infos, SwapChainSupportDetails& details);
+    bool                     find_physical_device(bool require_ray_tracing);
+    bool                     is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType type, QueueInfos& infos, SwapChainSupportDetails& details, bool require_ray_tracing);
     bool                     find_queues(VkPhysicalDevice device, QueueInfos& infos);
     bool                     is_queue_compatible(VkQueueFlags current_queue_flags, int32_t graphics, int32_t compute, int32_t transfer);
     bool                     create_logical_device();
@@ -101,6 +105,7 @@ private:
     VkFormat                                  m_swap_chain_image_format;
     VkFormat                                  m_swap_chain_depth_format;
     VkExtent2D                                m_swap_chain_extent;
+    VkPhysicalDeviceRayTracingPropertiesNV    m_ray_tracing_properties;
     std::shared_ptr<RenderPass>               m_swap_chain_render_pass;
     std::vector<std::shared_ptr<Image>>       m_swap_chain_images;
     std::vector<std::shared_ptr<ImageView>>   m_swap_chain_image_views;
@@ -123,7 +128,7 @@ class Image : public Object
 public:
     using Ptr = std::shared_ptr<Image>;
 
-    static Image::Ptr create(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED);
+    static Image::Ptr create(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED, void* data = nullptr);
     static Image::Ptr create_from_swapchain(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count);
 
     ~Image();
@@ -141,7 +146,7 @@ public:
     inline VkSampleCountFlags sample_count() { return m_sample_count; }
 
 private:
-    Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout);
+    Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, void* data);
     Image(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count);
 
 private:
@@ -247,6 +252,8 @@ public:
     static CommandPool::Ptr create(Backend::Ptr backend, uint32_t queue_family_index);
 
     ~CommandPool();
+
+	void reset();
 
     inline VkCommandPool handle() { return m_vk_pool; }
 
@@ -483,6 +490,30 @@ private:
     VkPipeline m_vk_pipeline;
 };
 
+class RayTracingPipeline : public Object
+{
+public:
+    using Ptr = std::shared_ptr<RayTracingPipeline>;
+
+    struct Desc
+    {
+        VkRayTracingPipelineCreateInfoNV create_info;
+        std::string						 shader_entry_name;
+    };
+
+    static RayTracingPipeline::Ptr create(Backend::Ptr backend, Desc desc);
+
+    inline VkPipeline handle() { return m_vk_pipeline; }
+
+    ~RayTracingPipeline();
+
+private:
+    RayTracingPipeline(Backend::Ptr backend, Desc desc);
+
+private:
+    VkPipeline m_vk_pipeline;
+};
+
 class Sampler : public Object
 {
 public:
@@ -622,4 +653,6 @@ private:
 };
 
 } // namespace vk
-} // namespace inferno
+} // namespace dw
+
+#endif

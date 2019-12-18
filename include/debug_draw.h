@@ -67,7 +67,11 @@ public:
     void transform(const glm::mat4& trans, const float& axis_length = 5.0f);
 
     // Render method. Pass in target Framebuffer, viewport size and view-projection matrix.
+#if defined(DWSF_VULKAN)
+
+#else
     void render(gl::Framebuffer* fbo, int width, int height, const glm::mat4& view_proj);
+#endif
 
 private:
     // Vertex list to be uploaded to GPU.
@@ -80,11 +84,15 @@ private:
     CameraUniforms m_uniforms;
 
     // GPU resources.
+#if defined(DWSF_VULKAN)
+
+#else
     std::unique_ptr<gl::VertexArray>   m_line_vao;
     std::unique_ptr<gl::VertexBuffer>  m_line_vbo;
     std::unique_ptr<gl::Shader>        m_line_vs;
     std::unique_ptr<gl::Shader>        m_line_fs;
     std::unique_ptr<gl::Program>       m_line_program;
     std::unique_ptr<gl::UniformBuffer> m_ubo;
+#endif
 };
 } // namespace dw

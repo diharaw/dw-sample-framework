@@ -97,21 +97,27 @@ bool Application::init_base(int argc, const char* argv[])
         return false;
     }
 
+#if defined(DWSF_VULKAN)
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+#else
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-    glfwWindowHint(GLFW_RESIZABLE, resizable);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, major_ver);
+
+#	if !defined(__EMSCRIPTEN__)
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_SAMPLES, 8);
+#	endif
+
+#	if __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#	endif
+
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, major_ver);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, minor_ver);
+
+#endif
+    glfwWindowHint(GLFW_RESIZABLE, resizable);
     glfwWindowHint(GLFW_MAXIMIZED, maximized);
     glfwWindowHint(GLFW_REFRESH_RATE, refresh_rate);
-
-#if !defined(__EMSCRIPTEN__)
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_SAMPLES, 8);
-#endif
-
-#if __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
 
     m_window = glfwCreateWindow(m_width, m_height, m_title.c_str(), nullptr, nullptr);
 
@@ -133,7 +139,7 @@ bool Application::init_base(int argc, const char* argv[])
 
     DW_LOG_INFO("Successfully initialized platform!");
 
-#if !defined(__EMSCRIPTEN__)
+#if !defined(DWSF_VULKAN) && !defined(__EMSCRIPTEN__)
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         return false;
 #endif

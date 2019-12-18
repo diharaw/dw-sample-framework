@@ -277,6 +277,9 @@ void Mesh::load_from_disk(const std::string& path, bool load_materials)
 
 void Mesh::create_gpu_objects()
 {
+#if defined(DWSF_VULKAN)
+
+#else
     // Create vertex buffer.
     m_vbo = std::make_unique<gl::VertexBuffer>(
         GL_STATIC_DRAW, sizeof(Vertex) * m_vertex_count, m_vertices);
@@ -303,6 +306,7 @@ void Mesh::create_gpu_objects()
 
     if (!m_vao)
         DW_LOG_ERROR("Failed to create Vertex Array");
+#endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

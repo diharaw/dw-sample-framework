@@ -1,13 +1,15 @@
-#include "vk.h"
-#include "logger.h"
-#include "macros.h"
+#if defined(DWSF_VULKAN)
 
-#define VMA_IMPLEMENTATION
-#include <vk_mem_alloc.h>
+#    include "vk.h"
+#    include "logger.h"
+#    include "macros.h"
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-#include <algorithm>
+#    define VMA_IMPLEMENTATION
+#    include <vk_mem_alloc.h>
+
+#    define GLFW_INCLUDE_VULKAN
+#    include <GLFW/glfw3.h>
+#    include <algorithm>
 
 namespace dw
 {
@@ -70,6 +72,51 @@ const char* get_vendor_name(uint32_t id)
     }
 }
 
+#    define MAX_COMMAND_THREADS 32
+#    define MAX_THREAD_LOCAL_COMMAND_BUFFERS 8
+
+struct ThreadLocalCommandBuffers
+{
+    CommandPool::Ptr   command_pool;
+    CommandBuffer::Ptr command_buffers[MAX_THREAD_LOCAL_COMMAND_BUFFERS];
+    uint32_t           allocated_buffers = 0;
+
+    ThreadLocalCommandBuffers(Backend::Ptr backend, uint32_t queue_family)
+    {
+        command_pool = CommandPool::create(backend, queue_family);
+
+		for (int i = 0; i < MAX_THREAD_LOCAL_COMMAND_BUFFERS; i++)
+            command_buffers[i] = CommandBuffer::create(backend, command_pool);
+    }
+
+    ~ThreadLocalCommandBuffers()
+    {
+    }
+
+    void reset()
+    {
+        allocated_buffers = 0;
+        command_pool->reset();
+	}
+
+    CommandBuffer::Ptr allocate()
+    {
+        if (allocated_buffers >= MAX_THREAD_LOCAL_COMMAND_BUFFERS)
+        {
+            DW_LOG_FATAL("(Vulkan) Max thread local command buffer count reached!");
+            throw std::runtime_error("(Vulkan) Max thread local command buffer count reached!");
+        }
+
+        return command_buffers[allocated_buffers++];
+    }
+};
+
+std::atomic<uint32_t> g_thread_counter = 0;
+thread_local uint32_t                                   g_thread_idx     = g_thread_counter++;
+thread_local std::shared_ptr<ThreadLocalCommandBuffers> g_graphics_command_buffers[MAX_COMMAND_THREADS];
+thread_local std::shared_ptr<ThreadLocalCommandBuffers> g_compute_command_buffers[MAX_COMMAND_THREADS];
+thread_local std::shared_ptr<ThreadLocalCommandBuffers> g_transfer_command_buffers[MAX_COMMAND_THREADS];
+
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
@@ -101,9 +148,9 @@ Object::Object(Backend::Ptr backend, VkDevice device) :
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Image::Ptr Image::create(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout)
+Image::Ptr Image::create(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, void* data)
 {
-    return std::shared_ptr<Image>(new Image(backend, type, width, height, depth, mip_levels, array_size, format, memory_usage, usage, sample_count, initial_layout));
+    return std::shared_ptr<Image>(new Image(backend, type, width, height, depth, mip_levels, array_size, format, memory_usage, usage, sample_count, initial_layout, data));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -115,7 +162,7 @@ Image::Ptr Image::create_from_swapchain(Backend::Ptr backend, VkImage image, VkI
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Image::Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout) :
+Image::Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, void* data) :
     Object(backend), m_type(type), m_width(width), m_height(height), m_depth(depth), m_mip_levels(mip_levels), m_array_size(array_size), m_format(format), m_memory_usage(memory_usage), m_sample_count(sample_count)
 {
     m_vma_allocator = backend->allocator();
@@ -427,6 +474,19 @@ CommandPool::~CommandPool()
     auto backend = m_vk_backend.lock();
 
     vkDestroyCommandPool(backend->device(), m_vk_pool, nullptr);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void CommandPool::reset()
+{
+    auto backend = m_vk_backend.lock();
+
+    if (vkResetCommandPool(backend->device(), m_vk_pool, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT) != VK_SUCCESS)
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to reset Command Pool.");
+        throw std::runtime_error("(Vulkan) Failed to reset Command Pool.");
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1544,9 +1604,9 @@ DescriptorSet::~DescriptorSet()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Backend::Ptr Backend::create(GLFWwindow* window, bool enable_validation_layers)
+Backend::Ptr Backend::create(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing)
 {
-    Backend*                 backend        = new Backend(window, enable_validation_layers);
+    Backend*                 backend        = new Backend(window, enable_validation_layers, require_ray_tracing);
     std::shared_ptr<Backend> backend_shared = std::shared_ptr<Backend>(backend);
     backend->create_swapchain(backend_shared);
 
@@ -1555,7 +1615,7 @@ Backend::Ptr Backend::create(GLFWwindow* window, bool enable_validation_layers)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Backend::Backend(GLFWwindow* window, bool enable_validation_layers) :
+Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing) :
     m_window(window)
 {
     VkApplicationInfo appInfo;
@@ -1614,7 +1674,7 @@ Backend::Backend(GLFWwindow* window, bool enable_validation_layers) :
         throw std::runtime_error("(Vulkan) Failed to create Vulkan surface.");
     }
 
-    if (!find_physical_device())
+    if (!find_physical_device(require_ray_tracing))
     {
         DW_LOG_FATAL("(Vulkan) Failed to find a suitable GPU.");
         throw std::runtime_error("(Vulkan) Failed to find a suitable GPU.");
@@ -1653,7 +1713,7 @@ Backend::~Backend()
 
     if (m_vk_debug_messenger)
         destroy_debug_utils_messenger(m_vk_instance, m_vk_debug_messenger, nullptr);
-
+	
     vkDestroySwapchainKHR(m_vk_device, m_vk_swap_chain, nullptr);
     vkDestroySurfaceKHR(m_vk_instance, m_vk_surface, nullptr);
     vkDestroyInstance(m_vk_instance, nullptr);
@@ -1704,7 +1764,7 @@ VkFormat Backend::find_depth_format()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool Backend::check_device_extension_support(VkPhysicalDevice device)
+bool Backend::check_device_extension_support(VkPhysicalDevice device, bool require_ray_tracing)
 {
     uint32_t extension_count;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
@@ -1713,6 +1773,7 @@ bool Backend::check_device_extension_support(VkPhysicalDevice device)
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, &available_extensions[0]);
 
     int unavailable_extensions = sizeof(kDeviceExtensions) / sizeof(const char*);
+    bool supports_ray_tracing   = false;
 
     for (auto& str : kDeviceExtensions)
     {
@@ -1720,10 +1781,16 @@ bool Backend::check_device_extension_support(VkPhysicalDevice device)
         {
             if (strcmp(str, extension.extensionName) == 0)
                 unavailable_extensions--;
+
+			if (strcmp(VK_NV_RAY_TRACING_EXTENSION_NAME, extension.extensionName) != 0)
+                supports_ray_tracing = true;
         }
     }
 
-    return unavailable_extensions == 0;
+	if (require_ray_tracing)
+        return unavailable_extensions == 0 && supports_ray_tracing;
+	else
+		return unavailable_extensions == 0;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1831,7 +1898,7 @@ bool Backend::create_surface(GLFWwindow* window)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool Backend::find_physical_device()
+bool Backend::find_physical_device(bool require_ray_tracing)
 {
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(m_vk_instance, &device_count, nullptr);
@@ -1841,7 +1908,7 @@ bool Backend::find_physical_device()
         DW_LOG_FATAL("(Vulkan) Failed to find GPUs with Vulkan support!");
         throw std::runtime_error("(Vulkan) Failed to find GPUs with Vulkan support!");
     }
-
+	
     std::vector<VkPhysicalDevice> devices(device_count);
 
     vkEnumeratePhysicalDevices(m_vk_instance, &device_count, devices.data());
@@ -1852,7 +1919,7 @@ bool Backend::find_physical_device()
         QueueInfos              infos;
         SwapChainSupportDetails details;
 
-        if (is_device_suitable(device, VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU, infos, details))
+        if (is_device_suitable(device, VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU, infos, details, require_ray_tracing))
         {
             m_vk_physical_device = device;
             m_selected_queues    = infos;
@@ -1867,7 +1934,7 @@ bool Backend::find_physical_device()
         QueueInfos              infos;
         SwapChainSupportDetails details;
 
-        if (is_device_suitable(device, VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU, infos, details))
+        if (is_device_suitable(device, VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU, infos, details, require_ray_tracing))
         {
             m_vk_physical_device = device;
             m_selected_queues    = infos;
@@ -1881,7 +1948,7 @@ bool Backend::find_physical_device()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool Backend::is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType type, QueueInfos& infos, SwapChainSupportDetails& details)
+bool Backend::is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType type, QueueInfos& infos, SwapChainSupportDetails& details, bool require_ray_tracing)
 {
     VkPhysicalDeviceProperties properties;
     vkGetPhysicalDeviceProperties(device, &properties);
@@ -1890,7 +1957,7 @@ bool Backend::is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType t
 
     if (properties.deviceType == type)
     {
-        bool extensions_supported = check_device_extension_support(device);
+        bool extensions_supported = check_device_extension_support(device, require_ray_tracing);
         query_swap_chain_support(device, details);
 
         if (details.format.size() > 0 && details.present_modes.size() > 0 && extensions_supported)
@@ -1899,6 +1966,19 @@ bool Backend::is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType t
             DW_LOG_INFO("(Vulkan) Name   : " + std::string(properties.deviceName));
             DW_LOG_INFO("(Vulkan) Type   : " + std::string(kDeviceTypes[properties.deviceType]));
             DW_LOG_INFO("(Vulkan) Driver : " + std::to_string(properties.driverVersion));
+
+			m_ray_tracing_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;
+            m_ray_tracing_properties.pNext = nullptr;
+            m_ray_tracing_properties.maxRecursionDepth = 0;
+            m_ray_tracing_properties.shaderGroupHandleSize = 0;
+
+            VkPhysicalDeviceProperties2 properties;
+            properties.sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+            properties.pNext      = &m_ray_tracing_properties;
+
+			DW_ZERO_MEMORY(properties.properties);
+        
+            vkGetPhysicalDeviceProperties2(device, &properties);
 
             return find_queues(device, infos);
         }
@@ -2375,13 +2455,13 @@ VkPresentModeKHR Backend::choose_swap_present_mode(const std::vector<VkPresentMo
 VkExtent2D Backend::choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities)
 {
     // Causes macro issue on windows.
-#ifdef max
-#    undef max
-#endif
+#    ifdef max
+#        undef max
+#    endif
 
-#ifdef min
-#    undef min
-#endif
+#    ifdef min
+#        undef min
+#    endif
 
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
         return capabilities.currentExtent;
@@ -2401,4 +2481,6 @@ VkExtent2D Backend::choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilit
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 } // namespace vk
-} // namespace inferno
+} // namespace dw
+
+#endif

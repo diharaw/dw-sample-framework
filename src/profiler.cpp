@@ -18,8 +18,12 @@ struct Profiler
     struct Sample
     {
         std::string name;
+#if defined(DWSF_VULKAN)
+        uint32_t query_index;
+#else
         gl::Query   query;
-        bool        start = true;
+#endif
+		bool        start = true;
         double      cpu_time;
         Sample*     end_sample;
     };
@@ -49,7 +53,12 @@ struct Profiler
 
     // -----------------------------------------------------------------------------------------------------------------------------------
 
-    void begin_sample(std::string name)
+    void begin_sample(std::string name
+#if defined(DWSF_VULKAN)
+                      ,
+                      VkCommandBuffer cmd_buf
+#endif
+    )
     {
         int32_t idx = m_sample_buffers[m_write_buffer_idx].index++;
 
@@ -59,26 +68,35 @@ struct Profiler
         auto& sample = m_sample_buffers[m_write_buffer_idx].samples[idx];
 
         sample->name = name;
+#if defined(DWSF_VULKAN)
+        sample->query_index = m_query_index++;
+#else
         sample->query.query_counter(GL_TIMESTAMP);
-        sample->end_sample = nullptr;
+#endif
+		sample->end_sample = nullptr;
         sample->start      = true;
 
-#ifdef WIN32
+#    ifdef WIN32
         LARGE_INTEGER cpu_time;
         QueryPerformanceCounter(&cpu_time);
         sample->cpu_time = cpu_time.QuadPart * (1000000.0 / m_frequency.QuadPart);
-#else
+#    else
         timeval cpu_time;
         gettimeofday(&cpu_time, nullptr);
         sample->cpu_time = (cpu_time.tv_sec * 1000000.0) + cpu_time.tv_usec;
-#endif
+#    endif
 
         m_sample_stack.push(sample.get());
     }
 
     // -----------------------------------------------------------------------------------------------------------------------------------
 
-    void end_sample(std::string name)
+    void end_sample(std::string name
+#if defined(DWSF_VULKAN)
+                    ,
+                    VkCommandBuffer cmd_buf
+#endif
+    )
     {
         int32_t idx = m_sample_buffers[m_write_buffer_idx].index++;
 
@@ -89,18 +107,22 @@ struct Profiler
 
         sample->name  = name;
         sample->start = false;
+#if defined(DWSF_VULKAN)
+        sample->query_index = m_query_index++;
+#else
         sample->query.query_counter(GL_TIMESTAMP);
+#endif
         sample->end_sample = nullptr;
 
-#ifdef WIN32
+#    ifdef WIN32
         LARGE_INTEGER cpu_time;
         QueryPerformanceCounter(&cpu_time);
         sample->cpu_time = cpu_time.QuadPart * (1000000.0 / m_frequency.QuadPart);
-#else
+#    else
         timeval cpu_time;
         gettimeofday(&cpu_time, nullptr);
         sample->cpu_time = (cpu_time.tv_sec * 1000000.0) + cpu_time.tv_usec;
-#endif
+#    endif
 
         Sample* start = m_sample_stack.top();
 
@@ -113,6 +135,7 @@ struct Profiler
 
     void begin_frame()
     {
+        m_query_index = 0;
         m_read_buffer_idx++;
         m_write_buffer_idx++;
 
@@ -157,8 +180,12 @@ struct Profiler
                     uint64_t start_time = 0;
                     uint64_t end_time   = 0;
 
+#if defined(DWSF_VULKAN)
+					// TODO: vkGetQueryPoolResults
+#else
                     sample->query.result_64(&start_time);
                     sample->end_sample->query.result_64(&end_time);
+#endif
 
                     uint64_t gpu_time_diff = end_time - start_time;
 
@@ -192,25 +219,46 @@ struct Profiler
     Buffer              m_sample_buffers[BUFFER_COUNT];
     std::stack<Sample*> m_sample_stack;
     std::stack<bool>    m_should_pop_stack;
+    uint32_t            m_query_index = 0;
 
-#ifdef WIN32
+#    ifdef WIN32
     LARGE_INTEGER m_frequency;
-#endif
+#    endif
 };
 
 Profiler* g_profiler = nullptr;
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-ScopedProfile::ScopedProfile(std::string name) :
+ScopedProfile::ScopedProfile(std::string name
+#if defined(DWSF_VULKAN)
+, VkCommandBuffer cmd_buf
+#endif
+                             ) :
     m_name(name)
 {
-    begin_sample(m_name);
+    begin_sample(m_name
+#if defined(DWSF_VULKAN)
+		, cmd_buf
+#endif
+    );
+
+#if defined(DWSF_VULKAN)
+    m_cmd_buf = cmd_buf;
+#endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-ScopedProfile::~ScopedProfile() { end_sample(m_name); }
+ScopedProfile::~ScopedProfile()
+{
+    end_sample(m_name
+#if defined(DWSF_VULKAN)
+               ,
+               m_cmd_buf
+#endif
+    );
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -222,11 +270,31 @@ void shutdown() { DW_SAFE_DELETE(g_profiler); }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void begin_sample(std::string name) { g_profiler->begin_sample(name); }
+void begin_sample(std::string name
+#if defined(DWSF_VULKAN)
+	,VkCommandBuffer cmd_buf
+#endif
+)
+{ g_profiler->begin_sample(name
+#if defined(DWSF_VULKAN)
+	, cmd_buf
+#endif
+); 
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void end_sample(std::string name) { g_profiler->end_sample(name); }
+void end_sample(std::string name
+#if defined(DWSF_VULKAN)
+	,VkCommandBuffer cmd_buf
+#endif
+)
+{ g_profiler->end_sample(name
+#if defined(DWSF_VULKAN)
+	,cmd_buf
+#endif
+); 
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 

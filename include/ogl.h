@@ -1,5 +1,7 @@
 #pragma once
 
+#if !defined(DWSF_VULKAN)
+
 #if defined(__EMSCRIPTEN__)
 #    define GLFW_INCLUDE_ES3
 #    include <GLFW/glfw3.h>
@@ -338,3 +340,5 @@ private:
 };
 } // namespace gl
 } // namespace dw
+
+#endif

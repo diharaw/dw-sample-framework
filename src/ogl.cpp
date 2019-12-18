@@ -1,3 +1,5 @@
+#if !defined(DWSF_VULKAN)
+
 #include <gtc/type_ptr.hpp>
 #include <logger.h>
 #include <ogl.h>
@@ -1783,3 +1785,5 @@ bool Query::result_available()
 // -----------------------------------------------------------------------------------------------------------------------------------
 } // namespace gl
 } // namespace dw
+
+#endif

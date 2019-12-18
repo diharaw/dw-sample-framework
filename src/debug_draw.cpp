@@ -55,6 +55,9 @@ DebugDraw::DebugDraw()
 
 bool DebugDraw::init()
 {
+#if defined(DWSF_VULKAN)
+    return true;
+#else
     // Create shaders
     m_line_vs = std::make_unique<gl::Shader>(GL_VERTEX_SHADER, g_vs_src);
     m_line_fs = std::make_unique<gl::Shader>(GL_FRAGMENT_SHADER, g_fs_src);
@@ -94,6 +97,7 @@ bool DebugDraw::init()
     m_ubo = std::make_unique<gl::UniformBuffer>(GL_DYNAMIC_DRAW, sizeof(CameraUniforms));
 
     return true;
+#endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -264,7 +268,12 @@ void DebugDraw::line(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& 
         m_world_vertices.push_back(vw1);
 
         DrawCommand cmd;
+
+#if defined(DWSF_VULKAN)
+        
+#else
         cmd.type     = GL_LINES;
+#endif
         cmd.vertices = 2;
 
         m_draw_commands.push_back(cmd);
@@ -285,7 +294,12 @@ void DebugDraw::line_strip(glm::vec3* v, const int& count, const glm::vec3& c)
     }
 
     DrawCommand cmd;
+
+#if defined(DWSF_VULKAN)
+
+#else
     cmd.type     = GL_LINE_STRIP;
+#endif
     cmd.vertices = count;
 
     m_draw_commands.push_back(cmd);
@@ -428,6 +442,9 @@ void DebugDraw::transform(const glm::mat4& trans, const float& axis_length)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+#if defined(DWSF_VULKAN)
+
+#else
 void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::mat4& view_proj)
 {
     if (m_world_vertices.size() > 0)
@@ -494,6 +511,7 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
             glEnable(GL_DEPTH_TEST);
     }
 }
+#endif
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 } // namespace dw
