@@ -2,10 +2,10 @@
 
 #if defined(DWSF_VULKAN)
 
-#include <vulkan/vulkan.h>
-#include <vector>
-#include <string>
-#include <memory>
+#    include <vulkan/vulkan.h>
+#    include <vector>
+#    include <string>
+#    include <memory>
 
 struct GLFWwindow;
 struct VmaAllocator_T;
@@ -64,7 +64,7 @@ public:
     VmaAllocator_T* allocator();
     VkFormat        find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
-	inline const QueueInfos& queue_infos() { return m_selected_queues; }
+    inline const QueueInfos& queue_infos() { return m_selected_queues; }
 
 private:
     Backend(GLFWwindow* window, bool enable_validation_layers = false, bool require_ray_tracing = false);
@@ -130,8 +130,11 @@ public:
 
     static Image::Ptr create(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED, void* data = nullptr);
     static Image::Ptr create_from_swapchain(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count);
+    static Image::Ptr create_from_file(Backend::Ptr backend, std::string path, bool flip_vertical = false, bool srgb = false);
 
     ~Image();
+
+    void set_data(int array_index, int mip_level, void* data, size_t size);
 
     inline VkImageType        type() { return m_type; }
     inline VkImage            handle() { return m_vk_image; }
@@ -253,7 +256,7 @@ public:
 
     ~CommandPool();
 
-	void reset();
+    void reset();
 
     inline VkCommandPool handle() { return m_vk_pool; }
 
@@ -498,7 +501,7 @@ public:
     struct Desc
     {
         VkRayTracingPipelineCreateInfoNV create_info;
-        std::string						 shader_entry_name;
+        std::string                      shader_entry_name;
     };
 
     static RayTracingPipeline::Ptr create(Backend::Ptr backend, Desc desc);
@@ -512,6 +515,50 @@ private:
 
 private:
     VkPipeline m_vk_pipeline;
+};
+
+class AccelerationStructure : public Object
+{
+public:
+    using Ptr = std::shared_ptr<AccelerationStructure>;
+
+    struct Desc
+    {
+    };
+
+    static AccelerationStructure::Ptr create(Backend::Ptr backend, Desc desc);
+
+    inline VkAccelerationStructureNV handle() { return m_vk_acceleration_structure; }
+
+    ~AccelerationStructure();
+
+private:
+    AccelerationStructure(Backend::Ptr backend, Desc desc);
+
+private:
+    VkAccelerationStructureNV m_vk_acceleration_structure;
+};
+
+class Geometry : public Object
+{
+public:
+    using Ptr = std::shared_ptr<Geometry>;
+
+    struct Desc
+    {
+    };
+
+    static Geometry::Ptr create(Backend::Ptr backend, Desc desc);
+
+    inline VkGeometryNV handle() { return m_vk_geometry; }
+
+    ~Geometry();
+
+private:
+    Geometry(Backend::Ptr backend, Desc desc);
+
+private:
+    VkGeometryNV m_vk_geometry;
 };
 
 class Sampler : public Object

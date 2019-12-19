@@ -1,8 +1,9 @@
 #if defined(DWSF_VULKAN)
 
-#    include "vk.h"
-#    include "logger.h"
-#    include "macros.h"
+#    include <vk.h>
+#    include <logger.h>
+#    include <macros.h>
+#    include <utility.h>
 
 #    define VMA_IMPLEMENTATION
 #    include <vk_mem_alloc.h>
@@ -10,6 +11,9 @@
 #    define GLFW_INCLUDE_VULKAN
 #    include <GLFW/glfw3.h>
 #    include <algorithm>
+
+#    define STB_IMAGE_IMPLEMENTATION
+#    include <stb_image.h>
 
 namespace dw
 {
@@ -85,7 +89,7 @@ struct ThreadLocalCommandBuffers
     {
         command_pool = CommandPool::create(backend, queue_family);
 
-		for (int i = 0; i < MAX_THREAD_LOCAL_COMMAND_BUFFERS; i++)
+        for (int i = 0; i < MAX_THREAD_LOCAL_COMMAND_BUFFERS; i++)
             command_buffers[i] = CommandBuffer::create(backend, command_pool);
     }
 
@@ -97,7 +101,7 @@ struct ThreadLocalCommandBuffers
     {
         allocated_buffers = 0;
         command_pool->reset();
-	}
+    }
 
     CommandBuffer::Ptr allocate()
     {
@@ -111,7 +115,7 @@ struct ThreadLocalCommandBuffers
     }
 };
 
-std::atomic<uint32_t> g_thread_counter = 0;
+std::atomic<uint32_t>                                   g_thread_counter = 0;
 thread_local uint32_t                                   g_thread_idx     = g_thread_counter++;
 thread_local std::shared_ptr<ThreadLocalCommandBuffers> g_graphics_command_buffers[MAX_COMMAND_THREADS];
 thread_local std::shared_ptr<ThreadLocalCommandBuffers> g_compute_command_buffers[MAX_COMMAND_THREADS];
@@ -158,6 +162,65 @@ Image::Ptr Image::create(Backend::Ptr backend, VkImageType type, uint32_t width,
 Image::Ptr Image::create_from_swapchain(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count)
 {
     return std::shared_ptr<Image>(new Image(backend, image, type, width, height, depth, mip_levels, array_size, format, memory_usage, usage, sample_count));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Image::Ptr Image::create_from_file(Backend::Ptr backend, std::string path, bool flip_vertical, bool srgb)
+{
+    int x, y, n;
+    stbi_set_flip_vertically_on_load(flip_vertical);
+
+    std::string ext = utility::file_extension(path);
+
+    if (ext == "hdr")
+    {
+        float* data = stbi_loadf(path.c_str(), &x, &y, &n, 0);
+
+        if (!data)
+            return nullptr;
+
+        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 1, 1, VK_FORMAT_R32G32B32_SFLOAT, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, data));
+
+        stbi_image_free(data);
+
+        return image;
+    }
+    else
+    {
+        stbi_uc* data = stbi_load(path.c_str(), &x, &y, &n, 0);
+
+        if (!data)
+            return nullptr;
+
+        VkFormat format;
+
+        if (n == 1)
+            format = VK_FORMAT_R8_UNORM;
+        else
+        {
+            if (srgb)
+            {
+                if (n == 4)
+                    format = VK_FORMAT_R8G8B8A8_SRGB;
+                else
+                    format = VK_FORMAT_R8G8B8_SRGB;
+            }
+            else
+            {
+                if (n == 4)
+                    format = VK_FORMAT_R8G8B8A8_UNORM;
+                else
+                    format = VK_FORMAT_R8G8B8_UNORM;
+            }
+        }
+
+        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 1, 1, format, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, data));
+
+        stbi_image_free(data);
+
+        return image;
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -213,6 +276,13 @@ Image::~Image()
 {
     if (m_vma_allocator && m_vma_allocation)
         vmaDestroyImage(m_vma_allocator, m_vk_image, m_vma_allocation);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Image::set_data(int array_index, int mip_level, void* data, size_t size)
+{
+
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1713,7 +1783,7 @@ Backend::~Backend()
 
     if (m_vk_debug_messenger)
         destroy_debug_utils_messenger(m_vk_instance, m_vk_debug_messenger, nullptr);
-	
+
     vkDestroySwapchainKHR(m_vk_device, m_vk_swap_chain, nullptr);
     vkDestroySurfaceKHR(m_vk_instance, m_vk_surface, nullptr);
     vkDestroyInstance(m_vk_instance, nullptr);
@@ -1772,7 +1842,7 @@ bool Backend::check_device_extension_support(VkPhysicalDevice device, bool requi
     std::vector<VkExtensionProperties> available_extensions(extension_count);
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, &available_extensions[0]);
 
-    int unavailable_extensions = sizeof(kDeviceExtensions) / sizeof(const char*);
+    int  unavailable_extensions = sizeof(kDeviceExtensions) / sizeof(const char*);
     bool supports_ray_tracing   = false;
 
     for (auto& str : kDeviceExtensions)
@@ -1782,15 +1852,15 @@ bool Backend::check_device_extension_support(VkPhysicalDevice device, bool requi
             if (strcmp(str, extension.extensionName) == 0)
                 unavailable_extensions--;
 
-			if (strcmp(VK_NV_RAY_TRACING_EXTENSION_NAME, extension.extensionName) != 0)
+            if (strcmp(VK_NV_RAY_TRACING_EXTENSION_NAME, extension.extensionName) != 0)
                 supports_ray_tracing = true;
         }
     }
 
-	if (require_ray_tracing)
+    if (require_ray_tracing)
         return unavailable_extensions == 0 && supports_ray_tracing;
-	else
-		return unavailable_extensions == 0;
+    else
+        return unavailable_extensions == 0;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1908,7 +1978,7 @@ bool Backend::find_physical_device(bool require_ray_tracing)
         DW_LOG_FATAL("(Vulkan) Failed to find GPUs with Vulkan support!");
         throw std::runtime_error("(Vulkan) Failed to find GPUs with Vulkan support!");
     }
-	
+
     std::vector<VkPhysicalDevice> devices(device_count);
 
     vkEnumeratePhysicalDevices(m_vk_instance, &device_count, devices.data());
@@ -1967,17 +2037,17 @@ bool Backend::is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType t
             DW_LOG_INFO("(Vulkan) Type   : " + std::string(kDeviceTypes[properties.deviceType]));
             DW_LOG_INFO("(Vulkan) Driver : " + std::to_string(properties.driverVersion));
 
-			m_ray_tracing_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;
-            m_ray_tracing_properties.pNext = nullptr;
-            m_ray_tracing_properties.maxRecursionDepth = 0;
+            m_ray_tracing_properties.sType                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;
+            m_ray_tracing_properties.pNext                 = nullptr;
+            m_ray_tracing_properties.maxRecursionDepth     = 0;
             m_ray_tracing_properties.shaderGroupHandleSize = 0;
 
             VkPhysicalDeviceProperties2 properties;
-            properties.sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-            properties.pNext      = &m_ray_tracing_properties;
+            properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+            properties.pNext = &m_ray_tracing_properties;
 
-			DW_ZERO_MEMORY(properties.properties);
-        
+            DW_ZERO_MEMORY(properties.properties);
+
             vkGetPhysicalDeviceProperties2(device, &properties);
 
             return find_queues(device, infos);
