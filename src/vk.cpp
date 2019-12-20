@@ -76,6 +76,7 @@ const char* get_vendor_name(uint32_t id)
     }
 }
 
+#    define MAX_DESCRIPTOR_POOL_THREADS 32
 #    define MAX_COMMAND_THREADS 32
 #    define MAX_THREAD_LOCAL_COMMAND_BUFFERS 8
 
@@ -120,6 +121,7 @@ thread_local uint32_t                                   g_thread_idx     = g_thr
 thread_local std::shared_ptr<ThreadLocalCommandBuffers> g_graphics_command_buffers[MAX_COMMAND_THREADS];
 thread_local std::shared_ptr<ThreadLocalCommandBuffers> g_compute_command_buffers[MAX_COMMAND_THREADS];
 thread_local std::shared_ptr<ThreadLocalCommandBuffers> g_transfer_command_buffers[MAX_COMMAND_THREADS];
+thread_local DescriptorPool::Ptr                        g_descriptor_pools[MAX_DESCRIPTOR_POOL_THREADS];
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -152,14 +154,14 @@ Object::Object(Backend::Ptr backend, VkDevice device) :
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Image::Ptr Image::create(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, void* data)
+Image::Ptr Image::create(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, void* data)
 {
     return std::shared_ptr<Image>(new Image(backend, type, width, height, depth, mip_levels, array_size, format, memory_usage, usage, sample_count, initial_layout, data));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Image::Ptr Image::create_from_swapchain(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count)
+Image::Ptr Image::create_from_swapchain(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count)
 {
     return std::shared_ptr<Image>(new Image(backend, image, type, width, height, depth, mip_levels, array_size, format, memory_usage, usage, sample_count));
 }
@@ -180,7 +182,7 @@ Image::Ptr Image::create_from_file(Backend::Ptr backend, std::string path, bool 
         if (!data)
             return nullptr;
 
-        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 1, 1, VK_FORMAT_R32G32B32_SFLOAT, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, data));
+        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 1, 1, VK_FORMAT_R32G32B32_SFLOAT, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, data));
 
         stbi_image_free(data);
 
@@ -215,7 +217,7 @@ Image::Ptr Image::create_from_file(Backend::Ptr backend, std::string path, bool 
             }
         }
 
-        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 1, 1, format, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, data));
+        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 1, 1, format, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, data));
 
         stbi_image_free(data);
 
@@ -225,7 +227,7 @@ Image::Ptr Image::create_from_file(Backend::Ptr backend, std::string path, bool 
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Image::Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, void* data) :
+Image::Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, void* data) :
     Object(backend), m_type(type), m_width(width), m_height(height), m_depth(depth), m_mip_levels(mip_levels), m_array_size(array_size), m_format(format), m_memory_usage(memory_usage), m_sample_count(sample_count)
 {
     m_vma_allocator = backend->allocator();
@@ -265,7 +267,7 @@ Image::Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t he
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Image::Image(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count) :
+Image::Image(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count) :
     Object(backend), m_vk_image(image), m_type(type), m_width(width), m_height(height), m_depth(depth), m_mip_levels(mip_levels), m_array_size(array_size), m_format(format), m_memory_usage(memory_usage), m_sample_count(sample_count)
 {
 }
@@ -282,7 +284,6 @@ Image::~Image()
 
 void Image::set_data(int array_index, int mip_level, void* data, size_t size)
 {
-
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -430,15 +431,15 @@ Framebuffer::~Framebuffer()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Buffer::Ptr Buffer::create(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaMemoryUsage memory_usage, VkFlags create_flags)
+Buffer::Ptr Buffer::create(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaMemoryUsage memory_usage, VkFlags create_flags, void* data)
 {
-    return std::shared_ptr<Buffer>(new Buffer(backend, usage, size, memory_usage, create_flags));
+    return std::shared_ptr<Buffer>(new Buffer(backend, usage, size, memory_usage, create_flags, data));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Buffer::Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaMemoryUsage memory_usage, VkFlags create_flags) :
-    Object(backend), m_size(size)
+Buffer::Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaMemoryUsage memory_usage, VkFlags create_flags, void* data) :
+    Object(backend), m_size(size), m_vma_memory_usage(memory_usage)
 {
     m_vma_allocator = backend->allocator();
 
@@ -474,6 +475,9 @@ Buffer::Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaM
     else if (memory_usage == VMA_MEMORY_USAGE_GPU_TO_CPU)
         memory_prop_flags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 
+    m_vk_memory_property = memory_prop_flags;
+    m_vk_usage_flags     = usage_flags;
+
     VmaAllocationInfo vma_alloc_info;
 
     VmaAllocationCreateInfo alloc_create_info;
@@ -495,7 +499,12 @@ Buffer::Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaM
     m_vk_device_memory = vma_alloc_info.deviceMemory;
 
     if (create_flags & VMA_ALLOCATION_CREATE_MAPPED_BIT)
+    {
         m_mapped_ptr = vma_alloc_info.pMappedData;
+
+        if (data)
+            set_data(data, size, 0);
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -503,6 +512,42 @@ Buffer::Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaM
 Buffer::~Buffer()
 {
     vmaDestroyBuffer(m_vma_allocator, m_vk_buffer, m_vma_allocation);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Buffer::set_data(void* data, size_t size, size_t offset)
+{
+    auto backend = m_vk_backend.lock();
+
+    if (m_vma_memory_usage == VMA_MEMORY_USAGE_GPU_ONLY)
+    {
+        // Create VMA_MEMORY_USAGE_CPU_ONLY staging buffer and perfom Buffer-to-Buffer copy
+        Buffer::Ptr staging = Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, size, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT, data);
+
+        // @TODO: accquire temp cmd buf, record, submit, wait.
+    }
+    else
+    {
+        if (!m_mapped_ptr)
+            vkMapMemory(backend->device(), m_vk_device_memory, 0, size, 0, &m_mapped_ptr);
+
+        memcpy(m_mapped_ptr, data, size);
+
+        // If host coherency hasn't been requested, do a manual flush to make writes visible
+        if ((m_vk_memory_property & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == 0)
+        {
+            VkMappedMemoryRange mapped_range;
+            DW_ZERO_MEMORY(mapped_range);
+
+            mapped_range.sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+            mapped_range.memory = m_vk_device_memory;
+            mapped_range.offset = 0;
+            mapped_range.size   = VK_WHOLE_SIZE;
+
+            vkFlushMappedMemoryRanges(backend->device(), 1, &mapped_range);
+        }
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1674,13 +1719,95 @@ DescriptorSet::~DescriptorSet()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+Fence::Ptr Fence::create(Backend::Ptr backend)
+{
+    return std::shared_ptr<Fence>(new Fence(backend));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Fence::~Fence()
+{
+    if (m_vk_backend.expired())
+    {
+        DW_LOG_FATAL("(Vulkan) Destructing after Device.");
+        throw std::runtime_error("(Vulkan) Destructing after Device.");
+    }
+
+    auto backend = m_vk_backend.lock();
+
+    vkDestroyFence(backend->device(), m_vk_fence, nullptr);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Fence::Fence(Backend::Ptr backend) :
+    Object(backend)
+{
+    VkFenceCreateInfo fence_info;
+    DW_ZERO_MEMORY(fence_info);
+
+    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    if (vkCreateFence(backend->device(), &fence_info, nullptr, &m_vk_fence) != VK_SUCCESS)
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to create Fence.");
+        throw std::runtime_error("(Vulkan) Failed to create Fence.");
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Semaphore::Ptr Semaphore::create(Backend::Ptr backend)
+{
+    return std::shared_ptr<Semaphore>(new Semaphore(backend));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Semaphore::~Semaphore()
+{
+    if (m_vk_backend.expired())
+    {
+        DW_LOG_FATAL("(Vulkan) Destructing after Device.");
+        throw std::runtime_error("(Vulkan) Destructing after Device.");
+    }
+
+    auto backend = m_vk_backend.lock();
+
+    if (vkDestroySemaphore(backend->device(), m_vk_semaphore, nullptr) != VK_SUCCESS)
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to create Semaphore.");
+        throw std::runtime_error("(Vulkan) Failed to create Semaphore.");
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Semaphore::Semaphore(Backend::Ptr backend) :
+    Object(backend)
+{
+    VkSemaphoreCreateInfo semaphore_info;
+    DW_ZERO_MEMORY(semaphore_info);
+
+    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    if (vkCreateSemaphore(backend->device(), &semaphore_info, nullptr, &m_vk_semaphore) != VK_SUCCESS)
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to create Semaphore.");
+        throw std::runtime_error("(Vulkan) Failed to create Semaphore.");
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 Backend::Ptr Backend::create(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing)
 {
-    Backend*                 backend        = new Backend(window, enable_validation_layers, require_ray_tracing);
-    std::shared_ptr<Backend> backend_shared = std::shared_ptr<Backend>(backend);
-    backend->create_swapchain(backend_shared);
+    std::shared_ptr<Backend> backend = std::shared_ptr<Backend>(new Backend(window, enable_validation_layers, require_ray_tracing));
+    backend->initialize();
 
-    return backend_shared;
+    return backend;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1787,6 +1914,95 @@ Backend::~Backend()
     vkDestroySwapchainKHR(m_vk_device, m_vk_swap_chain, nullptr);
     vkDestroySurfaceKHR(m_vk_instance, m_vk_surface, nullptr);
     vkDestroyInstance(m_vk_instance, nullptr);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::initialize()
+{
+    create_swapchain();
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+std::shared_ptr<DescriptorSet> Backend::allocate_descriptor_set(std::shared_ptr<DescriptorSetLayout> layout)
+{
+    return DescriptorSet::create(shared_from_this(), layout, g_descriptor_pools[g_thread_idx]);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+std::shared_ptr<CommandBuffer> allocate_graphics_command_buffer()
+{
+    return g_graphics_command_buffers[g_thread_idx]->allocate();
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+std::shared_ptr<CommandBuffer> allocate_compute_command_buffer()
+{
+    return g_compute_command_buffers[g_thread_idx]->allocate();
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+std::shared_ptr<CommandBuffer> allocate_transfer_command_buffer()
+{
+    return g_transfer_command_buffers[g_thread_idx]->allocate();
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::submit_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::submit_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::begin_frame()
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::end_frame()
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Image::Ptr Backend::swapchain_image()
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+ImageView::Ptr Backend::swapchain_image_view()
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Framebuffer::Ptr Backend::swapchain_framebuffer()
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+RenderPass::Ptr Backend::swapchain_render_pass()
+{
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2323,7 +2539,7 @@ bool Backend::create_logical_device()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool Backend::create_swapchain(std::shared_ptr<Backend> backend)
+bool Backend::create_swapchain()
 {
     VkSurfaceFormatKHR surface_format = choose_swap_surface_format(m_swapchain_details.format);
     VkPresentModeKHR   present_mode   = choose_swap_present_mode(m_swapchain_details.present_modes);
@@ -2386,7 +2602,7 @@ bool Backend::create_swapchain(std::shared_ptr<Backend> backend)
 
     m_swap_chain_depth_format = find_depth_format();
 
-    m_swap_chain_depth = Image::create(backend,
+    m_swap_chain_depth = Image::create(shared_from_this(),
                                        VK_IMAGE_TYPE_2D,
                                        m_swap_chain_extent.width,
                                        m_swap_chain_extent.height,
@@ -2398,9 +2614,9 @@ bool Backend::create_swapchain(std::shared_ptr<Backend> backend)
                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                                        VK_SAMPLE_COUNT_1_BIT);
 
-    m_swap_chain_depth_view = ImageView::create(backend, m_swap_chain_depth, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT);
+    m_swap_chain_depth_view = ImageView::create(shared_from_this(), m_swap_chain_depth, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-    create_render_pass(backend);
+    create_render_pass();
 
     std::vector<ImageView::Ptr> views(2);
 
@@ -2408,12 +2624,12 @@ bool Backend::create_swapchain(std::shared_ptr<Backend> backend)
 
     for (int i = 0; i < swap_image_count; i++)
     {
-        m_swap_chain_images[i]      = Image::create_from_swapchain(backend, images[i], VK_IMAGE_TYPE_2D, m_swap_chain_extent.width, m_swap_chain_extent.height, 1, 1, 1, m_swap_chain_image_format, VMA_MEMORY_USAGE_UNKNOWN, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_SAMPLE_COUNT_1_BIT);
-        m_swap_chain_image_views[i] = ImageView::create(backend, m_swap_chain_images[i], VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT);
+        m_swap_chain_images[i]      = Image::create_from_swapchain(shared_from_this(), images[i], VK_IMAGE_TYPE_2D, m_swap_chain_extent.width, m_swap_chain_extent.height, 1, 1, 1, m_swap_chain_image_format, VMA_MEMORY_USAGE_UNKNOWN, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_SAMPLE_COUNT_1_BIT);
+        m_swap_chain_image_views[i] = ImageView::create(shared_from_this(), m_swap_chain_images[i], VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT);
 
         views[0] = m_swap_chain_image_views[i];
 
-        m_swap_chain_framebuffers[i] = Framebuffer::create(backend, m_swap_chain_render_pass, views, m_swap_chain_extent.width, m_swap_chain_extent.height, 1);
+        m_swap_chain_framebuffers[i] = Framebuffer::create(shared_from_this(), m_swap_chain_render_pass, views, m_swap_chain_extent.width, m_swap_chain_extent.height, 1);
     }
 
     return true;
@@ -2421,7 +2637,7 @@ bool Backend::create_swapchain(std::shared_ptr<Backend> backend)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Backend::create_render_pass(std::shared_ptr<Backend> backend)
+void Backend::create_render_pass()
 {
     std::vector<VkAttachmentDescription> attachments(2);
 
@@ -2484,7 +2700,7 @@ void Backend::create_render_pass(std::shared_ptr<Backend> backend)
     dependencies[1].dstAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
     dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
-    m_swap_chain_render_pass = RenderPass::create(backend, attachments, subpass_description, dependencies);
+    m_swap_chain_render_pass = RenderPass::create(shared_from_this(), attachments, subpass_description, dependencies);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

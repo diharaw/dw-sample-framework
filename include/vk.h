@@ -51,7 +51,7 @@ struct QueueInfos
     bool transfer();
 };
 
-class Backend
+class Backend : public std::enable_shared_from_this<Backend>
 {
 public:
     using Ptr = std::shared_ptr<Backend>;
@@ -59,6 +59,20 @@ public:
     static Backend::Ptr create(GLFWwindow* window, bool enable_validation_layers = false, bool require_ray_tracing = false);
 
     ~Backend();
+
+    std::shared_ptr<DescriptorSet> allocate_descriptor_set(std::shared_ptr<DescriptorSetLayout> layout);
+    std::shared_ptr<CommandBuffer> allocate_graphics_command_buffer();
+    std::shared_ptr<CommandBuffer> allocate_compute_command_buffer();
+    std::shared_ptr<CommandBuffer> allocate_transfer_command_buffer();
+    void                           submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
+    void                           submit_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
+    void                           submit_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
+    void                           begin_frame();
+    void                           end_frame();
+    std::shared_ptr<Image>         swapchain_image();
+    std::shared_ptr<ImageView>     swapchain_image_view();
+    std::shared_ptr<Framebuffer>   swapchain_framebuffer();
+    std::shared_ptr<RenderPass>    swapchain_render_pass();
 
     VkDevice        device();
     VmaAllocator_T* allocator();
@@ -68,6 +82,7 @@ public:
 
 private:
     Backend(GLFWwindow* window, bool enable_validation_layers = false, bool require_ray_tracing = false);
+    void                     initialize();
     VkFormat                 find_depth_format();
     bool                     check_validation_layer_support(std::vector<const char*> layers);
     bool                     check_device_extension_support(VkPhysicalDevice device, bool require_ray_tracing);
@@ -81,8 +96,8 @@ private:
     bool                     find_queues(VkPhysicalDevice device, QueueInfos& infos);
     bool                     is_queue_compatible(VkQueueFlags current_queue_flags, int32_t graphics, int32_t compute, int32_t transfer);
     bool                     create_logical_device();
-    bool                     create_swapchain(std::shared_ptr<Backend> backend);
-    void                     create_render_pass(std::shared_ptr<Backend> backend);
+    bool                     create_swapchain();
+    void                     create_render_pass();
     VkSurfaceFormatKHR       choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats);
     VkPresentModeKHR         choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_modes);
     VkExtent2D               choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
@@ -110,6 +125,9 @@ private:
     std::vector<std::shared_ptr<Image>>       m_swap_chain_images;
     std::vector<std::shared_ptr<ImageView>>   m_swap_chain_image_views;
     std::vector<std::shared_ptr<Framebuffer>> m_swap_chain_framebuffers;
+    std::vector<VkSemaphore>                  image_available_semaphores;
+    std::vector<VkSemaphore>                  render_finished_semaphores;
+    std::vector<VkFence>                      in_flight_fences;
     std::shared_ptr<Image>                    m_swap_chain_depth      = nullptr;
     std::shared_ptr<ImageView>                m_swap_chain_depth_view = nullptr;
 };
@@ -128,8 +146,8 @@ class Image : public Object
 public:
     using Ptr = std::shared_ptr<Image>;
 
-    static Image::Ptr create(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED, void* data = nullptr);
-    static Image::Ptr create_from_swapchain(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count);
+    static Image::Ptr create(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED, void* data = nullptr);
+    static Image::Ptr create_from_swapchain(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count);
     static Image::Ptr create_from_file(Backend::Ptr backend, std::string path, bool flip_vertical = false, bool srgb = false);
 
     ~Image();
@@ -149,8 +167,8 @@ public:
     inline VkSampleCountFlags sample_count() { return m_sample_count; }
 
 private:
-    Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, void* data);
-    Image(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlagBits usage, VkSampleCountFlagBits sample_count);
+    Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, void* data);
+    Image(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count);
 
 private:
     uint32_t           m_width;
@@ -227,24 +245,29 @@ class Buffer : public Object
 public:
     using Ptr = std::shared_ptr<Buffer>;
 
-    static Buffer::Ptr create(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaMemoryUsage memory_usage, VkFlags create_flags);
+    static Buffer::Ptr create(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaMemoryUsage memory_usage, VkFlags create_flags, void* data = nullptr);
 
     ~Buffer();
+
+    void set_data(void* data, size_t size, size_t offset);
 
     inline VkBuffer handle() { return m_vk_buffer; }
     inline size_t   size() { return m_size; }
     inline void*    mapped_ptr() { return m_mapped_ptr; }
 
 private:
-    Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaMemoryUsage memory_usage, VkFlags create_flags);
+    Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaMemoryUsage memory_usage, VkFlags create_flags, void* data);
 
 private:
-    size_t           m_size;
-    void*            m_mapped_ptr       = nullptr;
-    VkBuffer         m_vk_buffer        = nullptr;
-    VkDeviceMemory   m_vk_device_memory = nullptr;
-    VmaAllocator_T*  m_vma_allocator    = nullptr;
-    VmaAllocation_T* m_vma_allocation   = nullptr;
+    size_t                m_size;
+    void*                 m_mapped_ptr       = nullptr;
+    VkBuffer              m_vk_buffer        = nullptr;
+    VkDeviceMemory        m_vk_device_memory = nullptr;
+    VmaAllocator_T*       m_vma_allocator    = nullptr;
+    VmaAllocation_T*      m_vma_allocation   = nullptr;
+    VmaMemoryUsage        m_vma_memory_usage;
+    VkMemoryPropertyFlags m_vk_memory_property;
+    VkBufferUsageFlags    m_vk_usage_flags;
 };
 
 class CommandPool : public Object
@@ -697,6 +720,42 @@ private:
 private:
     VkDescriptorSet               m_vk_ds;
     std::weak_ptr<DescriptorPool> m_vk_pool;
+};
+
+class Fence : public Object
+{
+public:
+    using Ptr = std::shared_ptr<Fence>;
+
+    static Fence::Ptr create(Backend::Ptr backend);
+
+    ~Fence();
+
+    inline VkFence handle() { return m_vk_fence; }
+
+private:
+    Fence(Backend::Ptr backend);
+
+private:
+    VkFence m_vk_fence;
+};
+
+class Semaphore : public Object
+{
+public:
+    using Ptr = std::shared_ptr<Semaphore>;
+
+    static Semaphore::Ptr create(Backend::Ptr backend);
+
+    ~Semaphore();
+
+    inline VkSemaphore handle() { return m_vk_semaphore; }
+
+private:
+    Semaphore(Backend::Ptr backend);
+
+private:
+    VkSemaphore m_vk_semaphore;
 };
 
 } // namespace vk
