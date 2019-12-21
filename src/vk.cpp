@@ -15,6 +15,8 @@
 #    define STB_IMAGE_IMPLEMENTATION
 #    include <stb_image.h>
 
+#    define MAX_IN_FLIGHT_FRAMES 3
+
 namespace dw
 {
 namespace vk
@@ -1776,11 +1778,7 @@ Semaphore::~Semaphore()
 
     auto backend = m_vk_backend.lock();
 
-    if (vkDestroySemaphore(backend->device(), m_vk_semaphore, nullptr) != VK_SUCCESS)
-    {
-        DW_LOG_FATAL("(Vulkan) Failed to create Semaphore.");
-        throw std::runtime_error("(Vulkan) Failed to create Semaphore.");
-    }
+    vkDestroySemaphore(backend->device(), m_vk_semaphore, nullptr);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1921,6 +1919,27 @@ Backend::~Backend()
 void Backend::initialize()
 {
     create_swapchain();
+
+    // Create Descriptor Pools
+    DescriptorPool::Desc dp_desc;
+
+    dp_desc.set_max_sets(512)
+        .add_pool_size(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 32)
+        .add_pool_size(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 4)
+        .add_pool_size(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 256)
+        .add_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 32)
+        .add_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 32)
+        .add_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 16);
+
+    for (int i = 0; i < MAX_DESCRIPTOR_POOL_THREADS; i++)
+        g_descriptor_pools[i] = DescriptorPool::create(shared_from_this(), dp_desc);
+
+    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
+    {
+        g_graphics_command_buffers[i] = std::make_shared<ThreadLocalCommandBuffers>(shared_from_this(), m_selected_queues.graphics_queue_index);
+        g_compute_command_buffers[i]  = std::make_shared<ThreadLocalCommandBuffers>(shared_from_this(), m_selected_queues.compute_queue_index);
+        g_transfer_command_buffers[i] = std::make_shared<ThreadLocalCommandBuffers>(shared_from_this(), m_selected_queues.transfer_queue_index);
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1932,21 +1951,21 @@ std::shared_ptr<DescriptorSet> Backend::allocate_descriptor_set(std::shared_ptr<
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-std::shared_ptr<CommandBuffer> allocate_graphics_command_buffer()
+std::shared_ptr<CommandBuffer> Backend::allocate_graphics_command_buffer()
 {
     return g_graphics_command_buffers[g_thread_idx]->allocate();
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-std::shared_ptr<CommandBuffer> allocate_compute_command_buffer()
+std::shared_ptr<CommandBuffer> Backend::allocate_compute_command_buffer()
 {
     return g_compute_command_buffers[g_thread_idx]->allocate();
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-std::shared_ptr<CommandBuffer> allocate_transfer_command_buffer()
+std::shared_ptr<CommandBuffer> Backend::allocate_transfer_command_buffer()
 {
     return g_transfer_command_buffers[g_thread_idx]->allocate();
 }
@@ -1955,54 +1974,187 @@ std::shared_ptr<CommandBuffer> allocate_transfer_command_buffer()
 
 void Backend::submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
 {
+    submit(m_vk_graphics_queue, cmd_bufs);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Backend::submit_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
 {
+    submit(m_vk_compute_queue, cmd_bufs);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Backend::submit_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
 {
+    submit(m_vk_transfer_queue, cmd_bufs);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::flush_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
+{
+    flush(m_vk_graphics_queue, cmd_bufs);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::flush_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
+{
+    flush(m_vk_compute_queue, cmd_bufs);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::flush_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
+{
+    flush(m_vk_transfer_queue, cmd_bufs);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::submit(VkQueue queue, const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
+{
+    VkCommandBuffer vk_cmd_bufs[32];
+
+    for (int i = 0; i < cmd_bufs.size(); i++)
+        vk_cmd_bufs[i] = cmd_bufs[i]->handle();
+
+    VkSubmitInfo submit_info;
+    DW_ZERO_MEMORY(submit_info);
+
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore          wait_semaphores[] = { m_image_available_semaphores[m_current_frame]->handle() };
+    VkPipelineStageFlags wait_stages[]     = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    submit_info.waitSemaphoreCount         = 1;
+    submit_info.pWaitSemaphores            = wait_semaphores;
+    submit_info.pWaitDstStageMask          = wait_stages;
+
+    submit_info.commandBufferCount = cmd_bufs.size();
+    submit_info.pCommandBuffers    = &vk_cmd_bufs[0];
+
+    VkSemaphore signal_semaphores[]  = { m_render_finished_semaphores[m_current_frame]->handle() };
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores    = signal_semaphores;
+
+    vkResetFences(m_vk_device, 1, &m_in_flight_fences[m_current_frame]->handle());
+
+    if (vkQueueSubmit(queue, 1, &submit_info, m_in_flight_fences[m_current_frame]->handle()) != VK_SUCCESS)
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to submit command buffer!");
+        throw std::runtime_error("(Vulkan) Failed to submit command buffer!");
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::flush(VkQueue queue, const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
+{
+    VkCommandBuffer vk_cmd_bufs[32];
+
+    for (int i = 0; i < cmd_bufs.size(); i++)
+        vk_cmd_bufs[i] = cmd_bufs[i]->handle();
+
+    VkSubmitInfo submit_info;
+    DW_ZERO_MEMORY(submit_info);
+
+    submit_info.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers    = &vk_cmd_bufs[0];
+
+    // Create fence to ensure that the command buffer has finished executing
+    VkFenceCreateInfo fence_info;
+    DW_ZERO_MEMORY(fence_info);
+
+    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+    VkFence fence;
+    vkCreateFence(m_vk_device, &fence_info, nullptr, &fence);
+
+    // Submit to the queue
+    vkQueueSubmit(queue, 1, &submit_info, fence);
+
+    // Wait for the fence to signal that command buffer has finished executing
+    vkWaitForFences(m_vk_device, 1, &fence, VK_TRUE, 100000000000);
+
+    vkDestroyFence(m_vk_device, fence, nullptr);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Backend::begin_frame()
 {
+    vkWaitForFences(m_vk_device, 1, &m_in_flight_fences[m_current_frame]->handle(), VK_TRUE, UINT64_MAX);
+
+    VkResult result = vkAcquireNextImageKHR(m_vk_device, m_vk_swap_chain, UINT64_MAX, m_image_available_semaphores[m_current_frame]->handle(), VK_NULL_HANDLE, &m_image_index);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        recreate_swapchain();
+        return;
+    }
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to acquire swap chain image!");
+        throw std::runtime_error("(Vulkan) Failed to acquire swap chain image!");
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Backend::end_frame()
 {
+    VkSemaphore signal_semaphores[] = { m_render_finished_semaphores[m_current_frame]->handle() };
+
+    VkPresentInfoKHR present_info;
+    DW_ZERO_MEMORY(present_info);
+
+    present_info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores    = signal_semaphores;
+
+    VkSwapchainKHR swap_chains[] = { m_vk_swap_chain };
+    present_info.swapchainCount  = 1;
+    present_info.pSwapchains     = swap_chains;
+    present_info.pImageIndices   = &m_image_index;
+
+    if (vkQueuePresentKHR(m_vk_presentation_queue, &present_info) != VK_SUCCESS)
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to submit draw command buffer!");
+        throw std::runtime_error("failed to present swap chain image!");
+    }
+
+    m_current_frame = (m_current_frame + 1) % MAX_IN_FLIGHT_FRAMES;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Image::Ptr Backend::swapchain_image()
 {
+    return m_swap_chain_images[m_current_frame];
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 ImageView::Ptr Backend::swapchain_image_view()
 {
+    return m_swap_chain_image_views[m_current_frame];
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Framebuffer::Ptr Backend::swapchain_framebuffer()
 {
+    return m_swap_chain_framebuffers[m_current_frame];
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 RenderPass::Ptr Backend::swapchain_render_pass()
 {
+    return m_swap_chain_render_pass;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2632,7 +2784,40 @@ bool Backend::create_swapchain()
         m_swap_chain_framebuffers[i] = Framebuffer::create(shared_from_this(), m_swap_chain_render_pass, views, m_swap_chain_extent.width, m_swap_chain_extent.height, 1);
     }
 
+    m_image_available_semaphores.resize(MAX_IN_FLIGHT_FRAMES);
+    m_render_finished_semaphores.resize(MAX_IN_FLIGHT_FRAMES);
+    m_in_flight_fences.resize(MAX_IN_FLIGHT_FRAMES);
+
+    for (size_t i = 0; i < MAX_IN_FLIGHT_FRAMES; i++)
+    {
+        m_image_available_semaphores[i] = Semaphore::create(shared_from_this());
+        m_render_finished_semaphores[i] = Semaphore::create(shared_from_this());
+        m_in_flight_fences[i]           = Fence::create(shared_from_this());
+    }
+
     return true;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::recreate_swapchain()
+{
+    vkDeviceWaitIdle(m_vk_device);
+
+    // Destroy existing swap chain resources
+    for (int i = 0; i < m_swap_chain_images.size(); i++)
+    {
+        m_swap_chain_framebuffers[i].reset();
+        m_swap_chain_image_views[i].reset();
+    }
+
+    vkDestroySwapchainKHR(m_vk_device, m_vk_swap_chain, nullptr);
+
+    if (!create_swapchain())
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to create swap chain!");
+        throw std::runtime_error("(Vulkan) Failed to create swap chain!");
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

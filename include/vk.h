@@ -22,6 +22,8 @@ class Framebuffer;
 class RenderPass;
 class CommandBuffer;
 class PipelineLayout;
+class Fence;
+class Semaphore;
 
 struct SwapChainSupportDetails
 {
@@ -67,12 +69,16 @@ public:
     void                           submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
     void                           submit_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
     void                           submit_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
+    void                           flush_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
+    void                           flush_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
+    void                           flush_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
     void                           begin_frame();
     void                           end_frame();
     std::shared_ptr<Image>         swapchain_image();
     std::shared_ptr<ImageView>     swapchain_image_view();
     std::shared_ptr<Framebuffer>   swapchain_framebuffer();
     std::shared_ptr<RenderPass>    swapchain_render_pass();
+    void                           recreate_swapchain();
 
     VkDevice        device();
     VmaAllocator_T* allocator();
@@ -101,8 +107,12 @@ private:
     VkSurfaceFormatKHR       choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats);
     VkPresentModeKHR         choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_modes);
     VkExtent2D               choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
+    void                     submit(VkQueue queue, const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
+    void                     flush(VkQueue queue, const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
 
 private:
+    uint32_t                                  m_image_index             = 0;
+    uint32_t                                  m_current_frame           = 0;
     GLFWwindow*                               m_window                = nullptr;
     VkInstance                                m_vk_instance           = nullptr;
     VkDevice                                  m_vk_device             = nullptr;
@@ -125,9 +135,9 @@ private:
     std::vector<std::shared_ptr<Image>>       m_swap_chain_images;
     std::vector<std::shared_ptr<ImageView>>   m_swap_chain_image_views;
     std::vector<std::shared_ptr<Framebuffer>> m_swap_chain_framebuffers;
-    std::vector<VkSemaphore>                  image_available_semaphores;
-    std::vector<VkSemaphore>                  render_finished_semaphores;
-    std::vector<VkFence>                      in_flight_fences;
+    std::vector<std::shared_ptr<Semaphore>>   m_image_available_semaphores;
+    std::vector<std::shared_ptr<Semaphore>>   m_render_finished_semaphores;
+    std::vector<std::shared_ptr<Fence>>       m_in_flight_fences;
     std::shared_ptr<Image>                    m_swap_chain_depth      = nullptr;
     std::shared_ptr<ImageView>                m_swap_chain_depth_view = nullptr;
 };
@@ -155,7 +165,7 @@ public:
     void set_data(int array_index, int mip_level, void* data, size_t size);
 
     inline VkImageType        type() { return m_type; }
-    inline VkImage            handle() { return m_vk_image; }
+    inline const VkImage&            handle() { return m_vk_image; }
     inline uint32_t           width() { return m_width; }
     inline uint32_t           height() { return m_height; }
     inline uint32_t           depth() { return m_depth; }
@@ -196,7 +206,7 @@ public:
 
     ~ImageView();
 
-    inline VkImageView handle() { return m_vk_image_view; }
+    inline const VkImageView& handle() { return m_vk_image_view; }
 
 private:
     ImageView(Backend::Ptr backend, Image::Ptr image, VkImageViewType view_type, VkImageAspectFlags aspect_flags, uint32_t base_mip_level = 0, uint32_t level_count = 1, uint32_t base_array_layer = 0, uint32_t layer_count = 1);
@@ -213,7 +223,7 @@ public:
     static RenderPass::Ptr create(Backend::Ptr backend, std::vector<VkAttachmentDescription> attachment_descs, std::vector<VkSubpassDescription> subpass_descs, std::vector<VkSubpassDependency> subpass_deps);
     ~RenderPass();
 
-    inline VkRenderPass handle() { return m_vk_render_pass; }
+    inline const VkRenderPass& handle() { return m_vk_render_pass; }
 
 private:
     RenderPass(Backend::Ptr backend, std::vector<VkAttachmentDescription> attachment_descs, std::vector<VkSubpassDescription> subpass_descs, std::vector<VkSubpassDependency> subpass_deps);
@@ -231,7 +241,7 @@ public:
 
     ~Framebuffer();
 
-    inline VkFramebuffer handle() { return m_vk_framebuffer; }
+    inline const VkFramebuffer& handle() { return m_vk_framebuffer; }
 
 private:
     Framebuffer(Backend::Ptr backend, RenderPass::Ptr render_pass, std::vector<ImageView::Ptr> views, uint32_t width, uint32_t height, uint32_t layers);
@@ -251,7 +261,7 @@ public:
 
     void set_data(void* data, size_t size, size_t offset);
 
-    inline VkBuffer handle() { return m_vk_buffer; }
+    inline const VkBuffer& handle() { return m_vk_buffer; }
     inline size_t   size() { return m_size; }
     inline void*    mapped_ptr() { return m_mapped_ptr; }
 
@@ -281,7 +291,7 @@ public:
 
     void reset();
 
-    inline VkCommandPool handle() { return m_vk_pool; }
+    inline const VkCommandPool& handle() { return m_vk_pool; }
 
 private:
     CommandPool(Backend::Ptr backend, uint32_t queue_family_index);
@@ -300,7 +310,7 @@ public:
     ~CommandBuffer();
 
     void                   reset();
-    inline VkCommandBuffer handle() { return m_vk_command_buffer; }
+    inline const VkCommandBuffer& handle() { return m_vk_command_buffer; }
 
 private:
     CommandBuffer(Backend::Ptr backend, CommandPool::Ptr pool);
@@ -319,7 +329,7 @@ public:
 
     ~ShaderModule();
 
-    inline VkShaderModule handle() { return m_vk_module; }
+    inline const VkShaderModule& handle() { return m_vk_module; }
 
 private:
     ShaderModule(Backend::Ptr backend, std::vector<uint32_t> spirv);
@@ -475,7 +485,7 @@ public:
 
     static GraphicsPipeline::Ptr create(Backend::Ptr backend, Desc desc);
 
-    inline VkPipeline handle() { return m_vk_pipeline; }
+    inline const VkPipeline& handle() { return m_vk_pipeline; }
 
     ~GraphicsPipeline();
 
@@ -505,7 +515,7 @@ public:
 
     static ComputePipeline::Ptr create(Backend::Ptr backend, Desc desc);
 
-    inline VkPipeline handle() { return m_vk_pipeline; }
+    inline const VkPipeline& handle() { return m_vk_pipeline; }
 
     ~ComputePipeline();
 
@@ -529,7 +539,7 @@ public:
 
     static RayTracingPipeline::Ptr create(Backend::Ptr backend, Desc desc);
 
-    inline VkPipeline handle() { return m_vk_pipeline; }
+    inline const VkPipeline& handle() { return m_vk_pipeline; }
 
     ~RayTracingPipeline();
 
@@ -551,7 +561,7 @@ public:
 
     static AccelerationStructure::Ptr create(Backend::Ptr backend, Desc desc);
 
-    inline VkAccelerationStructureNV handle() { return m_vk_acceleration_structure; }
+    inline const VkAccelerationStructureNV& handle() { return m_vk_acceleration_structure; }
 
     ~AccelerationStructure();
 
@@ -573,7 +583,7 @@ public:
 
     static Geometry::Ptr create(Backend::Ptr backend, Desc desc);
 
-    inline VkGeometryNV handle() { return m_vk_geometry; }
+    inline const VkGeometryNV& handle() { return m_vk_geometry; }
 
     ~Geometry();
 
@@ -609,7 +619,7 @@ public:
         VkBool32             unnormalized_coordinates;
     };
 
-    inline VkSampler handle() { return m_vk_sampler; }
+    inline const VkSampler& handle() { return m_vk_sampler; }
 
     static Sampler::Ptr create(Backend::Ptr backend, Desc desc);
 
@@ -640,7 +650,7 @@ public:
 
     ~DescriptorSetLayout();
 
-    inline VkDescriptorSetLayout handle() { return m_vk_ds_layout; }
+    inline const VkDescriptorSetLayout& handle() { return m_vk_ds_layout; }
 
 private:
     DescriptorSetLayout(Backend::Ptr backend, Desc desc);
@@ -667,7 +677,7 @@ public:
 
     ~PipelineLayout();
 
-    inline VkPipelineLayout handle() { return m_vk_pipeline_layout; }
+    inline const VkPipelineLayout& handle() { return m_vk_pipeline_layout; }
 
 private:
     PipelineLayout(Backend::Ptr backend, Desc desc);
@@ -694,7 +704,7 @@ public:
 
     ~DescriptorPool();
 
-    inline VkDescriptorPool handle() { return m_vk_ds_pool; }
+    inline const VkDescriptorPool& handle() { return m_vk_ds_pool; }
 
 private:
     DescriptorPool(Backend::Ptr backend, Desc desc);
@@ -712,7 +722,7 @@ public:
 
     ~DescriptorSet();
 
-    inline VkDescriptorSet handle() { return m_vk_ds; }
+    inline const VkDescriptorSet& handle() { return m_vk_ds; }
 
 private:
     DescriptorSet(Backend::Ptr backend, DescriptorSetLayout::Ptr layout, DescriptorPool::Ptr pool);
@@ -731,7 +741,7 @@ public:
 
     ~Fence();
 
-    inline VkFence handle() { return m_vk_fence; }
+    inline const VkFence& handle() { return m_vk_fence; }
 
 private:
     Fence(Backend::Ptr backend);
@@ -749,7 +759,7 @@ public:
 
     ~Semaphore();
 
-    inline VkSemaphore handle() { return m_vk_semaphore; }
+    inline const VkSemaphore& handle() { return m_vk_semaphore; }
 
 private:
     Semaphore(Backend::Ptr backend);
