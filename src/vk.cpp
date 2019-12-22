@@ -284,8 +284,68 @@ Image::~Image()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Image::set_data(int array_index, int mip_level, void* data, size_t size)
+void Image::upload_data(int array_index, int mip_level, void* data, size_t size)
 {
+    auto backend = m_vk_backend.lock();
+
+    Buffer::Ptr staging = Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, size, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT, data);
+
+    VkBufferImageCopy buffer_copy_region;
+    DW_ZERO_MEMORY(buffer_copy_region);
+
+    buffer_copy_region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    buffer_copy_region.imageSubresource.mipLevel       = 0;
+    buffer_copy_region.imageSubresource.baseArrayLayer = 0;
+    buffer_copy_region.imageSubresource.layerCount     = 1;
+    buffer_copy_region.imageExtent.width               = 1;
+    buffer_copy_region.imageExtent.height              = 1;
+    buffer_copy_region.imageExtent.depth               = 1;
+    buffer_copy_region.bufferOffset                    = 0;
+
+    VkImageSubresourceRange subresource_range;
+    DW_ZERO_MEMORY(subresource_range);
+
+    subresource_range.aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresource_range.baseMipLevel = 0;
+    subresource_range.levelCount   = 1;
+    subresource_range.layerCount   = 1;
+
+    
+    CommandBuffer::Ptr cmd_buf = backend->allocate_transfer_command_buffer();
+
+    VkCommandBufferBeginInfo begin_info;
+    DW_ZERO_MEMORY(begin_info);
+
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
+
+    // Image barrier for optimal image (target)
+    // Optimal image will be used as destination for the copy
+    utilities::set_image_layout(cmd_buf->handle(),
+                     m_vk_image,
+                     VK_IMAGE_LAYOUT_UNDEFINED,
+                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                     subresource_range);
+
+    // Copy mip levels from staging buffer
+    vkCmdCopyBufferToImage(cmd_buf->handle(),
+                           staging->handle(),
+                           m_vk_image,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                           1,
+                           &buffer_copy_region);
+
+    // Change texture image layout to shader read after all mip levels have been copied
+    utilities::set_image_layout(cmd_buf->handle(),
+                                m_vk_image,
+                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                     subresource_range);
+
+    vkEndCommandBuffer(cmd_buf->handle());
+
+    backend->flush_transfer({ cmd_buf });
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -505,7 +565,7 @@ Buffer::Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaM
         m_mapped_ptr = vma_alloc_info.pMappedData;
 
         if (data)
-            set_data(data, size, 0);
+            upload_data(data, size, 0);
     }
 }
 
@@ -518,7 +578,7 @@ Buffer::~Buffer()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Buffer::set_data(void* data, size_t size, size_t offset)
+void Buffer::upload_data(void* data, size_t size, size_t offset)
 {
     auto backend = m_vk_backend.lock();
 
@@ -527,7 +587,26 @@ void Buffer::set_data(void* data, size_t size, size_t offset)
         // Create VMA_MEMORY_USAGE_CPU_ONLY staging buffer and perfom Buffer-to-Buffer copy
         Buffer::Ptr staging = Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, size, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT, data);
 
-        // @TODO: accquire temp cmd buf, record, submit, wait.
+        CommandBuffer::Ptr cmd_buf = backend->allocate_transfer_command_buffer();
+
+        VkCommandBufferBeginInfo begin_info;
+        DW_ZERO_MEMORY(begin_info);
+
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
+
+        VkBufferCopy copy_region;
+        DW_ZERO_MEMORY(copy_region);
+
+        copy_region.dstOffset = offset;
+        copy_region.size = size;
+
+        vkCmdCopyBuffer(cmd_buf->handle(), staging->handle(), m_vk_buffer, 1, &copy_region);
+
+        vkEndCommandBuffer(cmd_buf->handle());
+
+        backend->flush_transfer({ cmd_buf });
     }
     else
     {
@@ -2949,6 +3028,138 @@ VkExtent2D Backend::choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilit
         return actual_extent;
     }
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+namespace utilities
+{
+void set_image_layout(VkCommandBuffer         cmdbuffer,
+                      VkImage                 image,
+                      VkImageLayout           oldImageLayout,
+                      VkImageLayout           newImageLayout,
+                      VkImageSubresourceRange subresourceRange,
+                      VkPipelineStageFlags    srcStageMask,
+                      VkPipelineStageFlags    dstStageMask)
+{
+    // Create an image barrier object
+    VkImageMemoryBarrier image_memory_barrier;
+    DW_ZERO_MEMORY(image_memory_barrier);
+
+    image_memory_barrier.sType            = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    image_memory_barrier.oldLayout        = oldImageLayout;
+    image_memory_barrier.newLayout        = newImageLayout;
+    image_memory_barrier.image            = image;
+    image_memory_barrier.subresourceRange = subresourceRange;
+
+    // Source layouts (old)
+    // Source access mask controls actions that have to be finished on the old layout
+    // before it will be transitioned to the new layout
+    switch (oldImageLayout)
+    {
+        case VK_IMAGE_LAYOUT_UNDEFINED:
+            // Image layout is undefined (or does not matter)
+            // Only valid as initial layout
+            // No flags required, listed only for completeness
+            image_memory_barrier.srcAccessMask = 0;
+            break;
+
+        case VK_IMAGE_LAYOUT_PREINITIALIZED:
+            // Image is preinitialized
+            // Only valid as initial layout for linear images, preserves memory contents
+            // Make sure host writes have been finished
+            image_memory_barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+            break;
+
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            // Image is a color attachment
+            // Make sure any writes to the color buffer have been finished
+            image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            break;
+
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            // Image is a depth/stencil attachment
+            // Make sure any writes to the depth/stencil buffer have been finished
+            image_memory_barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            break;
+
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            // Image is a transfer source
+            // Make sure any reads from the image have been finished
+            image_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            break;
+
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            // Image is a transfer destination
+            // Make sure any writes to the image have been finished
+            image_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            break;
+
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            // Image is read by a shader
+            // Make sure any shader reads from the image have been finished
+            image_memory_barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            break;
+        default:
+            // Other source layouts aren't handled (yet)
+            break;
+    }
+
+    // Target layouts (new)
+    // Destination access mask controls the dependency for the new image layout
+    switch (newImageLayout)
+    {
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            // Image will be used as a transfer destination
+            // Make sure any writes to the image have been finished
+            image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            break;
+
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            // Image will be used as a transfer source
+            // Make sure any reads from the image have been finished
+            image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            break;
+
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            // Image will be used as a color attachment
+            // Make sure any writes to the color buffer have been finished
+            image_memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            break;
+
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            // Image layout will be used as a depth/stencil attachment
+            // Make sure any writes to depth/stencil buffer have been finished
+            image_memory_barrier.dstAccessMask = image_memory_barrier.dstAccessMask | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            break;
+
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            // Image will be read in a shader (sampler, input attachment)
+            // Make sure any writes to the image have been finished
+            if (image_memory_barrier.srcAccessMask == 0)
+            {
+                image_memory_barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+            }
+            image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            break;
+        default:
+            // Other source layouts aren't handled (yet)
+            break;
+    }
+
+    // Put barrier inside setup command buffer
+    vkCmdPipelineBarrier(
+        cmdbuffer,
+        srcStageMask,
+        dstStageMask,
+        0,
+        0,
+        nullptr,
+        0,
+        nullptr,
+        1,
+        &image_memory_barrier);
+}
+} // namespace utilities
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 } // namespace vk

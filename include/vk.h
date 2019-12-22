@@ -111,8 +111,8 @@ private:
     void                     flush(VkQueue queue, const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
 
 private:
-    uint32_t                                  m_image_index             = 0;
-    uint32_t                                  m_current_frame           = 0;
+    uint32_t                                  m_image_index           = 0;
+    uint32_t                                  m_current_frame         = 0;
     GLFWwindow*                               m_window                = nullptr;
     VkInstance                                m_vk_instance           = nullptr;
     VkDevice                                  m_vk_device             = nullptr;
@@ -162,10 +162,10 @@ public:
 
     ~Image();
 
-    void set_data(int array_index, int mip_level, void* data, size_t size);
+    void upload_data(int array_index, int mip_level, void* data, size_t size);
 
     inline VkImageType        type() { return m_type; }
-    inline const VkImage&            handle() { return m_vk_image; }
+    inline const VkImage&     handle() { return m_vk_image; }
     inline uint32_t           width() { return m_width; }
     inline uint32_t           height() { return m_height; }
     inline uint32_t           depth() { return m_depth; }
@@ -181,20 +181,20 @@ private:
     Image(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count);
 
 private:
-    uint32_t           m_width;
-    uint32_t           m_height;
-    uint32_t           m_depth;
-    uint32_t           m_mip_levels;
-    uint32_t           m_array_size;
-    VkFormat           m_format;
-    VkImageUsageFlags  m_usage;
-    VmaMemoryUsage     m_memory_usage;
-    VkSampleCountFlags m_sample_count;
-    VkImageType        m_type;
-    VkImage            m_vk_image         = nullptr;
-    VkDeviceMemory     m_vk_device_memory = nullptr;
-    VmaAllocator_T*    m_vma_allocator    = nullptr;
-    VmaAllocation_T*   m_vma_allocation   = nullptr;
+    uint32_t              m_width;
+    uint32_t              m_height;
+    uint32_t              m_depth;
+    uint32_t              m_mip_levels;
+    uint32_t              m_array_size;
+    VkFormat              m_format;
+    VkImageUsageFlags     m_usage;
+    VmaMemoryUsage        m_memory_usage;
+    VkSampleCountFlagBits m_sample_count;
+    VkImageType           m_type;
+    VkImage               m_vk_image         = nullptr;
+    VkDeviceMemory        m_vk_device_memory = nullptr;
+    VmaAllocator_T*       m_vma_allocator    = nullptr;
+    VmaAllocation_T*      m_vma_allocation   = nullptr;
 };
 
 class ImageView : public Object
@@ -259,11 +259,11 @@ public:
 
     ~Buffer();
 
-    void set_data(void* data, size_t size, size_t offset);
+    void upload_data(void* data, size_t size, size_t offset);
 
     inline const VkBuffer& handle() { return m_vk_buffer; }
-    inline size_t   size() { return m_size; }
-    inline void*    mapped_ptr() { return m_mapped_ptr; }
+    inline size_t          size() { return m_size; }
+    inline void*           mapped_ptr() { return m_mapped_ptr; }
 
 private:
     Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaMemoryUsage memory_usage, VkFlags create_flags, void* data);
@@ -309,7 +309,7 @@ public:
 
     ~CommandBuffer();
 
-    void                   reset();
+    void                          reset();
     inline const VkCommandBuffer& handle() { return m_vk_command_buffer; }
 
 private:
@@ -767,6 +767,17 @@ private:
 private:
     VkSemaphore m_vk_semaphore;
 };
+
+namespace utilities
+{
+extern void set_image_layout(VkCommandBuffer         cmdbuffer,
+                      VkImage                 image,
+                      VkImageLayout           oldImageLayout,
+                      VkImageLayout           newImageLayout,
+                      VkImageSubresourceRange subresourceRange,
+                      VkPipelineStageFlags    srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                      VkPipelineStageFlags    dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+}
 
 } // namespace vk
 } // namespace dw

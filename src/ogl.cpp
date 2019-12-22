@@ -420,7 +420,7 @@ Texture2D::Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_le
         if (m_num_samples > 1)
         {
 #if defined(__EMSCRIPTEN__)
-            DW_LOG_FATAL("WEBG  L: glTexImage2DMultisample unsupported on WebGL!");
+            DW_LOG_FATAL("WEBGL: glTexImage2DMultisample unsupported on WebGL!");
 #else
             if (m_mip_levels > 1)
                 DW_LOG_WARNING("OPENGL: Multisampled textures cannot have mipmaps. "
