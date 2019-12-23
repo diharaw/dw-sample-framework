@@ -33,11 +33,19 @@ bool        assimp_does_material_exist(std::vector<unsigned int>& materials,
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Mesh* Mesh::load(const std::string& path, bool load_materials)
+Mesh* Mesh::load(
+#if defined(DWSF_VULKAN)
+    vk::Backend::Ptr backend,
+#endif
+    const std::string& path, bool load_materials)
 {
     if (m_cache.find(path) == m_cache.end())
     {
-        Mesh* mesh    = new Mesh(path, load_materials);
+        Mesh* mesh    = new Mesh(
+#if defined(DWSF_VULKAN)
+            backend,
+#endif
+            path, load_materials);
         m_cache[path] = mesh;
         return mesh;
     }
@@ -47,7 +55,11 @@ Mesh* Mesh::load(const std::string& path, bool load_materials)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Mesh* Mesh::load(const std::string& name, int num_vertices, Vertex* vertices, int num_indices, uint32_t* indices, int num_sub_meshes, SubMesh* sub_meshes, glm::vec3 max_extents, glm::vec3 min_extents)
+Mesh* Mesh::load(
+#if defined(DWSF_VULKAN)
+    vk::Backend::Ptr backend,
+#endif
+    const std::string& name, int num_vertices, Vertex* vertices, int num_indices, uint32_t* indices, int num_sub_meshes, SubMesh* sub_meshes, glm::vec3 max_extents, glm::vec3 min_extents)
 {
     if (m_cache.find(name) == m_cache.end())
     {
@@ -64,7 +76,11 @@ Mesh* Mesh::load(const std::string& name, int num_vertices, Vertex* vertices, in
         mesh->m_min_extents    = min_extents;
 
         // ...then manually call the method to create GPU objects.
-        mesh->create_gpu_objects();
+        mesh->create_gpu_objects(
+#if defined(DWSF_VULKAN)
+            backend
+#endif
+        );
 
         m_cache[name] = mesh;
         return mesh;
@@ -97,7 +113,11 @@ void Mesh::unload(Mesh*& mesh)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Mesh::load_from_disk(const std::string& path, bool load_materials)
+void Mesh::load_from_disk(
+#if defined(DWSF_VULKAN)
+    vk::Backend::Ptr backend,
+#endif
+    const std::string& path, bool load_materials)
 {
     const aiScene*   Scene;
     Assimp::Importer importer;
@@ -164,12 +184,20 @@ void Mesh::load_from_disk(const std::string& path, bool load_materials)
 
                 if (has_least_one_texture)
                 {
-                    m_sub_meshes[i].mat                               = Material::load(current_mat_name, &material_paths[0]);
+                    m_sub_meshes[i].mat                               = Material::load(
+#if defined(DWSF_VULKAN)
+                        backend,
+#endif
+                        current_mat_name, &material_paths[0]);
                     mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
                 }
                 else if (has_diifuse_val)
                 {
-                    m_sub_meshes[i].mat                               = Material::load(current_mat_name, 0, nullptr, glm::vec4(diffuse.r, diffuse.g, diffuse.b, 1.0f));
+                    m_sub_meshes[i].mat                               = Material::load(
+#if defined(DWSF_VULKAN)
+                        backend,
+#endif
+                        current_mat_name, 0, nullptr, glm::vec4(diffuse.r, diffuse.g, diffuse.b, 1.0f));
                     mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
                 }
                 else
@@ -275,7 +303,11 @@ void Mesh::load_from_disk(const std::string& path, bool load_materials)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Mesh::create_gpu_objects()
+void Mesh::create_gpu_objects(
+#if defined(DWSF_VULKAN)
+    vk::Backend::Ptr backend
+#endif
+)
 {
 #if defined(DWSF_VULKAN)
 
@@ -315,10 +347,22 @@ Mesh::Mesh() {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Mesh::Mesh(const std::string& path, bool load_materials)
+Mesh::Mesh(
+#if defined(DWSF_VULKAN)
+    vk::Backend::Ptr backend,
+#endif
+    const std::string& path, bool load_materials)
 {
-    load_from_disk(path, load_materials);
-    create_gpu_objects();
+    load_from_disk(
+#if defined(DWSF_VULKAN)
+        backend,
+#endif
+        path, load_materials);
+    create_gpu_objects(
+#if defined(DWSF_VULKAN)
+        backend
+#endif
+    );
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

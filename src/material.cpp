@@ -2,6 +2,8 @@
 #include <macros.h>
 #include <material.h>
 #include <utility.h>
+#include <assimp/scene.h>
+#include <vk_mem_alloc.h>
 
 namespace dw
 {
@@ -33,8 +35,25 @@ Material* Material::load(vk::Backend::Ptr backend, const std::string& name, cons
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Material* Material::load(vk::Backend::Ptr backend, const std::string& name, int num_textures, vk::Image::Ptr* image, glm::vec4 albedo, float roughness, float metalness)
+Material* Material::load(vk::Backend::Ptr backend, const std::string& name, int num_textures, vk::Image::Ptr* images, glm::vec4 albedo, float roughness, float metalness)
 {
+    if (m_cache.find(name) == m_cache.end())
+    {
+        Material* mat = new Material();
+
+        for (int i = 0; i < num_textures; i++)
+        {
+            mat->m_images[i] = images[i];
+            mat->m_image_views[i] = load_image_view(backend, "image_view_" + std::to_string(i), mat->m_images[i]);
+        }
+
+        mat->m_albedo_val = albedo;
+
+        m_cache[name] = mat;
+        return mat;
+    }
+    else
+        return m_cache[name];
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -66,6 +85,7 @@ Material::Material(vk::Backend::Ptr backend, const std::string& name, const std:
     }
 
     // Create descriptor set
+    m_descriptor_set = create_pbr_descriptor_set(backend);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -76,6 +96,9 @@ Material::~Material()
     {
         if (m_images[i])
             unload_image(m_images[i]);
+
+        if (m_image_views[i])
+            unload_image_view(m_image_views[i]);
     }
 }
 
@@ -110,12 +133,17 @@ void Material::initialize_common_resources(vk::Backend::Ptr backend)
     sampler_desc.unnormalized_coordinates;
 
     m_common_sampler = vk::Sampler::create(backend, sampler_desc);
+
+    uint8_t data[] = { 255, 255, 255, 255 };
+
+    m_default_image = vk::Image::create(backend, VK_IMAGE_TYPE_2D, 1, 1, 1, 1, 1, VK_FORMAT_R8G8B8A8_SNORM, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, data);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Material::shutdown_common_resources()
 {
+    m_default_image.reset();
     m_common_ds_layout.reset();
     m_common_sampler.reset();
 }
@@ -130,7 +158,7 @@ vk::Image::Ptr Material::load_image(vk::Backend::Ptr backend, const std::string&
         m_image_cache[path] = tex;
         return tex;
     }
-    else        
+    else
         return m_image_cache[path].lock();
 }
 
@@ -159,8 +187,8 @@ vk::ImageView::Ptr Material::load_image_view(vk::Backend::Ptr backend, const std
 {
     if (m_image_view_cache.find(path) == m_image_view_cache.end() || m_image_view_cache[path].expired())
     {
-        vk::ImageView::Ptr image_view  = vk::ImageView::create(backend, image, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT);
-        m_image_view_cache[path]           = image_view;
+        vk::ImageView::Ptr image_view = vk::ImageView::create(backend, image, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT);
+        m_image_view_cache[path]      = image_view;
         return image_view;
     }
     else
@@ -184,6 +212,73 @@ void Material::unload_image_view(vk::ImageView::Ptr image)
             return;
         }
     }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+vk::DescriptorSet::Ptr Material::create_pbr_descriptor_set(vk::Backend::Ptr backend)
+{
+    vk::DescriptorSet::Ptr ds = backend->allocate_descriptor_set(m_common_ds_layout);
+
+    VkDescriptorImageInfo image_info[4];
+
+    image_info[0].sampler     = m_common_sampler->handle();
+    image_info[0].imageView   = m_image_views[aiTextureType_DIFFUSE] ? m_image_views[aiTextureType_DIFFUSE]->handle() : m_default_image_view->handle();
+    image_info[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    image_info[1].sampler     = m_common_sampler->handle();
+    image_info[1].imageView   = m_image_views[aiTextureType_DISPLACEMENT] ? m_image_views[aiTextureType_DISPLACEMENT]->handle() : m_default_image_view->handle();
+    image_info[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    image_info[2].sampler     = m_common_sampler->handle();
+    image_info[2].imageView   = m_image_views[aiTextureType_SPECULAR] ? m_image_views[aiTextureType_SPECULAR]->handle() : m_default_image_view->handle();
+    image_info[2].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    image_info[3].sampler     = m_common_sampler->handle();
+    image_info[3].imageView   = m_image_views[aiTextureType_SPECULAR] ? m_image_views[aiTextureType_SPECULAR]->handle() : m_default_image_view->handle();
+    image_info[3].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkWriteDescriptorSet write_data[4];
+
+    DW_ZERO_MEMORY(write_data[0]);
+
+    write_data[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_data[0].descriptorCount = 1;
+    write_data[0].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write_data[0].pImageInfo      = &image_info[0];
+    write_data[0].dstBinding      = 0;
+    write_data[0].dstSet          = ds->handle();
+
+    DW_ZERO_MEMORY(write_data[1]);
+
+    write_data[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_data[1].descriptorCount = 1;
+    write_data[1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write_data[1].pImageInfo      = &image_info[1];
+    write_data[1].dstBinding      = 1;
+    write_data[1].dstSet          = ds->handle();
+
+    DW_ZERO_MEMORY(write_data[2]);
+
+    write_data[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_data[2].descriptorCount = 1;
+    write_data[2].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write_data[2].pImageInfo      = &image_info[2];
+    write_data[2].dstBinding      = 2;
+    write_data[2].dstSet          = ds->handle();
+
+    DW_ZERO_MEMORY(write_data[3]);
+
+    write_data[3].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_data[3].descriptorCount = 1;
+    write_data[3].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write_data[3].pImageInfo      = &image_info[3];
+    write_data[3].dstBinding      = 3;
+    write_data[3].dstSet          = ds->handle();
+
+    vkUpdateDescriptorSets(backend->device(), 4, write_data, 0, nullptr);
+
+    return ds;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

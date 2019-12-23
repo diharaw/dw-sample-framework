@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <memory>
 #include <ogl.h>
+#include <vulkan/vulkan.h>
 
 namespace dw
 {
@@ -35,15 +36,32 @@ struct SubMesh
 class Mesh
 {
 public:
-    // Static factory methods.
-    static Mesh* load(const std::string& path, bool load_materials = true);
-    // Custom factory method for creating a mesh from provided data.
-    static Mesh* load(const std::string& name, int num_vertices, Vertex* vertices, int num_indices, uint32_t* indices, int num_sub_meshes, SubMesh* sub_meshes, glm::vec3 max_extents, glm::vec3 min_extents);
     static bool  is_loaded(const std::string& name);
     static void  unload(Mesh*& mesh);
 
+    // Static factory methods.
+    static Mesh* load(
+#if defined(DWSF_VULKAN)
+        vk::Backend::Ptr backend,
+#endif
+        const std::string& path, bool load_materials = true);
+    // Custom factory method for creating a mesh from provided data.
+    static Mesh* load(
+#if defined(DWSF_VULKAN)
+        vk::Backend::Ptr backend,
+#endif
+        const std::string& name, int num_vertices, Vertex* vertices, int num_indices, uint32_t* indices, int num_sub_meshes, SubMesh* sub_meshes, glm::vec3 max_extents, glm::vec3 min_extents);
+
+
     // Rendering-related getters.
+#if defined(DWSF_VULKAN)
+    inline vk::Buffer::Ptr vertex_buffer() { return m_vbo; }
+    inline vk::Buffer::Ptr index_buffer() { return m_ibo; }
+    inline const vk::VertexInputStateDesc& vertex_input_state_desc() { return m_vertex_input_state_desc; }
+#else
     inline gl::VertexArray* mesh_vertex_array() { return m_vao.get(); }
+#endif
+
     inline uint32_t     sub_mesh_count() { return m_sub_mesh_count; }
     inline SubMesh*     sub_meshes() { return m_sub_meshes; }
     inline uint32_t     vertex_count() { return m_vertex_count; }
@@ -54,12 +72,26 @@ public:
 private:
     // Private constructor and destructor to prevent manual creation.
     Mesh();
-    Mesh(const std::string& path, bool load_materials);
-    ~Mesh();
-
+    Mesh(
+#if defined(DWSF_VULKAN)
+        vk::Backend::Ptr backend,
+#endif
+        const std::string& path, bool load_materials);
+   
     // Internal initialization methods.
-    void load_from_disk(const std::string& path, bool load_materials);
-    void create_gpu_objects();
+    void create_gpu_objects(
+#if defined(DWSF_VULKAN)
+        vk::Backend::Ptr backend
+#endif
+    );
+
+    void load_from_disk(
+#if defined(DWSF_VULKAN)
+        vk::Backend::Ptr backend, 
+#endif
+        const std::string& path, bool load_materials);
+
+    ~Mesh();
 
 private:
     // Mesh cache. Used to prevent multiple loads.
@@ -76,8 +108,14 @@ private:
     glm::vec3 m_min_extents;
 
     // GPU resources.
+#if defined(DWSF_VULKAN)
+    vk::Buffer::Ptr m_vbo;
+    vk::Buffer::Ptr m_ibo;
+    vk::VertexInputStateDesc m_vertex_input_state_desc;
+#else
     std::unique_ptr<gl::VertexArray> m_vao = nullptr;
     std::unique_ptr<gl::VertexBuffer> m_vbo = nullptr;
     std::unique_ptr<gl::IndexBuffer>  m_ibo = nullptr;
+#endif
 };
 } // namespace dw
