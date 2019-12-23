@@ -601,7 +601,7 @@ public:
 
     struct Desc
     {
-        VkSamplerCreateFlags flags;
+        VkSamplerCreateFlags flags = 0;
         VkFilter             mag_filter;
         VkFilter             min_filter;
         VkSamplerMipmapMode  mipmap_mode;
@@ -616,7 +616,7 @@ public:
         float                min_lod;
         float                max_lod;
         VkBorderColor        border_color;
-        VkBool32             unnormalized_coordinates;
+        VkBool32             unnormalized_coordinates = VK_FALSE;
     };
 
     inline const VkSampler& handle() { return m_vk_sampler; }

@@ -294,11 +294,11 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size)
     DW_ZERO_MEMORY(buffer_copy_region);
 
     buffer_copy_region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-    buffer_copy_region.imageSubresource.mipLevel       = 0;
-    buffer_copy_region.imageSubresource.baseArrayLayer = 0;
+    buffer_copy_region.imageSubresource.mipLevel       = mip_level;
+    buffer_copy_region.imageSubresource.baseArrayLayer = array_index;
     buffer_copy_region.imageSubresource.layerCount     = 1;
-    buffer_copy_region.imageExtent.width               = 1;
-    buffer_copy_region.imageExtent.height              = 1;
+    buffer_copy_region.imageExtent.width               = m_width;
+    buffer_copy_region.imageExtent.height              = m_height;
     buffer_copy_region.imageExtent.depth               = 1;
     buffer_copy_region.bufferOffset                    = 0;
 
@@ -306,10 +306,10 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size)
     DW_ZERO_MEMORY(subresource_range);
 
     subresource_range.aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT;
-    subresource_range.baseMipLevel = 0;
+    subresource_range.baseMipLevel = mip_level;
     subresource_range.levelCount   = 1;
     subresource_range.layerCount   = 1;
-
+    subresource_range.baseArrayLayer = array_index;
     
     CommandBuffer::Ptr cmd_buf = backend->allocate_transfer_command_buffer();
 
