@@ -43,7 +43,7 @@ Material* Material::load(vk::Backend::Ptr backend, const std::string& name, int 
 
         for (int i = 0; i < num_textures; i++)
         {
-            mat->m_images[i] = images[i];
+            mat->m_images[i]      = images[i];
             mat->m_image_views[i] = load_image_view(backend, "image_view_" + std::to_string(i), mat->m_images[i]);
         }
 

@@ -202,8 +202,8 @@ private:
     {
         // Create uniform buffer for matrix data
         m_ubo = std::make_unique<dw::gl::UniformBuffer>(GL_DYNAMIC_DRAW,
-                                                    sizeof(Transforms),
-                                                    nullptr);
+                                                        sizeof(Transforms),
+                                                        nullptr);
 
         return true;
     }
@@ -285,9 +285,9 @@ private:
 
 private:
     // GPU resources.
-    std::unique_ptr<dw::gl::Shader>    m_vs;
-    std::unique_ptr<dw::gl::Shader>    m_fs;
-    std::unique_ptr<dw::gl::Program>   m_program;
+    std::unique_ptr<dw::gl::Shader>        m_vs;
+    std::unique_ptr<dw::gl::Shader>        m_fs;
+    std::unique_ptr<dw::gl::Program>       m_program;
     std::unique_ptr<dw::gl::UniformBuffer> m_ubo;
 
     // Camera.

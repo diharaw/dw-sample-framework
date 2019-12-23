@@ -70,7 +70,7 @@ bool DebugDraw::init()
 
     // Create shader program
     gl::Shader* shaders[] = { m_line_vs.get(), m_line_fs.get() };
-    m_line_program    = std::make_unique<gl::Program>(2, shaders);
+    m_line_program        = std::make_unique<gl::Program>(2, shaders);
 
     // Bind uniform block index
     m_line_program->uniform_block_binding("CameraUniforms", 0);
@@ -81,8 +81,8 @@ bool DebugDraw::init()
 
     // Declare vertex attributes
     gl::VertexAttrib attribs[] = { { 3, GL_FLOAT, false, 0 },
-                               { 2, GL_FLOAT, false, sizeof(float) * 3 },
-                               { 3, GL_FLOAT, false, sizeof(float) * 5 } };
+                                   { 2, GL_FLOAT, false, sizeof(float) * 3 },
+                                   { 3, GL_FLOAT, false, sizeof(float) * 5 } };
 
     // Create vertex array
     m_line_vao = std::make_unique<gl::VertexArray>(m_line_vbo.get(), nullptr, sizeof(float) * 8, 3, attribs);
@@ -270,9 +270,9 @@ void DebugDraw::line(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& 
         DrawCommand cmd;
 
 #if defined(DWSF_VULKAN)
-        
+
 #else
-        cmd.type     = GL_LINES;
+        cmd.type = GL_LINES;
 #endif
         cmd.vertices = 2;
 
@@ -298,7 +298,7 @@ void DebugDraw::line_strip(glm::vec3* v, const int& count, const glm::vec3& c)
 #if defined(DWSF_VULKAN)
 
 #else
-    cmd.type     = GL_LINE_STRIP;
+    cmd.type = GL_LINE_STRIP;
 #endif
     cmd.vertices = count;
 
@@ -451,11 +451,11 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
     {
         m_uniforms.view_proj = view_proj;
 
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
         void* ptr = m_line_vbo->map(0);
-#else
+#    else
         void* ptr = m_line_vbo->map(GL_WRITE_ONLY);
-#endif
+#    endif
 
         if (m_world_vertices.size() > MAX_VERTICES)
             DW_LOG_ERROR("Vertex count above allowed limit!");
@@ -464,17 +464,17 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
 
         m_line_vbo->unmap();
 
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
         ptr = m_ubo->map(0);
-#else
+#    else
         ptr       = m_ubo->map(GL_WRITE_ONLY);
-#endif
+#    endif
 
         memcpy(ptr, &m_uniforms, sizeof(CameraUniforms));
         m_ubo->unmap();
 
         // Get previous state
-        GLboolean last_enable_cull_face  = glIsEnabled(GL_CULL_FACE);
+        GLboolean last_enable_cull_face = glIsEnabled(GL_CULL_FACE);
         GLboolean last_enable_depth_test = glIsEnabled(GL_DEPTH_TEST);
 
         // Set initial state

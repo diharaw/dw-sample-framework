@@ -1,13 +1,13 @@
 #if !defined(DWSF_VULKAN)
 
-#include <gtc/type_ptr.hpp>
-#include <logger.h>
-#include <ogl.h>
-#include <utility.h>
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <stb_image_write.h>
+#    include <gtc/type_ptr.hpp>
+#    include <logger.h>
+#    include <ogl.h>
+#    include <utility.h>
+#    define STB_IMAGE_IMPLEMENTATION
+#    include <stb_image.h>
+#    define STB_IMAGE_WRITE_IMPLEMENTATION
+#    include <stb_image_write.h>
 
 namespace dw
 {
@@ -85,13 +85,13 @@ void Texture::set_wrapping(GLenum s, GLenum t, GLenum r)
 
 void Texture::set_border_color(float r, float g, float b, float a)
 {
-#if !defined(__EMSCRIPTEN__)
+#    if !defined(__EMSCRIPTEN__)
     float border_color[] = { r, g, b, a };
     GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
     GL_CHECK_ERROR(
         glTexParameterfv(m_target, GL_TEXTURE_BORDER_COLOR, border_color));
     GL_CHECK_ERROR(glBindTexture(m_target, 0));
-#endif
+#    endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -114,7 +114,7 @@ void Texture::set_mag_filter(GLenum filter)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-#if !defined(__EMSCRIPTEN__)
+#    if !defined(__EMSCRIPTEN__)
 void Texture::bind_image(uint32_t unit, uint32_t mip_level, uint32_t layer, GLenum access, GLenum format)
 {
     bind(unit);
@@ -144,11 +144,11 @@ void Texture::set_compare_func(GLenum func)
     GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_COMPARE_FUNC, func));
     GL_CHECK_ERROR(glBindTexture(m_target, 0));
 }
-#endif
+#    endif
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-#if !defined(__EMSCRIPTEN__)
+#    if !defined(__EMSCRIPTEN__)
 Texture1D::Texture1D(uint32_t w, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type) :
     Texture()
 {
@@ -248,7 +248,7 @@ uint32_t Texture1D::width() { return m_width; }
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 uint32_t Texture1D::mip_levels() { return m_mip_levels; }
-#endif
+#    endif
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -364,12 +364,12 @@ Texture2D::Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_le
     {
         if (m_num_samples > 1)
         {
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
             assert(false);
             DW_LOG_FATAL("WEBGL: GL_TEXTURE_2D_MULTISAMPLE_ARRAY Not Supported!");
-#else
+#    else
             m_target = GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
-#endif
+#    endif
         }
         else
             m_target = GL_TEXTURE_2D_ARRAY;
@@ -381,16 +381,16 @@ Texture2D::Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_le
 
         if (m_num_samples > 1)
         {
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
             DW_LOG_FATAL("WEBGL: glTexImage3DMultisample unsupported on WebGL!");
-#else
+#    else
             if (m_mip_levels > 1)
                 DW_LOG_WARNING("OPENGL: Multisampled textures cannot have mipmaps. "
                                "Setting mip levels to 1...");
 
             m_mip_levels = 1;
             GL_CHECK_ERROR(glTexImage3DMultisample(m_target, m_num_samples, m_internal_format, width, height, m_array_size, true));
-#endif
+#    endif
         }
         else
         {
@@ -419,9 +419,9 @@ Texture2D::Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_le
 
         if (m_num_samples > 1)
         {
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
             DW_LOG_FATAL("WEBGL: glTexImage2DMultisample unsupported on WebGL!");
-#else
+#    else
             if (m_mip_levels > 1)
                 DW_LOG_WARNING("OPENGL: Multisampled textures cannot have mipmaps. "
                                "Setting mip levels to 1...");
@@ -429,7 +429,7 @@ Texture2D::Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_le
             m_mip_levels = 1;
             GL_CHECK_ERROR(glTexImage2DMultisample(
                 m_target, m_num_samples, m_internal_format, width, height, true));
-#endif
+#    endif
         }
         else
         {
@@ -447,7 +447,7 @@ Texture2D::Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_le
 
     // Default sampling options.
     set_wrapping(GL_REPEAT, GL_REPEAT, GL_REPEAT);
-    
+
     if (m_mip_levels > 1)
         set_min_filter(GL_LINEAR_MIPMAP_LINEAR);
     else
@@ -512,31 +512,31 @@ uint32_t Texture2D::mip_levels() { return m_mip_levels; }
 uint32_t Texture2D::num_samples() { return m_num_samples; }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
-    
+
 void Texture2D::save_to_disk(std::string path, int32_t array_index, int32_t mip_level)
 {
-#if defined(__APPLE__)
+#    if defined(__APPLE__)
     if (array_index > 0)
         DW_LOG_WARNING("Saving specific slice of texture not supported on macOS, saving entire texture instead...");
-    
+
     int width  = m_width;
     int height = m_height;
-    
+
     for (int i = 0; i < mip_level; i++)
     {
         width  = std::max(1, width / 2);
         height = std::max(1, (height / 2));
     }
-    
+
     int pixel_size = 1;
-    
+
     if (m_type == GL_FLOAT)
         pixel_size = 4;
     else if (m_type == GL_HALF_FLOAT)
         pixel_size = 2;
-    
+
     int num_comp = 1;
-    
+
     if (m_format == GL_RG)
         num_comp = 2;
     else if (m_format == GL_RGB)
@@ -545,12 +545,12 @@ void Texture2D::save_to_disk(std::string path, int32_t array_index, int32_t mip_
         num_comp = 4;
 
     void* data = malloc(width * height * num_comp * m_array_size * pixel_size);
-    
+
     GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0));
     GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
     GL_CHECK_ERROR(glGetTexImage(m_target, mip_level, m_format, m_type, data));
     GL_CHECK_ERROR(glBindTexture(m_target, 0));
-    
+
     if (m_type == GL_FLOAT)
     {
         std::string full_path = path + ".hdr";
@@ -559,16 +559,16 @@ void Texture2D::save_to_disk(std::string path, int32_t array_index, int32_t mip_
     else if (m_type == GL_HALF_FLOAT)
     {
         int pixel_count = width * height * num_comp * m_array_size;
-        
-        int16_t* pixels = (int16_t*)data;
-        float* new_pixels = (float*)malloc(pixel_count * sizeof(float));
-        
+
+        int16_t* pixels     = (int16_t*)data;
+        float*   new_pixels = (float*)malloc(pixel_count * sizeof(float));
+
         for (int i = 0; i < pixel_count; i++)
             new_pixels[i] = pixels[i];
-        
+
         std::string full_path = path + ".hdr";
         stbi_write_hdr(full_path.c_str(), width, height, num_comp, new_pixels);
-        
+
         free(new_pixels);
     }
     else
@@ -576,11 +576,11 @@ void Texture2D::save_to_disk(std::string path, int32_t array_index, int32_t mip_
         std::string full_path = path + ".tga";
         stbi_write_tga(full_path.c_str(), width, height, num_comp, data);
     }
-    
+
     free(data);
-#else
-    
-#endif
+#    else
+
+#    endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -794,7 +794,7 @@ TextureCube::TextureCube(uint32_t w, uint32_t h, uint32_t array_size, int32_t mi
     else
         m_mip_levels = mip_levels;
 
-#if !defined(__EMSCRIPTEN__)
+#    if !defined(__EMSCRIPTEN__)
     // Allocate memory for mip levels.
     if (array_size > 1)
     {
@@ -815,7 +815,7 @@ TextureCube::TextureCube(uint32_t w, uint32_t h, uint32_t array_size, int32_t mi
         GL_CHECK_ERROR(glBindTexture(m_target, 0));
     }
     else
-#endif
+#    endif
     {
         m_target = GL_TEXTURE_CUBE_MAP;
 
@@ -860,7 +860,7 @@ void TextureCube::set_data(int face_index, int layer_index, int mip_level, void*
         height = std::max(1, (height / 2));
     }
 
-#if !defined(__EMSCRIPTEN__)
+#    if !defined(__EMSCRIPTEN__)
     if (m_array_size > 1)
     {
         GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
@@ -868,7 +868,7 @@ void TextureCube::set_data(int face_index, int layer_index, int mip_level, void*
         GL_CHECK_ERROR(glBindTexture(m_target, 0));
     }
     else
-#endif
+#    endif
     {
         GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
         GL_CHECK_ERROR(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face_index,
@@ -942,12 +942,12 @@ void Framebuffer::attach_render_target(uint32_t attachment, Texture* texture, ui
             GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment, texture->target(), texture->id(), mip_level));
     }
 
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
     if (draw)
         m_attachments[m_render_target_count++] = GL_COLOR_ATTACHMENT0 + attachment;
 
     glDrawBuffers(m_render_target_count, m_attachments);
-#else
+#    else
     if (draw)
     {
         GL_CHECK_ERROR(glDrawBuffer(GL_COLOR_ATTACHMENT0 + attachment));
@@ -956,7 +956,7 @@ void Framebuffer::attach_render_target(uint32_t attachment, Texture* texture, ui
     {
         GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
     }
-#endif
+#    endif
 
     if (read)
     {
@@ -1012,16 +1012,16 @@ void Framebuffer::attach_render_target(uint32_t     attachment,
 
     if (texture->array_size() > 1)
     {
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
         DW_LOG_ERROR("WEBGL: glFramebufferTexture3D unsupported!");
-#else
+#    else
         GL_CHECK_ERROR(glFramebufferTexture3D(GL_FRAMEBUFFER,
                                               GL_COLOR_ATTACHMENT0 + attachment,
                                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + face,
                                               texture->id(),
                                               mip_level,
                                               layer));
-#endif
+#    endif
     }
     else
     {
@@ -1029,12 +1029,12 @@ void Framebuffer::attach_render_target(uint32_t     attachment,
             GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level));
     }
 
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
     if (draw)
         m_attachments[m_render_target_count++] = GL_COLOR_ATTACHMENT0 + attachment;
 
     glDrawBuffers(m_render_target_count, m_attachments);
-#else
+#    else
     if (draw)
     {
         GL_CHECK_ERROR(glDrawBuffer(GL_COLOR_ATTACHMENT0 + attachment));
@@ -1043,7 +1043,7 @@ void Framebuffer::attach_render_target(uint32_t     attachment,
     {
         GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
     }
-#endif
+#    endif
 
     if (read)
     {
@@ -1074,11 +1074,11 @@ void Framebuffer::attach_depth_stencil_target(Texture* texture, uint32_t layer, 
     }
     else
     {
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
         DW_LOG_ERROR("WEBGL: glFramebufferTexture unsupported!");
-#else
+#    else
         GL_CHECK_ERROR(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, texture->id(), mip_level));
-#endif
+#    endif
     }
 
     check_status();
@@ -1099,20 +1099,20 @@ void Framebuffer::attach_depth_stencil_target(TextureCube* texture,
 
     if (texture->array_size() > 1)
     {
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
         DW_LOG_ERROR("WEBGL: glFramebufferTexture3D unsupported!");
-#else
+#    else
         GL_CHECK_ERROR(glFramebufferTexture3D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level, layer));
-#endif
+#    endif
     }
     else
     {
         GL_CHECK_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level));
     }
 
-#if !defined(__EMSCRIPTEN__)
+#    if !defined(__EMSCRIPTEN__)
     GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
-#endif
+#    endif
     GL_CHECK_ERROR(glReadBuffer(GL_NONE));
 
     check_status();
@@ -1138,7 +1138,7 @@ void Framebuffer::check_status()
                 error += "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT";
                 break;
             }
-#ifndef __EMSCRIPTEN__
+#    ifndef __EMSCRIPTEN__
             case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
             {
                 error += "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS";
@@ -1149,7 +1149,7 @@ void Framebuffer::check_status()
                 error += "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER";
                 break;
             }
-#endif
+#    endif
             case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
             {
                 error += "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT";
@@ -1189,10 +1189,10 @@ Shader* Shader::create_from_file(GLenum type, std::string path, std::vector<std:
     }
 
     Shader* shader = new Shader(type, source);
-    
+
     if (shader->compiled())
         return shader;
-    
+
     return nullptr;
 }
 
@@ -1203,13 +1203,13 @@ Shader::Shader(GLenum type, std::string source) :
 {
     GL_CHECK_ERROR(m_gl_shader = glCreateShader(type));
 
-#if defined(__APPLE__)
+#    if defined(__APPLE__)
     source = "#version 410 core\n" + std::string(source);
-#elif defined(__EMSCRIPTEN__)
+#    elif defined(__EMSCRIPTEN__)
     source = "#version 300 es\n precision highp float;\n" + std::string(source);
-#else
+#    else
     source = "#version 430 core\n" + std::string(source);
-#endif
+#    endif
 
     GLint  success;
     GLchar log[512];
@@ -1250,7 +1250,7 @@ bool Shader::compiled() { return m_compiled; }
 
 Program::Program(uint32_t count, Shader** shaders)
 {
-#if !defined(__EMSCRIPTEN__)
+#    if !defined(__EMSCRIPTEN__)
     if (count == 1 && shaders[0]->type() != GL_COMPUTE_SHADER)
     {
         DW_LOG_ERROR("OPENGL: Compute shader programs can only have one shader.");
@@ -1258,7 +1258,7 @@ Program::Program(uint32_t count, Shader** shaders)
 
         return;
     }
-#endif
+#    endif
 
     GL_CHECK_ERROR(m_gl_program = glCreateProgram());
 
@@ -1305,7 +1305,7 @@ Program::Program(uint32_t count, Shader** shaders)
             m_location_map[std::string(name)] = loc;
     }
 
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
     // Bind attributes in OpenGL ES/WebGL versions.
 
     // int attrib_count = 0;
@@ -1318,7 +1318,7 @@ Program::Program(uint32_t count, Shader** shaders)
     //&length, &size, &type, name));
     //	GL_CHECK_ERROR(glBindAttribLocation(m_gl_program, i, name));
     //}
-#endif
+#    endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1549,18 +1549,18 @@ Buffer::Buffer(GLenum type, GLenum usage, size_t size, void* data) :
     GL_CHECK_ERROR(glBufferData(m_type, size, data, usage));
     GL_CHECK_ERROR(glBindBuffer(m_type, 0));
 
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
     m_staging = malloc(m_size);
-#endif
+#    endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Buffer::~Buffer()
 {
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
     free(m_staging);
-#endif
+#    endif
     glDeleteBuffers(1, &m_gl_buffer);
 }
 
@@ -1590,47 +1590,47 @@ void Buffer::unbind() { GL_CHECK_ERROR(glBindBuffer(m_type, 0)); }
 
 void* Buffer::map(GLenum access)
 {
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
     m_mapped_size   = m_size;
     m_mapped_offset = 0;
     return m_staging;
-#else
+#    else
     GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
     GL_CHECK_ERROR(void* ptr = glMapBuffer(m_type, access));
     GL_CHECK_ERROR(glBindBuffer(m_type, 0));
     return ptr;
-#endif
+#    endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void* Buffer::map_range(GLenum access, size_t offset, size_t size)
 {
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
     m_mapped_size   = size;
     m_mapped_offset = offset;
     return static_cast<char*>(m_staging) + offset;
-#else
+#    else
     GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
     GL_CHECK_ERROR(void* ptr = glMapBufferRange(m_type, offset, size, access));
     GL_CHECK_ERROR(glBindBuffer(m_type, 0));
     return ptr;
-#endif
+#    endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Buffer::unmap()
 {
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
     GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
     glBufferSubData(m_type, m_mapped_offset, m_mapped_size, static_cast<char*>(m_staging) + m_mapped_offset);
     GL_CHECK_ERROR(glBindBuffer(m_type, 0));
-#else
+#    else
     GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
     GL_CHECK_ERROR(glUnmapBuffer(m_type));
     GL_CHECK_ERROR(glBindBuffer(m_type, 0));
-#endif
+#    endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1671,7 +1671,7 @@ UniformBuffer::~UniformBuffer() {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-#if !defined(__EMSCRIPTEN__)
+#    if !defined(__EMSCRIPTEN__)
 ShaderStorageBuffer::ShaderStorageBuffer(GLenum usage, size_t size, void* data) :
     Buffer(GL_SHADER_STORAGE_BUFFER, usage, size, data)
 {
@@ -1680,7 +1680,7 @@ ShaderStorageBuffer::ShaderStorageBuffer(GLenum usage, size_t size, void* data) 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 ShaderStorageBuffer::~ShaderStorageBuffer() {}
-#endif
+#    endif
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -1741,11 +1741,11 @@ Query::~Query() { GL_CHECK_ERROR(glDeleteQueries(1, &m_query)); }
 
 void Query::query_counter(GLenum type)
 {
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
     DW_LOG_FATAL("OPENGL ES: glQueryCounter unsupported on OpenGL ES!");
-#else
+#    else
     GL_CHECK_ERROR(glQueryCounter(m_query, type));
-#endif
+#    endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1760,25 +1760,25 @@ void Query::end(GLenum type) { GL_CHECK_ERROR(glEndQuery(type)); }
 
 void Query::result_64(uint64_t* ptr)
 {
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
     DW_LOG_FATAL("OPENGL ES: glGetQueryObjectui64v unsupported on OpenGL ES!");
-#else
+#    else
     GL_CHECK_ERROR(glGetQueryObjectui64v(m_query, GL_QUERY_RESULT, ptr));
-#endif
+#    endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 bool Query::result_available()
 {
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
     GLuint done = 0;
     GL_CHECK_ERROR(
         glGetQueryObjectuiv(m_query, GL_QUERY_RESULT_AVAILABLE, &done));
-#else
+#    else
     int done = 0;
     GL_CHECK_ERROR(glGetQueryObjectiv(m_query, GL_QUERY_RESULT_AVAILABLE, &done));
-#endif
+#    endif
     return done == 1;
 }
 

@@ -2,54 +2,54 @@
 
 #if !defined(DWSF_VULKAN)
 
-#if defined(__EMSCRIPTEN__)
-#    define GLFW_INCLUDE_ES3
-#    include <GLFW/glfw3.h>
-#    include <GLES3/gl3.h>
-#    include <GLES3/gl2ext.h>
-#else
-#    include <glad.h>
-#endif
-#include <vector>
-#include <string>
-#include <unordered_map>
-#include <glm.hpp>
+#    if defined(__EMSCRIPTEN__)
+#        define GLFW_INCLUDE_ES3
+#        include <GLFW/glfw3.h>
+#        include <GLES3/gl3.h>
+#        include <GLES3/gl2ext.h>
+#    else
+#        include <glad.h>
+#    endif
+#    include <vector>
+#    include <string>
+#    include <unordered_map>
+#    include <glm.hpp>
 //#define DW_ENABLE_GL_ERROR_CHECK
 // OpenGL error checking macro.
-#ifdef DW_ENABLE_GL_ERROR_CHECK
-#    define GL_CHECK_ERROR(x)                                                                              \
-        x;                                                                                                 \
-        {                                                                                                  \
-            GLenum err(glGetError());                                                                      \
-                                                                                                           \
-            while (err != GL_NO_ERROR)                                                                     \
-            {                                                                                              \
-                std::string error;                                                                         \
-                                                                                                           \
-                switch (err)                                                                               \
-                {                                                                                          \
-                    case GL_INVALID_OPERATION: error = "INVALID_OPERATION"; break;                         \
-                    case GL_INVALID_ENUM: error = "INVALID_ENUM"; break;                                   \
-                    case GL_INVALID_VALUE: error = "INVALID_VALUE"; break;                                 \
-                    case GL_OUT_OF_MEMORY: error = "OUT_OF_MEMORY"; break;                                 \
-                    case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break; \
-                }                                                                                          \
-                                                                                                           \
-                std::string formatted_error = "OPENGL: ";                                                  \
-                formatted_error             = formatted_error + error;                                     \
-                formatted_error             = formatted_error + ", LINE:";                                 \
-                formatted_error             = formatted_error + std::to_string(__LINE__);                  \
-                DW_LOG_ERROR(formatted_error);                                                             \
-                err = glGetError();                                                                        \
-            }                                                                                              \
-        }
-#else
-#    define GL_CHECK_ERROR(x) x
-#endif
+#    ifdef DW_ENABLE_GL_ERROR_CHECK
+#        define GL_CHECK_ERROR(x)                                                                              \
+            x;                                                                                                 \
+            {                                                                                                  \
+                GLenum err(glGetError());                                                                      \
+                                                                                                               \
+                while (err != GL_NO_ERROR)                                                                     \
+                {                                                                                              \
+                    std::string error;                                                                         \
+                                                                                                               \
+                    switch (err)                                                                               \
+                    {                                                                                          \
+                        case GL_INVALID_OPERATION: error = "INVALID_OPERATION"; break;                         \
+                        case GL_INVALID_ENUM: error = "INVALID_ENUM"; break;                                   \
+                        case GL_INVALID_VALUE: error = "INVALID_VALUE"; break;                                 \
+                        case GL_OUT_OF_MEMORY: error = "OUT_OF_MEMORY"; break;                                 \
+                        case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break; \
+                    }                                                                                          \
+                                                                                                               \
+                    std::string formatted_error = "OPENGL: ";                                                  \
+                    formatted_error             = formatted_error + error;                                     \
+                    formatted_error             = formatted_error + ", LINE:";                                 \
+                    formatted_error             = formatted_error + std::to_string(__LINE__);                  \
+                    DW_LOG_ERROR(formatted_error);                                                             \
+                    err = glGetError();                                                                        \
+                }                                                                                              \
+            }
+#    else
+#        define GL_CHECK_ERROR(x) x
+#    endif
 
-#if defined(__EMSCRIPTEN__)
-#    define GL_WRITE_ONLY 0
-#endif
+#    if defined(__EMSCRIPTEN__)
+#        define GL_WRITE_ONLY 0
+#    endif
 
 namespace dw
 {
@@ -97,7 +97,7 @@ protected:
     uint32_t m_array_size;
 };
 
-#if !defined(__EMSCRIPTEN__)
+#    if !defined(__EMSCRIPTEN__)
 class Texture1D : public Texture
 {
 public:
@@ -111,7 +111,7 @@ private:
     uint32_t m_width;
     uint32_t m_mip_levels;
 };
-#endif
+#    endif
 
 class Texture2D : public Texture
 {
@@ -124,7 +124,7 @@ public:
     uint32_t height();
     uint32_t mip_levels();
     uint32_t num_samples();
-    void save_to_disk(std::string path, int32_t array_index, int32_t mip_level);
+    void     save_to_disk(std::string path, int32_t array_index, int32_t mip_level);
 
 private:
     uint32_t m_width;
@@ -267,11 +267,11 @@ protected:
     GLenum m_type;
     GLuint m_gl_buffer;
     size_t m_size;
-#if defined(__EMSCRIPTEN__)
+#    if defined(__EMSCRIPTEN__)
     void*  m_staging;
     size_t m_mapped_size;
     size_t m_mapped_offset;
-#endif
+#    endif
 };
 
 class VertexBuffer : public Buffer
@@ -295,14 +295,14 @@ public:
     ~UniformBuffer();
 };
 
-#if !defined(__EMSCRIPTEN__)
+#    if !defined(__EMSCRIPTEN__)
 class ShaderStorageBuffer : public Buffer
 {
 public:
     ShaderStorageBuffer(GLenum usage, size_t size, void* data = nullptr);
     ~ShaderStorageBuffer();
 };
-#endif
+#    endif
 
 struct VertexAttrib
 {

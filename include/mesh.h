@@ -36,38 +36,55 @@ struct SubMesh
 class Mesh
 {
 public:
-    static bool  is_loaded(const std::string& name);
-    static void  unload(Mesh*& mesh);
+    static bool is_loaded(const std::string& name);
+    static void unload(Mesh*& mesh);
 
     // Static factory methods.
     static Mesh* load(
 #if defined(DWSF_VULKAN)
         vk::Backend::Ptr backend,
 #endif
-        const std::string& path, bool load_materials = true);
+        const std::string& path,
+        bool               load_materials = true);
     // Custom factory method for creating a mesh from provided data.
     static Mesh* load(
 #if defined(DWSF_VULKAN)
         vk::Backend::Ptr backend,
 #endif
-        const std::string& name, int num_vertices, Vertex* vertices, int num_indices, uint32_t* indices, int num_sub_meshes, SubMesh* sub_meshes, glm::vec3 max_extents, glm::vec3 min_extents);
-
+        const std::string& name,
+        int                num_vertices,
+        Vertex*            vertices,
+        int                num_indices,
+        uint32_t*          indices,
+        int                num_sub_meshes,
+        SubMesh*           sub_meshes,
+        glm::vec3          max_extents,
+        glm::vec3          min_extents);
 
     // Rendering-related getters.
 #if defined(DWSF_VULKAN)
-    inline vk::Buffer::Ptr vertex_buffer() { return m_vbo; }
-    inline vk::Buffer::Ptr index_buffer() { return m_ibo; }
+    inline vk::Buffer::Ptr vertex_buffer()
+    {
+        return m_vbo;
+    }
+    inline vk::Buffer::Ptr                 index_buffer() { return m_ibo; }
     inline const vk::VertexInputStateDesc& vertex_input_state_desc() { return m_vertex_input_state_desc; }
 #else
-    inline gl::VertexArray* mesh_vertex_array() { return m_vao.get(); }
+    inline gl::VertexArray* mesh_vertex_array()
+    {
+        return m_vao.get();
+    }
 #endif
 
-    inline uint32_t     sub_mesh_count() { return m_sub_mesh_count; }
-    inline SubMesh*     sub_meshes() { return m_sub_meshes; }
-    inline uint32_t     vertex_count() { return m_vertex_count; }
-    inline uint32_t     index_count() { return m_index_count; }
-    inline uint32_t*    indices() { return m_indices; }
-    inline Vertex*      vertices() { return m_vertices; }
+    inline uint32_t sub_mesh_count()
+    {
+        return m_sub_mesh_count;
+    }
+    inline SubMesh*  sub_meshes() { return m_sub_meshes; }
+    inline uint32_t  vertex_count() { return m_vertex_count; }
+    inline uint32_t  index_count() { return m_index_count; }
+    inline uint32_t* indices() { return m_indices; }
+    inline Vertex*   vertices() { return m_vertices; }
 
 private:
     // Private constructor and destructor to prevent manual creation.
@@ -76,8 +93,9 @@ private:
 #if defined(DWSF_VULKAN)
         vk::Backend::Ptr backend,
 #endif
-        const std::string& path, bool load_materials);
-   
+        const std::string& path,
+        bool               load_materials);
+
     // Internal initialization methods.
     void create_gpu_objects(
 #if defined(DWSF_VULKAN)
@@ -87,9 +105,10 @@ private:
 
     void load_from_disk(
 #if defined(DWSF_VULKAN)
-        vk::Backend::Ptr backend, 
+        vk::Backend::Ptr backend,
 #endif
-        const std::string& path, bool load_materials);
+        const std::string& path,
+        bool               load_materials);
 
     ~Mesh();
 
@@ -109,11 +128,11 @@ private:
 
     // GPU resources.
 #if defined(DWSF_VULKAN)
-    vk::Buffer::Ptr m_vbo;
-    vk::Buffer::Ptr m_ibo;
+    vk::Buffer::Ptr          m_vbo;
+    vk::Buffer::Ptr          m_ibo;
     vk::VertexInputStateDesc m_vertex_input_state_desc;
 #else
-    std::unique_ptr<gl::VertexArray> m_vao = nullptr;
+    std::unique_ptr<gl::VertexArray>  m_vao = nullptr;
     std::unique_ptr<gl::VertexBuffer> m_vbo = nullptr;
     std::unique_ptr<gl::IndexBuffer>  m_ibo = nullptr;
 #endif

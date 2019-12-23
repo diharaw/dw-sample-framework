@@ -305,12 +305,12 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size)
     VkImageSubresourceRange subresource_range;
     DW_ZERO_MEMORY(subresource_range);
 
-    subresource_range.aspectMask   = VK_IMAGE_ASPECT_COLOR_BIT;
-    subresource_range.baseMipLevel = mip_level;
-    subresource_range.levelCount   = 1;
-    subresource_range.layerCount   = 1;
+    subresource_range.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresource_range.baseMipLevel   = mip_level;
+    subresource_range.levelCount     = 1;
+    subresource_range.layerCount     = 1;
     subresource_range.baseArrayLayer = array_index;
-    
+
     CommandBuffer::Ptr cmd_buf = backend->allocate_transfer_command_buffer();
 
     VkCommandBufferBeginInfo begin_info;
@@ -323,10 +323,10 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size)
     // Image barrier for optimal image (target)
     // Optimal image will be used as destination for the copy
     utilities::set_image_layout(cmd_buf->handle(),
-                     m_vk_image,
-                     VK_IMAGE_LAYOUT_UNDEFINED,
-                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                     subresource_range);
+                                m_vk_image,
+                                VK_IMAGE_LAYOUT_UNDEFINED,
+                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                subresource_range);
 
     // Copy mip levels from staging buffer
     vkCmdCopyBufferToImage(cmd_buf->handle(),
@@ -339,9 +339,9 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size)
     // Change texture image layout to shader read after all mip levels have been copied
     utilities::set_image_layout(cmd_buf->handle(),
                                 m_vk_image,
-                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                     subresource_range);
+                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                subresource_range);
 
     vkEndCommandBuffer(cmd_buf->handle());
 
@@ -600,7 +600,7 @@ void Buffer::upload_data(void* data, size_t size, size_t offset)
         DW_ZERO_MEMORY(copy_region);
 
         copy_region.dstOffset = offset;
-        copy_region.size = size;
+        copy_region.size      = size;
 
         vkCmdCopyBuffer(cmd_buf->handle(), staging->handle(), m_vk_buffer, 1, &copy_region);
 

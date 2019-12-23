@@ -95,7 +95,6 @@ private:
 
     bool create_shaders()
     {
-
         return true;
     }
 
@@ -103,7 +102,6 @@ private:
 
     bool create_uniform_buffer()
     {
-
         return true;
     }
 
@@ -127,21 +125,19 @@ private:
 
     void render()
     {
-        
     }
 
     // -----------------------------------------------------------------------------------------------------------------------------------
 
     void update_uniforms()
     {
-       
     }
 
     // -----------------------------------------------------------------------------------------------------------------------------------
 
 private:
     // GPU resources.
-   
+
     // Camera.
     std::unique_ptr<dw::Camera> m_main_camera;
 

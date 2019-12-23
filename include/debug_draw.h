@@ -70,7 +70,7 @@ public:
 #if defined(DWSF_VULKAN)
 
 #else
-    void render(gl::Framebuffer* fbo, int width, int height, const glm::mat4& view_proj);
+    void                               render(gl::Framebuffer* fbo, int width, int height, const glm::mat4& view_proj);
 #endif
 
 private:

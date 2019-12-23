@@ -771,12 +771,12 @@ private:
 namespace utilities
 {
 extern void set_image_layout(VkCommandBuffer         cmdbuffer,
-                      VkImage                 image,
-                      VkImageLayout           oldImageLayout,
-                      VkImageLayout           newImageLayout,
-                      VkImageSubresourceRange subresourceRange,
-                      VkPipelineStageFlags    srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                      VkPipelineStageFlags    dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+                             VkImage                 image,
+                             VkImageLayout           oldImageLayout,
+                             VkImageLayout           newImageLayout,
+                             VkImageSubresourceRange subresourceRange,
+                             VkPipelineStageFlags    srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                             VkPipelineStageFlags    dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
 }
 
 } // namespace vk

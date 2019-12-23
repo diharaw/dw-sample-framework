@@ -7,6 +7,7 @@
 #include <mesh.h>
 #include <stdio.h>
 #include <ogl.h>
+#include <vk_mem_alloc.h>
 
 namespace dw
 {
@@ -37,15 +38,17 @@ Mesh* Mesh::load(
 #if defined(DWSF_VULKAN)
     vk::Backend::Ptr backend,
 #endif
-    const std::string& path, bool load_materials)
+    const std::string& path,
+    bool               load_materials)
 {
     if (m_cache.find(path) == m_cache.end())
     {
-        Mesh* mesh    = new Mesh(
+        Mesh* mesh = new Mesh(
 #if defined(DWSF_VULKAN)
             backend,
 #endif
-            path, load_materials);
+            path,
+            load_materials);
         m_cache[path] = mesh;
         return mesh;
     }
@@ -59,7 +62,15 @@ Mesh* Mesh::load(
 #if defined(DWSF_VULKAN)
     vk::Backend::Ptr backend,
 #endif
-    const std::string& name, int num_vertices, Vertex* vertices, int num_indices, uint32_t* indices, int num_sub_meshes, SubMesh* sub_meshes, glm::vec3 max_extents, glm::vec3 min_extents)
+    const std::string& name,
+    int                num_vertices,
+    Vertex*            vertices,
+    int                num_indices,
+    uint32_t*          indices,
+    int                num_sub_meshes,
+    SubMesh*           sub_meshes,
+    glm::vec3          max_extents,
+    glm::vec3          min_extents)
 {
     if (m_cache.find(name) == m_cache.end())
     {
@@ -117,7 +128,8 @@ void Mesh::load_from_disk(
 #if defined(DWSF_VULKAN)
     vk::Backend::Ptr backend,
 #endif
-    const std::string& path, bool load_materials)
+    const std::string& path,
+    bool               load_materials)
 {
     const aiScene*   Scene;
     Assimp::Importer importer;
@@ -170,7 +182,7 @@ void Mesh::load_from_disk(
                         {
                             DW_LOG_INFO("Found " + kTextureTypeStrings[i] + ": " + texture);
                             material_paths[kTextureTypes[i]] = texture;
-                            has_least_one_texture = true;
+                            has_least_one_texture            = true;
                         }
                     }
                     else if (i == 0)
@@ -184,20 +196,24 @@ void Mesh::load_from_disk(
 
                 if (has_least_one_texture)
                 {
-                    m_sub_meshes[i].mat                               = Material::load(
+                    m_sub_meshes[i].mat = Material::load(
 #if defined(DWSF_VULKAN)
                         backend,
 #endif
-                        current_mat_name, &material_paths[0]);
+                        current_mat_name,
+                        &material_paths[0]);
                     mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
                 }
                 else if (has_diifuse_val)
                 {
-                    m_sub_meshes[i].mat                               = Material::load(
+                    m_sub_meshes[i].mat = Material::load(
 #if defined(DWSF_VULKAN)
                         backend,
 #endif
-                        current_mat_name, 0, nullptr, glm::vec4(diffuse.r, diffuse.g, diffuse.b, 1.0f));
+                        current_mat_name,
+                        0,
+                        nullptr,
+                        glm::vec4(diffuse.r, diffuse.g, diffuse.b, 1.0f));
                     mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
                 }
                 else
@@ -310,7 +326,16 @@ void Mesh::create_gpu_objects(
 )
 {
 #if defined(DWSF_VULKAN)
+    m_vbo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, sizeof(Vertex) * m_vertex_count, VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_vertices[0]);
+    m_vbo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, sizeof(uint32_t) * m_index_count, VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_indices[0]);
 
+    m_vertex_input_state_desc.add_binding_desc(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
+
+    m_vertex_input_state_desc.add_attribute_desc(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0);
+    m_vertex_input_state_desc.add_attribute_desc(1, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, tex_coord));
+    m_vertex_input_state_desc.add_attribute_desc(2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal));
+    m_vertex_input_state_desc.add_attribute_desc(3, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, tangent));
+    m_vertex_input_state_desc.add_attribute_desc(4, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, bitangent));
 #else
     // Create vertex buffer.
     m_vbo = std::make_unique<gl::VertexBuffer>(
@@ -328,10 +353,10 @@ void Mesh::create_gpu_objects(
 
     // Declare vertex attributes.
     gl::VertexAttrib attribs[] = { { 3, GL_FLOAT, false, 0 },
-                               { 2, GL_FLOAT, false, offsetof(Vertex, tex_coord) },
-                               { 3, GL_FLOAT, false, offsetof(Vertex, normal) },
-                               { 3, GL_FLOAT, false, offsetof(Vertex, tangent) },
-                               { 3, GL_FLOAT, false, offsetof(Vertex, bitangent) } };
+                                   { 2, GL_FLOAT, false, offsetof(Vertex, tex_coord) },
+                                   { 3, GL_FLOAT, false, offsetof(Vertex, normal) },
+                                   { 3, GL_FLOAT, false, offsetof(Vertex, tangent) },
+                                   { 3, GL_FLOAT, false, offsetof(Vertex, bitangent) } };
 
     // Create vertex array.
     m_vao = std::make_unique<gl::VertexArray>(m_vbo.get(), m_ibo.get(), sizeof(Vertex), 5, attribs);
@@ -351,13 +376,15 @@ Mesh::Mesh(
 #if defined(DWSF_VULKAN)
     vk::Backend::Ptr backend,
 #endif
-    const std::string& path, bool load_materials)
+    const std::string& path,
+    bool               load_materials)
 {
     load_from_disk(
 #if defined(DWSF_VULKAN)
         backend,
 #endif
-        path, load_materials);
+        path,
+        load_materials);
     create_gpu_objects(
 #if defined(DWSF_VULKAN)
         backend

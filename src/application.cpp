@@ -102,16 +102,16 @@ bool Application::init_base(int argc, const char* argv[])
 #else
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
 
-#	if !defined(__EMSCRIPTEN__)
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	glfwWindowHint(GLFW_SAMPLES, 8);
-#	endif
+#    if !defined(__EMSCRIPTEN__)
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_SAMPLES, 8);
+#    endif
 
-#	if __APPLE__
+#    if __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#	endif
+#    endif
 
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, major_ver);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, major_ver);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, minor_ver);
 
 #endif
@@ -148,7 +148,7 @@ bool Application::init_base(int argc, const char* argv[])
     ImGui_ImplGlfwGL3_Init(m_window, false);
     ImGui::StyleColorsDark();
 
-	GLFWmonitor* primary = glfwGetPrimaryMonitor();
+    GLFWmonitor* primary = glfwGetPrimaryMonitor();
 
     float xscale, yscale;
     glfwGetMonitorContentScale(primary, &xscale, &yscale);
@@ -157,7 +157,7 @@ bool Application::init_base(int argc, const char* argv[])
 
     style->ScaleAllSizes(xscale > yscale ? xscale : yscale);
 
-	ImGuiIO& io        = ImGui::GetIO();
+    ImGuiIO& io        = ImGui::GetIO();
     io.FontGlobalScale = xscale > yscale ? xscale : yscale;
 
     int display_w, display_h;

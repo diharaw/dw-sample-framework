@@ -12,8 +12,8 @@ namespace dw
 class Material
 {
 public:
-    static bool      is_loaded(const std::string& name);
-    static void      unload(Material*& mat);
+    static bool is_loaded(const std::string& name);
+    static void unload(Material*& mat);
 
     // Texture factory methods.
 #if defined(DWSF_VULKAN)
@@ -21,9 +21,9 @@ public:
     static Material* load(vk::Backend::Ptr backend, const std::string& name, const std::string* textures);
 
     // Custom factory method for creating a material from provided data.
-    static Material*      load(vk::Backend::Ptr backend, const std::string& name, int num_textures, vk::Image::Ptr* images, glm::vec4 albedo = glm::vec4(1.0f), float roughness = 0.0f, float metalness = 0.0f);
-    static void           initialize_common_resources(vk::Backend::Ptr backend);
-    static void           shutdown_common_resources();
+    static Material* load(vk::Backend::Ptr backend, const std::string& name, int num_textures, vk::Image::Ptr* images, glm::vec4 albedo = glm::vec4(1.0f), float roughness = 0.0f, float metalness = 0.0f);
+    static void      initialize_common_resources(vk::Backend::Ptr backend);
+    static void      shutdown_common_resources();
 
     // Rendering related getters.
     inline vk::ImageView::Ptr     image_view(const uint32_t& index) { return m_image_views[index]; }
@@ -32,9 +32,9 @@ public:
 
 private:
     static vk::Image::Ptr     load_image(vk::Backend::Ptr backend, const std::string& path, bool srgb = false);
-    static void unload_image(vk::Image::Ptr image);
+    static void               unload_image(vk::Image::Ptr image);
     static vk::ImageView::Ptr load_image_view(vk::Backend::Ptr backend, const std::string& path, vk::Image::Ptr image);
-    static void           unload_image_view(vk::ImageView::Ptr image);
+    static void               unload_image_view(vk::ImageView::Ptr image);
 
     vk::DescriptorSet::Ptr create_pbr_descriptor_set(vk::Backend::Ptr backend);
 
@@ -81,14 +81,14 @@ public:
     vk::DescriptorSet::Ptr m_descriptor_set;
 
     // Texture cache.
-    static std::unordered_map<std::string, std::weak_ptr<vk::Image>> m_image_cache;
+    static std::unordered_map<std::string, std::weak_ptr<vk::Image>>     m_image_cache;
     static std::unordered_map<std::string, std::weak_ptr<vk::ImageView>> m_image_view_cache;
-    static vk::DescriptorSetLayout::Ptr               m_common_ds_layout;
-    static vk::Sampler::Ptr                           m_common_sampler;
-    static vk::Image::Ptr                             m_default_image;
-    static vk::ImageView::Ptr                         m_default_image_view;
+    static vk::DescriptorSetLayout::Ptr                                  m_common_ds_layout;
+    static vk::Sampler::Ptr                                              m_common_sampler;
+    static vk::Image::Ptr                                                m_default_image;
+    static vk::ImageView::Ptr                                            m_default_image_view;
 #else
-    gl::Texture2D*        m_textures[16];
+    gl::Texture2D* m_textures[16];
 
     // Texture cache.
     static std::unordered_map<std::string, gl::Texture2D*> m_texture_cache;
