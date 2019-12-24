@@ -13,6 +13,9 @@ std::unordered_map<std::string, Material*> Material::m_cache;
 std::unordered_map<std::string, std::weak_ptr<vk::Image>>     Material::m_image_cache;
 std::unordered_map<std::string, std::weak_ptr<vk::ImageView>> Material::m_image_view_cache;
 vk::DescriptorSetLayout::Ptr                                  Material::m_common_ds_layout;
+vk::Sampler::Ptr                                              Material::m_common_sampler;
+vk::Image::Ptr                                                Material::m_default_image;
+vk::ImageView::Ptr                                            Material::m_default_image_view;
 #else
 std::unordered_map<std::string, gl::Texture2D*> Material::m_texture_cache;
 #endif

@@ -109,7 +109,7 @@ private:
 
     bool load_mesh()
     {
-        m_mesh = dw::Mesh::load("teapot.obj");
+        m_mesh = dw::Mesh::load(m_vk_backend, "teapot.obj");
         return m_mesh != nullptr;
     }
 

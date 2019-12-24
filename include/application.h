@@ -11,6 +11,7 @@
 #    include <GLFW/glfw3.h>
 #endif
 #include <imgui.h>
+#include "vk.h"
 #include "logger.h"
 #include "timer.h"
 
@@ -116,5 +117,6 @@ protected:
     GLFWwindow*                         m_window;
     Timer                               m_timer;
     DebugDraw                           m_debug_draw;
+    vk::Backend::Ptr                    m_vk_backend;
 };
 } // namespace dw

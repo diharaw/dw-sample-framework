@@ -1,5 +1,10 @@
 #include <application.h>
+
+#if defined(DWSF_VULKAN)
+#include <imgui_impl_glfw_vulkan.h>
+#else
 #include <imgui_impl_glfw_gl3.h>
+#endif
 #include <profiler.h>
 #include <iostream>
 
@@ -7,6 +12,8 @@
 #    include <emscripten/emscripten.h>
 #endif
 
+#include "material.h"
+#include "mesh.h"
 #include "utility.h"
 
 namespace dw
@@ -139,13 +146,31 @@ bool Application::init_base(int argc, const char* argv[])
 
     DW_LOG_INFO("Successfully initialized platform!");
 
-#if !defined(DWSF_VULKAN) && !defined(__EMSCRIPTEN__)
+#if defined(DWSF_VULKAN)
+    m_vk_backend = vk::Backend::create(m_window,
+#   if defined(_DEBUG)
+                                       true
+#   else
+                                       false
+#   endif
+    );
+
+    Material::initialize_common_resources(m_vk_backend);
+#else
+#   if !defined(__EMSCRIPTEN__)
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         return false;
+#   endif
 #endif
 
     ImGui::CreateContext();
+
+#if defined(DWSF_VULKAN)
+
+#else
     ImGui_ImplGlfwGL3_Init(m_window, false);
+#endif
+
     ImGui::StyleColorsDark();
 
     GLFWmonitor* primary = glfwGetPrimaryMonitor();
@@ -198,8 +223,14 @@ void Application::shutdown_base()
     // Shutdown debug draw.
     m_debug_draw.shutdown();
 
+    m_vk_backend.reset();
+
     // Shutdown ImGui.
+#if defined(DWSF_VULKAN)
+
+#else
     ImGui_ImplGlfwGL3_Shutdown();
+#endif
     ImGui::DestroyContext();
 
     // Shutdown GLFW.
@@ -218,7 +249,12 @@ void Application::begin_frame()
     m_timer.start();
 
     glfwPollEvents();
+
+#if defined(DWSF_VULKAN)
+
+#else
     ImGui_ImplGlfwGL3_NewFrame();
+#endif
 
     m_mouse_delta_x = m_mouse_x - m_last_mouse_x;
     m_mouse_delta_y = m_mouse_y - m_last_mouse_y;
@@ -236,7 +272,13 @@ void Application::end_frame()
     profiler::end_frame();
 
     ImGui::Render();
+
+#if defined(DWSF_VULKAN)
+
+#else
     ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
+#endif
+
     glfwSwapBuffers(m_window);
 
     m_timer.stop();

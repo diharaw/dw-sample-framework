@@ -24,6 +24,8 @@ class CommandBuffer;
 class PipelineLayout;
 class Fence;
 class Semaphore;
+class DescriptorSet;
+class DescriptorSetLayout;
 
 struct SwapChainSupportDetails
 {
