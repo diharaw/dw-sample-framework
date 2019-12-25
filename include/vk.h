@@ -68,11 +68,11 @@ public:
 
     ~Backend();
 
-    std::shared_ptr<DescriptorSet> allocate_descriptor_set(std::shared_ptr<DescriptorSetLayout> layout);
-    std::shared_ptr<CommandBuffer> allocate_graphics_command_buffer();
-    std::shared_ptr<CommandBuffer> allocate_compute_command_buffer();
-    std::shared_ptr<CommandBuffer> allocate_transfer_command_buffer();
-    std::shared_ptr<CommandPool>   thread_local_graphics_command_pool();
+    std::shared_ptr<DescriptorSet>  allocate_descriptor_set(std::shared_ptr<DescriptorSetLayout> layout);
+    std::shared_ptr<CommandBuffer>  allocate_graphics_command_buffer();
+    std::shared_ptr<CommandBuffer>  allocate_compute_command_buffer();
+    std::shared_ptr<CommandBuffer>  allocate_transfer_command_buffer();
+    std::shared_ptr<CommandPool>    thread_local_graphics_command_pool();
     std::shared_ptr<CommandPool>    thread_local_compute_command_pool();
     std::shared_ptr<CommandPool>    thread_local_transfer_command_pool();
     std::shared_ptr<DescriptorPool> thread_local_descriptor_pool();
@@ -88,21 +88,21 @@ public:
                                                     const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
                                                     const std::vector<VkPipelineStageFlags>&           wait_stages,
                                                     const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores);
-    void                           flush_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
-    void                           flush_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
-    void                           flush_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
-    void                           acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& semaphore);
-    void                           present(const std::vector<std::shared_ptr<Semaphore>>& semaphores);
-    std::shared_ptr<Image>         swapchain_image();
-    std::shared_ptr<ImageView>     swapchain_image_view();
-    std::shared_ptr<Framebuffer>   swapchain_framebuffer();
-    std::shared_ptr<RenderPass>    swapchain_render_pass();
-    void                           recreate_swapchain();
+    void                            flush_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
+    void                            flush_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
+    void                            flush_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
+    void                            acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& semaphore);
+    void                            present(const std::vector<std::shared_ptr<Semaphore>>& semaphores);
+    std::shared_ptr<Image>          swapchain_image();
+    std::shared_ptr<ImageView>      swapchain_image_view();
+    std::shared_ptr<Framebuffer>    swapchain_framebuffer();
+    std::shared_ptr<RenderPass>     swapchain_render_pass();
+    void                            recreate_swapchain();
 
-    VkDevice        device();
+    VkDevice         device();
     VkPhysicalDevice physical_device();
-    VmaAllocator_T* allocator();
-    VkFormat        find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+    VmaAllocator_T*  allocator();
+    VkFormat         find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
     inline uint32_t          current_frame_idx() { return m_current_frame; }
     inline const QueueInfos& queue_infos() { return m_selected_queues; }
@@ -128,11 +128,11 @@ private:
     VkSurfaceFormatKHR       choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats);
     VkPresentModeKHR         choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_modes);
     VkExtent2D               choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
-    void                     submit(VkQueue queue, 
-                                    const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs, 
-                                    const std::vector<std::shared_ptr<Semaphore>>& wait_semaphores, 
-                                    const std::vector<VkPipelineStageFlags>& wait_stages, 
-                                    const std::vector<std::shared_ptr<Semaphore>>& signal_semaphores);
+    void                     submit(VkQueue                                            queue,
+                                    const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
+                                    const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
+                                    const std::vector<VkPipelineStageFlags>&           wait_stages,
+                                    const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores);
     void                     flush(VkQueue queue, const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
 
 private:

@@ -2128,11 +2128,11 @@ void Backend::flush_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& 
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Backend::submit(VkQueue queue, 
-    const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs, 
-    const std::vector<std::shared_ptr<Semaphore>>& wait_semaphores,   
-    const std::vector<VkPipelineStageFlags>& wait_stages, 
-    const std::vector<std::shared_ptr<Semaphore>>& signal_semaphores)
+void Backend::submit(VkQueue                                            queue,
+                     const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
+                     const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
+                     const std::vector<VkPipelineStageFlags>&           wait_stages,
+                     const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores)
 {
     VkSemaphore vk_wait_semaphores[16];
 
@@ -2159,9 +2159,9 @@ void Backend::submit(VkQueue queue,
 
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    submit_info.waitSemaphoreCount         = wait_semaphores.size();
-    submit_info.pWaitSemaphores            = vk_wait_semaphores;
-    submit_info.pWaitDstStageMask          = vk_wait_stages;
+    submit_info.waitSemaphoreCount = wait_semaphores.size();
+    submit_info.pWaitSemaphores    = vk_wait_semaphores;
+    submit_info.pWaitDstStageMask  = vk_wait_stages;
 
     submit_info.commandBufferCount = cmd_bufs.size();
     submit_info.pCommandBuffers    = &vk_cmd_bufs[0];

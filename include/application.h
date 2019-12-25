@@ -93,7 +93,7 @@ protected:
 #if defined(DWSF_VULKAN)
     void render_gui(vk::CommandBuffer::Ptr cmd_buf);
     void submit_and_present(const std::vector<vk::CommandBuffer::Ptr>& cmd_bufs);
- #endif 
+#endif
 
 private:
     // Pre, Post frame methods for ImGUI updates, presentations etc.
@@ -123,7 +123,7 @@ protected:
     Timer                               m_timer;
     DebugDraw                           m_debug_draw;
     vk::Backend::Ptr                    m_vk_backend;
-    std::vector<vk::Semaphore::Ptr> m_image_available_semaphores;
-    std::vector<vk::Semaphore::Ptr> m_render_finished_semaphores;
+    std::vector<vk::Semaphore::Ptr>     m_image_available_semaphores;
+    std::vector<vk::Semaphore::Ptr>     m_render_finished_semaphores;
 };
 } // namespace dw

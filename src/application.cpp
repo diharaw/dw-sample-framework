@@ -314,10 +314,10 @@ void Application::render_gui(vk::CommandBuffer::Ptr cmd_buf)
 
 void Application::submit_and_present(const std::vector<vk::CommandBuffer::Ptr>& cmd_bufs)
 {
-    m_vk_backend->submit_graphics(cmd_bufs, 
-        { m_image_available_semaphores[m_vk_backend->current_frame_idx()] }, 
-        { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }, 
-        { m_render_finished_semaphores[m_vk_backend->current_frame_idx()] });
+    m_vk_backend->submit_graphics(cmd_bufs,
+                                  { m_image_available_semaphores[m_vk_backend->current_frame_idx()] },
+                                  { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
+                                  { m_render_finished_semaphores[m_vk_backend->current_frame_idx()] });
 
     m_vk_backend->present({ m_render_finished_semaphores[m_vk_backend->current_frame_idx()] });
 }
