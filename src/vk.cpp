@@ -15,8 +15,6 @@
 #    define STB_IMAGE_IMPLEMENTATION
 #    include <stb_image.h>
 
-#    define MAX_IN_FLIGHT_FRAMES 3
-
 namespace dw
 {
 namespace vk
@@ -2079,23 +2077,32 @@ std::shared_ptr<DescriptorPool> Backend::thread_local_descriptor_pool()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Backend::submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
+void Backend::submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
+                              const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
+                              const std::vector<VkPipelineStageFlags>&           wait_stages,
+                              const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores)
 {
-    submit(m_vk_graphics_queue, cmd_bufs);
+    submit(m_vk_graphics_queue, cmd_bufs, wait_semaphores, wait_stages, signal_semaphores);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Backend::submit_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
+void Backend::submit_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
+                             const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
+                             const std::vector<VkPipelineStageFlags>&           wait_stages,
+                             const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores)
 {
-    submit(m_vk_compute_queue, cmd_bufs);
+    submit(m_vk_compute_queue, cmd_bufs, wait_semaphores, wait_stages, signal_semaphores);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Backend::submit_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
+void Backend::submit_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
+                              const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
+                              const std::vector<VkPipelineStageFlags>&           wait_stages,
+                              const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores)
 {
-    submit(m_vk_transfer_queue, cmd_bufs);
+    submit(m_vk_transfer_queue, cmd_bufs, wait_semaphores, wait_stages, signal_semaphores);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2121,30 +2128,46 @@ void Backend::flush_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& 
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Backend::submit(VkQueue queue, const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
+void Backend::submit(VkQueue queue, 
+    const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs, 
+    const std::vector<std::shared_ptr<Semaphore>>& wait_semaphores,   
+    const std::vector<VkPipelineStageFlags>& wait_stages, 
+    const std::vector<std::shared_ptr<Semaphore>>& signal_semaphores)
 {
+    VkSemaphore vk_wait_semaphores[16];
+
+    for (int i = 0; i < wait_semaphores.size(); i++)
+        vk_wait_semaphores[i] = wait_semaphores[i]->handle();
+
+    VkSemaphore vk_signal_semaphores[16];
+
+    for (int i = 0; i < signal_semaphores.size(); i++)
+        vk_signal_semaphores[i] = signal_semaphores[i]->handle();
+
     VkCommandBuffer vk_cmd_bufs[32];
 
     for (int i = 0; i < cmd_bufs.size(); i++)
         vk_cmd_bufs[i] = cmd_bufs[i]->handle();
+
+    VkPipelineStageFlags vk_wait_stages[16];
+
+    for (int i = 0; i < wait_semaphores.size(); i++)
+        vk_wait_stages[i] = wait_stages[i];
 
     VkSubmitInfo submit_info;
     DW_ZERO_MEMORY(submit_info);
 
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore          wait_semaphores[] = { m_image_available_semaphores[m_current_frame]->handle() };
-    VkPipelineStageFlags wait_stages[]     = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    submit_info.waitSemaphoreCount         = 1;
-    submit_info.pWaitSemaphores            = wait_semaphores;
-    submit_info.pWaitDstStageMask          = wait_stages;
+    submit_info.waitSemaphoreCount         = wait_semaphores.size();
+    submit_info.pWaitSemaphores            = vk_wait_semaphores;
+    submit_info.pWaitDstStageMask          = vk_wait_stages;
 
     submit_info.commandBufferCount = cmd_bufs.size();
     submit_info.pCommandBuffers    = &vk_cmd_bufs[0];
 
-    VkSemaphore signal_semaphores[]  = { m_render_finished_semaphores[m_current_frame]->handle() };
-    submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores    = signal_semaphores;
+    submit_info.signalSemaphoreCount = signal_semaphores.size();
+    submit_info.pSignalSemaphores    = vk_signal_semaphores;
 
     vkResetFences(m_vk_device, 1, &m_in_flight_fences[m_current_frame]->handle());
 
@@ -2191,11 +2214,11 @@ void Backend::flush(VkQueue queue, const std::vector<std::shared_ptr<CommandBuff
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Backend::begin_frame()
+void Backend::acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& semaphore)
 {
     vkWaitForFences(m_vk_device, 1, &m_in_flight_fences[m_current_frame]->handle(), VK_TRUE, UINT64_MAX);
 
-    VkResult result = vkAcquireNextImageKHR(m_vk_device, m_vk_swap_chain, UINT64_MAX, m_image_available_semaphores[m_current_frame]->handle(), VK_NULL_HANDLE, &m_image_index);
+    VkResult result = vkAcquireNextImageKHR(m_vk_device, m_vk_swap_chain, UINT64_MAX, semaphore->handle(), VK_NULL_HANDLE, &m_image_index);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
@@ -2211,15 +2234,18 @@ void Backend::begin_frame()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Backend::end_frame()
+void Backend::present(const std::vector<std::shared_ptr<Semaphore>>& semaphores)
 {
-    VkSemaphore signal_semaphores[] = { m_render_finished_semaphores[m_current_frame]->handle() };
+    VkSemaphore signal_semaphores[16];
+
+    for (int i = 0; i < semaphores.size(); i++)
+        signal_semaphores[i] = semaphores[i]->handle();
 
     VkPresentInfoKHR present_info;
     DW_ZERO_MEMORY(present_info);
 
     present_info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    present_info.waitSemaphoreCount = 1;
+    present_info.waitSemaphoreCount = semaphores.size();
     present_info.pWaitSemaphores    = signal_semaphores;
 
     VkSwapchainKHR swap_chains[] = { m_vk_swap_chain };
@@ -2233,7 +2259,14 @@ void Backend::end_frame()
         throw std::runtime_error("failed to present swap chain image!");
     }
 
-    m_current_frame = (m_current_frame + 1) % MAX_IN_FLIGHT_FRAMES;
+    m_current_frame = (m_current_frame + 1) % kMaxFramesInFlight;
+
+    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
+    {
+        g_graphics_command_buffers[i]->reset();
+        g_compute_command_buffers[i]->reset();
+        g_transfer_command_buffers[i]->reset();
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2898,16 +2931,10 @@ bool Backend::create_swapchain()
         m_swap_chain_framebuffers[i] = Framebuffer::create(shared_from_this(), m_swap_chain_render_pass, views, m_swap_chain_extent.width, m_swap_chain_extent.height, 1);
     }
 
-    m_image_available_semaphores.resize(MAX_IN_FLIGHT_FRAMES);
-    m_render_finished_semaphores.resize(MAX_IN_FLIGHT_FRAMES);
-    m_in_flight_fences.resize(MAX_IN_FLIGHT_FRAMES);
+    m_in_flight_fences.resize(kMaxFramesInFlight);
 
-    for (size_t i = 0; i < MAX_IN_FLIGHT_FRAMES; i++)
-    {
-        m_image_available_semaphores[i] = Semaphore::create(shared_from_this());
-        m_render_finished_semaphores[i] = Semaphore::create(shared_from_this());
-        m_in_flight_fences[i]           = Fence::create(shared_from_this());
-    }
+    for (size_t i = 0; i < kMaxFramesInFlight; i++)
+        m_in_flight_fences[i] = Fence::create(shared_from_this());
 
     return true;
 }

@@ -1,9 +1,9 @@
 #include <application.h>
 
 #if defined(DWSF_VULKAN)
-#include <imgui_impl_glfw_vulkan.h>
+#    include <imgui_impl_glfw_vulkan.h>
 #else
-#include <imgui_impl_glfw_gl3.h>
+#    include <imgui_impl_glfw_gl3.h>
 #endif
 #include <profiler.h>
 #include <iostream>
@@ -21,7 +21,7 @@ namespace dw
 #if defined(DWSF_VULKAN)
 void imgui_vulkan_error_check(VkResult err)
 {
-    if (err == 0) 
+    if (err == 0)
         return;
 
     DW_LOG_ERROR("(Vulkan) Error " + std::to_string(err));
@@ -161,19 +161,25 @@ bool Application::init_base(int argc, const char* argv[])
 
 #if defined(DWSF_VULKAN)
     m_vk_backend = vk::Backend::create(m_window,
-#   if defined(_DEBUG)
+#    if defined(_DEBUG)
                                        true
-#   else
+#    else
                                        false
-#   endif
+#    endif
     );
+
+    for (size_t i = 0; i < vk::Backend::kMaxFramesInFlight; i++)
+    {
+        m_image_available_semaphores[i] = vk::Semaphore::create(m_vk_backend);
+        m_render_finished_semaphores[i] = vk::Semaphore::create(m_vk_backend);
+    }
 
     Material::initialize_common_resources(m_vk_backend);
 #else
-#   if !defined(__EMSCRIPTEN__)
+#    if !defined(__EMSCRIPTEN__)
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         return false;
-#   endif
+#    endif
 #endif
 
     ImGui::CreateContext();
@@ -275,6 +281,51 @@ void Application::shutdown_base()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+#if defined(DWSF_VULKAN)
+
+void Application::render_gui(vk::CommandBuffer::Ptr cmd_buf)
+{
+    VkCommandBufferBeginInfo begin_info;
+    DW_ZERO_MEMORY(begin_info);
+
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
+
+    VkRenderPassBeginInfo info    = {};
+    info.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    info.renderPass               = m_vk_backend->swapchain_render_pass()->handle();
+    info.framebuffer              = m_vk_backend->swapchain_framebuffer()->handle();
+    info.renderArea.extent.width  = m_width;
+    info.renderArea.extent.height = m_height;
+    info.clearValueCount          = 0;
+    info.pClearValues             = nullptr;
+
+    vkCmdBeginRenderPass(cmd_buf->handle(), &info, VK_SUBPASS_CONTENTS_INLINE);
+
+    ImGui_ImplGlfwVulkan_Render(cmd_buf->handle());
+
+    vkCmdEndRenderPass(cmd_buf->handle());
+
+    vkEndCommandBuffer(cmd_buf->handle());
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Application::submit_and_present(const std::vector<vk::CommandBuffer::Ptr>& cmd_bufs)
+{
+    m_vk_backend->submit_graphics(cmd_bufs, 
+        { m_image_available_semaphores[m_vk_backend->current_frame_idx()] }, 
+        { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }, 
+        { m_render_finished_semaphores[m_vk_backend->current_frame_idx()] });
+
+    m_vk_backend->present({ m_render_finished_semaphores[m_vk_backend->current_frame_idx()] });
+}
+
+#endif
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 void Application::begin_frame()
 {
     m_timer.start();
@@ -282,7 +333,7 @@ void Application::begin_frame()
     glfwPollEvents();
 
 #if defined(DWSF_VULKAN)
-    m_vk_backend->begin_frame();
+    m_vk_backend->acquire_next_swap_chain_image(m_image_available_semaphores[m_vk_backend->current_frame_idx()]);
     ImGui_ImplGlfwVulkan_NewFrame();
 #else
     ImGui_ImplGlfwGL3_NewFrame();
@@ -303,14 +354,8 @@ void Application::end_frame()
 {
     profiler::end_frame();
 
+#if !defined(DWSF_VULKAN)
     ImGui::Render();
-
-#if defined(DWSF_VULKAN)
-    vk::CommandBuffer::Ptr cmd_buf = m_vk_backend->allocate_graphics_command_buffer();
-
-
-    m_vk_backend->end_frame();
-#else
     ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
     glfwSwapBuffers(m_window);
 #endif

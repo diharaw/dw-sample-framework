@@ -3,7 +3,6 @@
 #if defined(DWSF_VULKAN)
 
 #    include <vulkan/vulkan.h>
-#    include <imgui_impl_glfw_vulkan.h>
 #    include <vector>
 #    include <string>
 #    include <memory>
@@ -23,6 +22,7 @@ class Framebuffer;
 class RenderPass;
 class CommandBuffer;
 class PipelineLayout;
+class CommandPool;
 class Fence;
 class Semaphore;
 class DescriptorSet;
@@ -60,6 +60,8 @@ struct QueueInfos
 class Backend : public std::enable_shared_from_this<Backend>
 {
 public:
+    static const uint32_t kMaxFramesInFlight = 3;
+
     using Ptr = std::shared_ptr<Backend>;
 
     static Backend::Ptr create(GLFWwindow* window, bool enable_validation_layers = false, bool require_ray_tracing = false);
@@ -74,14 +76,23 @@ public:
     std::shared_ptr<CommandPool>    thread_local_compute_command_pool();
     std::shared_ptr<CommandPool>    thread_local_transfer_command_pool();
     std::shared_ptr<DescriptorPool> thread_local_descriptor_pool();
-    void                           submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
-    void                           submit_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
-    void                           submit_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
+    void                            submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
+                                                    const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
+                                                    const std::vector<VkPipelineStageFlags>&           wait_stages,
+                                                    const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores);
+    void                            submit_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
+                                                   const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
+                                                   const std::vector<VkPipelineStageFlags>&           wait_stages,
+                                                   const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores);
+    void                            submit_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
+                                                    const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
+                                                    const std::vector<VkPipelineStageFlags>&           wait_stages,
+                                                    const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores);
     void                           flush_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
     void                           flush_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
     void                           flush_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
-    void                           begin_frame();
-    void                           end_frame();
+    void                           acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& semaphore);
+    void                           present(const std::vector<std::shared_ptr<Semaphore>>& semaphores);
     std::shared_ptr<Image>         swapchain_image();
     std::shared_ptr<ImageView>     swapchain_image_view();
     std::shared_ptr<Framebuffer>   swapchain_framebuffer();
@@ -93,6 +104,7 @@ public:
     VmaAllocator_T* allocator();
     VkFormat        find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
+    inline uint32_t          current_frame_idx() { return m_current_frame; }
     inline const QueueInfos& queue_infos() { return m_selected_queues; }
 
 private:
@@ -116,12 +128,14 @@ private:
     VkSurfaceFormatKHR       choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats);
     VkPresentModeKHR         choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_modes);
     VkExtent2D               choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
-    void                     submit(VkQueue queue, const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
+    void                     submit(VkQueue queue, 
+                                    const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs, 
+                                    const std::vector<std::shared_ptr<Semaphore>>& wait_semaphores, 
+                                    const std::vector<VkPipelineStageFlags>& wait_stages, 
+                                    const std::vector<std::shared_ptr<Semaphore>>& signal_semaphores);
     void                     flush(VkQueue queue, const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
 
 private:
-    uint32_t                                  m_image_index           = 0;
-    uint32_t                                  m_current_frame         = 0;
     GLFWwindow*                               m_window                = nullptr;
     VkInstance                                m_vk_instance           = nullptr;
     VkDevice                                  m_vk_device             = nullptr;
@@ -144,8 +158,8 @@ private:
     std::vector<std::shared_ptr<Image>>       m_swap_chain_images;
     std::vector<std::shared_ptr<ImageView>>   m_swap_chain_image_views;
     std::vector<std::shared_ptr<Framebuffer>> m_swap_chain_framebuffers;
-    std::vector<std::shared_ptr<Semaphore>>   m_image_available_semaphores;
-    std::vector<std::shared_ptr<Semaphore>>   m_render_finished_semaphores;
+    uint32_t                                  m_image_index   = 0;
+    uint32_t                                  m_current_frame = 0;
     std::vector<std::shared_ptr<Fence>>       m_in_flight_fences;
     std::shared_ptr<Image>                    m_swap_chain_depth      = nullptr;
     std::shared_ptr<ImageView>                m_swap_chain_depth_view = nullptr;
