@@ -3,6 +3,7 @@
 #if defined(DWSF_VULKAN)
 
 #    include <vulkan/vulkan.h>
+#    include <imgui_impl_glfw_vulkan.h>
 #    include <vector>
 #    include <string>
 #    include <memory>
@@ -26,6 +27,7 @@ class Fence;
 class Semaphore;
 class DescriptorSet;
 class DescriptorSetLayout;
+class DescriptorPool;
 
 struct SwapChainSupportDetails
 {
@@ -68,6 +70,10 @@ public:
     std::shared_ptr<CommandBuffer> allocate_graphics_command_buffer();
     std::shared_ptr<CommandBuffer> allocate_compute_command_buffer();
     std::shared_ptr<CommandBuffer> allocate_transfer_command_buffer();
+    std::shared_ptr<CommandPool>   thread_local_graphics_command_pool();
+    std::shared_ptr<CommandPool>    thread_local_compute_command_pool();
+    std::shared_ptr<CommandPool>    thread_local_transfer_command_pool();
+    std::shared_ptr<DescriptorPool> thread_local_descriptor_pool();
     void                           submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
     void                           submit_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
     void                           submit_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
@@ -83,6 +89,7 @@ public:
     void                           recreate_swapchain();
 
     VkDevice        device();
+    VkPhysicalDevice physical_device();
     VmaAllocator_T* allocator();
     VkFormat        find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 

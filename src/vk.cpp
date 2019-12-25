@@ -2051,6 +2051,34 @@ std::shared_ptr<CommandBuffer> Backend::allocate_transfer_command_buffer()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+std::shared_ptr<CommandPool> Backend::thread_local_graphics_command_pool()
+{
+    return g_graphics_command_buffers[g_thread_idx]->command_pool;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+std::shared_ptr<CommandPool> Backend::thread_local_compute_command_pool()
+{
+    return g_compute_command_buffers[g_thread_idx]->command_pool;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+std::shared_ptr<CommandPool> Backend::thread_local_transfer_command_pool()
+{
+    return g_transfer_command_buffers[g_thread_idx]->command_pool;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+std::shared_ptr<DescriptorPool> Backend::thread_local_descriptor_pool()
+{
+    return g_descriptor_pools[g_thread_idx];
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 void Backend::submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
 {
     submit(m_vk_graphics_queue, cmd_bufs);
@@ -2241,6 +2269,13 @@ RenderPass::Ptr Backend::swapchain_render_pass()
 VkDevice Backend::device()
 {
     return m_vk_device;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+VkPhysicalDevice Backend::physical_device()
+{
+    return m_vk_physical_device;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

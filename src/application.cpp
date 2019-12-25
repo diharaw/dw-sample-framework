@@ -18,6 +18,19 @@
 
 namespace dw
 {
+#if defined(DWSF_VULKAN)
+void imgui_vulkan_error_check(VkResult err)
+{
+    if (err == 0) 
+        return;
+
+    DW_LOG_ERROR("(Vulkan) Error " + std::to_string(err));
+
+    if (err < 0)
+        abort();
+}
+#endif
+
 #if defined(__EMSCRIPTEN__)
 void Application::run_frame(void* arg)
 {
@@ -166,7 +179,25 @@ bool Application::init_base(int argc, const char* argv[])
     ImGui::CreateContext();
 
 #if defined(DWSF_VULKAN)
+    ImGui_ImplGlfwVulkan_Init_Data init_data = {};
+    init_data.allocator                      = nullptr;
+    init_data.gpu                            = m_vk_backend->physical_device();
+    init_data.device                         = m_vk_backend->device();
+    init_data.render_pass                    = m_vk_backend->swapchain_render_pass()->handle();
+    init_data.pipeline_cache                 = nullptr;
+    init_data.descriptor_pool                = m_vk_backend->thread_local_descriptor_pool()->handle();
+    init_data.check_vk_result                = imgui_vulkan_error_check;
 
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+    ImGui_ImplGlfwVulkan_Init(m_window, true, &init_data);
+
+    vk::CommandBuffer::Ptr cmd_buf = m_vk_backend->allocate_graphics_command_buffer();
+
+    ImGui_ImplGlfwVulkan_CreateFontsTexture(cmd_buf->handle());
+
+    m_vk_backend->flush_graphics({ cmd_buf });
+
+    ImGui_ImplGlfwVulkan_InvalidateFontUploadObjects();
 #else
     ImGui_ImplGlfwGL3_Init(m_window, false);
 #endif
@@ -222,7 +253,7 @@ void Application::shutdown_base()
 
     // Shutdown debug draw.
     m_debug_draw.shutdown();
-
+    Material::shutdown_common_resources();
     m_vk_backend.reset();
 
     // Shutdown ImGui.
@@ -251,7 +282,8 @@ void Application::begin_frame()
     glfwPollEvents();
 
 #if defined(DWSF_VULKAN)
-
+    m_vk_backend->begin_frame();
+    ImGui_ImplGlfwVulkan_NewFrame();
 #else
     ImGui_ImplGlfwGL3_NewFrame();
 #endif
@@ -274,12 +306,14 @@ void Application::end_frame()
     ImGui::Render();
 
 #if defined(DWSF_VULKAN)
+    vk::CommandBuffer::Ptr cmd_buf = m_vk_backend->allocate_graphics_command_buffer();
 
+
+    m_vk_backend->end_frame();
 #else
     ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
-#endif
-
     glfwSwapBuffers(m_window);
+#endif
 
     m_timer.stop();
     m_delta         = m_timer.elapsed_time_milisec();
