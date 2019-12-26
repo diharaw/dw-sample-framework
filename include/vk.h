@@ -496,16 +496,16 @@ struct ViewportStateDesc
     VkRect2D                          scissors[32];
 
     ViewportStateDesc();
-    ViewportStateDesc&         add_viewport(float x,
-                                            float y,
-                                            float width,
-                                            float height,
-                                            float min_depth,
-                                            float max_depth);
+    ViewportStateDesc& add_viewport(float x,
+                                    float y,
+                                    float width,
+                                    float height,
+                                    float min_depth,
+                                    float max_depth);
     ViewportStateDesc& add_scissor(int32_t  x,
-                                           int32_t y,
-                                           uint32_t w,
-                                           uint32_t h);
+                                   int32_t  y,
+                                   uint32_t w,
+                                   uint32_t h);
 };
 
 class GraphicsPipeline : public Object
@@ -515,13 +515,13 @@ public:
 
     struct Desc
     {
-        VkGraphicsPipelineCreateInfo    create_info;
-        uint32_t                        shader_stage_count = 0;
-        VkPipelineShaderStageCreateInfo shader_stages[6];
+        VkGraphicsPipelineCreateInfo     create_info;
+        uint32_t                         shader_stage_count = 0;
+        VkPipelineShaderStageCreateInfo  shader_stages[6];
         VkPipelineDynamicStateCreateInfo dynamic_state;
-        std::string                     shader_entry_names[6];
-        uint32_t                        dynamic_state_count = 0;
-        VkDynamicState                  dynamic_states[32];
+        std::string                      shader_entry_names[6];
+        uint32_t                         dynamic_state_count = 0;
+        VkDynamicState                   dynamic_states[32];
 
         Desc();
         Desc& add_dynamic_state(const VkDynamicState& state);

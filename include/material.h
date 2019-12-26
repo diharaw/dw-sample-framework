@@ -26,9 +26,9 @@ public:
     static void      shutdown_common_resources();
 
     // Rendering related getters.
-    inline vk::ImageView::Ptr     image_view(const uint32_t& index) { return m_image_views[index]; }
-    inline vk::Image::Ptr         image(const uint32_t& index) { return m_images[index]; }
-    inline vk::DescriptorSet::Ptr pbr_descriptor_set() { return m_descriptor_set; }
+    inline vk::ImageView::Ptr                  image_view(const uint32_t& index) { return m_image_views[index]; }
+    inline vk::Image::Ptr                      image(const uint32_t& index) { return m_images[index]; }
+    inline vk::DescriptorSet::Ptr              pbr_descriptor_set() { return m_descriptor_set; }
     static inline vk::DescriptorSetLayout::Ptr pbr_descriptor_set_layout() { return m_common_ds_layout; }
 
 private:

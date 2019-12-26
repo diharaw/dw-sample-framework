@@ -140,7 +140,7 @@ void Material::initialize_common_resources(vk::Backend::Ptr backend)
 
     uint8_t data[] = { 255, 255, 255, 255 };
 
-    m_default_image = vk::Image::create(backend, VK_IMAGE_TYPE_2D, 1, 1, 1, 1, 1, VK_FORMAT_R8G8B8A8_SNORM, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, sizeof(uint8_t) * 4, data);
+    m_default_image      = vk::Image::create(backend, VK_IMAGE_TYPE_2D, 1, 1, 1, 1, 1, VK_FORMAT_R8G8B8A8_SNORM, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, sizeof(uint8_t) * 4, data);
     m_default_image_view = vk::ImageView::create(backend, m_default_image, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 

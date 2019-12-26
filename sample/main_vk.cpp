@@ -36,7 +36,6 @@ protected:
         if (!load_mesh())
             return false;
 
-        create_uniform_buffer();
         create_descriptor_set_layout();
         create_descriptor_set();
         create_pipeline_state();
@@ -116,7 +115,7 @@ private:
     bool create_uniform_buffer()
     {
         m_ubo_size = m_vk_backend->aligned_dynamic_ubo_size(sizeof(Transforms));
-        m_ubo = dw::vk::Buffer::create(m_vk_backend, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_ubo_size * dw::vk::Backend::kMaxFramesInFlight, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+        m_ubo      = dw::vk::Buffer::create(m_vk_backend, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_ubo_size * dw::vk::Backend::kMaxFramesInFlight, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
         return true;
     }
@@ -308,8 +307,6 @@ private:
 
     void render()
     {
-        ImGui::ShowDemoWindow();
-
         dw::vk::CommandBuffer::Ptr cmd_buf = m_vk_backend->allocate_graphics_command_buffer();
 
         VkCommandBufferBeginInfo begin_info;
@@ -346,10 +343,10 @@ private:
 
         VkViewport vp;
 
-        vp.x = 0;
-        vp.y = 0;
-        vp.width = m_width;
-        vp.height = m_height;
+        vp.x        = 0.0f;
+        vp.y        = (float)m_height;
+        vp.width    = (float)m_width;
+        vp.height   = -(float)m_height;
         vp.minDepth = 0.0f;
         vp.maxDepth = 1.0f;
 
@@ -358,7 +355,7 @@ private:
         const uint32_t dynamic_offset = m_ubo_size * m_vk_backend->current_frame_idx();
 
         vkCmdBindDescriptorSets(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline_layout->handle(), 0, 1, &m_per_frame_ds->handle(), 1, &dynamic_offset);
-        
+
         VkDeviceSize offset = 0;
         vkCmdBindVertexBuffers(cmd_buf->handle(), 0, 1, &m_mesh->vertex_buffer()->handle(), &offset);
         vkCmdBindIndexBuffer(cmd_buf->handle(), m_mesh->index_buffer()->handle(), 0, VK_INDEX_TYPE_UINT32);

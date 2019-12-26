@@ -563,12 +563,10 @@ Buffer::Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaM
     m_vk_device_memory = vma_alloc_info.deviceMemory;
 
     if (create_flags & VMA_ALLOCATION_CREATE_MAPPED_BIT)
-    {
         m_mapped_ptr = vma_alloc_info.pMappedData;
 
-        if (data)
-            upload_data(data, size, 0);
-    }
+    if (data)
+        upload_data(data, size, 0);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1407,7 +1405,7 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::add_dynamic_state(const VkDynami
     }
 
     dynamic_states[dynamic_state_count++] = state;
-    
+
     return *this;
 }
 
@@ -1547,9 +1545,9 @@ GraphicsPipeline::GraphicsPipeline(Backend::Ptr backend, Desc desc) :
     Object(backend)
 {
     desc.create_info.pStages             = &desc.shader_stages[0];
-    desc.create_info.stageCount = desc.shader_stage_count;
+    desc.create_info.stageCount          = desc.shader_stage_count;
     desc.dynamic_state.dynamicStateCount = desc.dynamic_state_count;
-    desc.dynamic_state.pDynamicStates = &desc.dynamic_states[0];
+    desc.dynamic_state.pDynamicStates    = &desc.dynamic_states[0];
     desc.create_info.pDynamicState       = &desc.dynamic_state;
 
     if (vkCreateGraphicsPipelines(backend->device(), nullptr, 1, &desc.create_info, nullptr, &m_vk_pipeline) != VK_SUCCESS)
@@ -2039,7 +2037,7 @@ Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName        = "Inferno";
     appInfo.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion         = VK_API_VERSION_1_0;
+    appInfo.apiVersion         = VK_API_VERSION_1_1;
 
     std::vector<const char*> extensions = required_extensions(enable_validation_layers);
 
@@ -2513,7 +2511,7 @@ size_t Backend::min_dynamic_ubo_alignment()
 
 size_t Backend::aligned_dynamic_ubo_size(size_t size)
 {
-    size_t min_ubo_alignment         = m_device_properties.limits.minUniformBufferOffsetAlignment;
+    size_t min_ubo_alignment = m_device_properties.limits.minUniformBufferOffsetAlignment;
     size_t aligned_size      = size;
 
     if (min_ubo_alignment > 0)
@@ -2755,18 +2753,21 @@ bool Backend::is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType t
             DW_LOG_INFO("(Vulkan) Type   : " + std::string(kDeviceTypes[m_device_properties.deviceType]));
             DW_LOG_INFO("(Vulkan) Driver : " + std::to_string(m_device_properties.driverVersion));
 
-            m_ray_tracing_properties.sType                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;
-            m_ray_tracing_properties.pNext                 = nullptr;
-            m_ray_tracing_properties.maxRecursionDepth     = 0;
-            m_ray_tracing_properties.shaderGroupHandleSize = 0;
+            if (require_ray_tracing)
+            {
+                m_ray_tracing_properties.sType                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;
+                m_ray_tracing_properties.pNext                 = nullptr;
+                m_ray_tracing_properties.maxRecursionDepth     = 0;
+                m_ray_tracing_properties.shaderGroupHandleSize = 0;
 
-            VkPhysicalDeviceProperties2 properties;
-            properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-            properties.pNext = &m_ray_tracing_properties;
+                VkPhysicalDeviceProperties2 properties;
+                properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+                properties.pNext = &m_ray_tracing_properties;
 
-            DW_ZERO_MEMORY(properties.properties);
+                DW_ZERO_MEMORY(properties.properties);
 
-            vkGetPhysicalDeviceProperties2(device, &properties);
+                vkGetPhysicalDeviceProperties2(device, &properties);
+            }
 
             return find_queues(device, infos);
         }
