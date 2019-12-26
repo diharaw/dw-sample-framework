@@ -143,7 +143,7 @@ protected:
 
         settings.width  = 1280;
         settings.height = 720;
-        settings.title  = "Hello dwSampleFramework!";
+        settings.title  = "Hello dwSampleFramework (OpenGL)";
 
         return settings;
     }

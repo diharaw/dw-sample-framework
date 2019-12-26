@@ -38,6 +38,10 @@ struct AppSettings
     int         width        = 800;
     int         height       = 600;
     std::string title        = "dwSampleFramwork";
+
+#if defined(DWSF_VULKAN)
+    bool ray_tracing = false;
+#endif
 };
 
 class Application

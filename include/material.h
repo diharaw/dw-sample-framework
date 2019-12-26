@@ -45,7 +45,7 @@ private:
 
 public:
     // Material factory methods.
-    static Material* load(vk::Backend::Ptr backend, const std::string& name, const std::string* textures);
+    static Material* load(const std::string& name, const std::string* textures);
 
     // Custom factory method for creating a material from provided data.
     static Material*      load(const std::string& name, int num_textures, gl::Texture2D** textures, glm::vec4 albedo = glm::vec4(1.0f), float roughness = 0.0f, float metalness = 0.0f);

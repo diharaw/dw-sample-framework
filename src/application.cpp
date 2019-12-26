@@ -108,7 +108,7 @@ bool Application::init_base(int argc, const char* argv[])
     major_ver     = 3;
     int minor_ver = 0;
 #else
-    int minor_ver = 3;
+    int minor_ver = 5;
 #endif
 
     if (glfwInit() != GLFW_TRUE)
@@ -166,6 +166,7 @@ bool Application::init_base(int argc, const char* argv[])
 #    else
                                        false
 #    endif
+    , settings.ray_tracing
     );
 
     m_image_available_semaphores.resize(vk::Backend::kMaxFramesInFlight);

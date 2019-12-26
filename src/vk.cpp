@@ -2413,7 +2413,7 @@ bool Backend::check_device_extension_support(VkPhysicalDevice device, bool requi
             if (strcmp(str, extension.extensionName) == 0)
                 unavailable_extensions--;
 
-            if (strcmp(VK_NV_RAY_TRACING_EXTENSION_NAME, extension.extensionName) != 0)
+            if (strcmp(VK_NV_RAY_TRACING_EXTENSION_NAME, extension.extensionName) == 0)
                 supports_ray_tracing = true;
         }
     }

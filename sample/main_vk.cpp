@@ -75,7 +75,8 @@ protected:
 
         settings.width  = 1280;
         settings.height = 720;
-        settings.title  = "Hello dwSampleFramework!";
+        settings.title  = "Hello dwSampleFramework (Vulkan)";
+        settings.ray_tracing = false;
 
         return settings;
     }
