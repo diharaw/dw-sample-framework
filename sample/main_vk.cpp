@@ -32,8 +32,8 @@ protected:
             return false;
 
         // Load mesh.
-        if (!load_mesh())
-            return false;
+        //if (!load_mesh())
+        //    return false;
 
         // Create camera.
         create_camera();
@@ -125,6 +125,47 @@ private:
 
     void render()
     {
+        ImGui::ShowDemoWindow();
+
+        dw::vk::CommandBuffer::Ptr cmd_buf = m_vk_backend->allocate_graphics_command_buffer();
+
+        VkCommandBufferBeginInfo begin_info;
+        DW_ZERO_MEMORY(begin_info);
+
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
+
+        VkClearValue clear_values[2];
+
+        clear_values[0].color.float32[0] = 0.0f;
+        clear_values[0].color.float32[1] = 0.0f;
+        clear_values[0].color.float32[2] = 0.0f;
+        clear_values[0].color.float32[3] = 1.0f;
+
+        clear_values[1].color.float32[0] = 1.0f;
+        clear_values[1].color.float32[1] = 1.0f;
+        clear_values[1].color.float32[2] = 1.0f;
+        clear_values[1].color.float32[3] = 1.0f;
+
+        VkRenderPassBeginInfo info    = {};
+        info.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        info.renderPass               = m_vk_backend->swapchain_render_pass()->handle();
+        info.framebuffer              = m_vk_backend->swapchain_framebuffer()->handle();
+        info.renderArea.extent.width  = m_width;
+        info.renderArea.extent.height = m_height;
+        info.clearValueCount          = 2;
+        info.pClearValues             = &clear_values[0];
+
+        vkCmdBeginRenderPass(cmd_buf->handle(), &info, VK_SUBPASS_CONTENTS_INLINE);
+
+        render_gui(cmd_buf);
+
+        vkCmdEndRenderPass(cmd_buf->handle());
+
+        vkEndCommandBuffer(cmd_buf->handle());
+
+        submit_and_present({ cmd_buf });
     }
 
     // -----------------------------------------------------------------------------------------------------------------------------------

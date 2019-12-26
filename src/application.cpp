@@ -168,6 +168,9 @@ bool Application::init_base(int argc, const char* argv[])
 #    endif
     );
 
+    m_image_available_semaphores.resize(vk::Backend::kMaxFramesInFlight);
+    m_render_finished_semaphores.resize(vk::Backend::kMaxFramesInFlight);
+
     for (size_t i = 0; i < vk::Backend::kMaxFramesInFlight; i++)
     {
         m_image_available_semaphores[i] = vk::Semaphore::create(m_vk_backend);
@@ -199,7 +202,16 @@ bool Application::init_base(int argc, const char* argv[])
 
     vk::CommandBuffer::Ptr cmd_buf = m_vk_backend->allocate_graphics_command_buffer();
 
+    VkCommandBufferBeginInfo begin_info;
+    DW_ZERO_MEMORY(begin_info);
+
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
+
     ImGui_ImplGlfwVulkan_CreateFontsTexture(cmd_buf->handle());
+
+    vkEndCommandBuffer(cmd_buf->handle());
 
     m_vk_backend->flush_graphics({ cmd_buf });
 
@@ -257,15 +269,26 @@ void Application::shutdown_base()
     // Shutdown profiler.
     profiler::shutdown();
 
+#if defined(DWSF_VULKAN)
     // Shutdown debug draw.
+    m_vk_backend->wait_idle();
+
     m_debug_draw.shutdown();
     Material::shutdown_common_resources();
-    m_vk_backend.reset();
 
     // Shutdown ImGui.
-#if defined(DWSF_VULKAN)
+    ImGui_ImplGlfwVulkan_Shutdown();
 
+    for (int i = 0; i < vk::Backend::kMaxFramesInFlight; i++)
+    {
+        m_image_available_semaphores[i].reset();
+        m_render_finished_semaphores[i].reset();
+    }
+
+    m_vk_backend->~Backend();  
 #else
+    // Shutdown debug draw.
+    m_debug_draw.shutdown();
     ImGui_ImplGlfwGL3_Shutdown();
 #endif
     ImGui::DestroyContext();
@@ -285,29 +308,7 @@ void Application::shutdown_base()
 
 void Application::render_gui(vk::CommandBuffer::Ptr cmd_buf)
 {
-    VkCommandBufferBeginInfo begin_info;
-    DW_ZERO_MEMORY(begin_info);
-
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-    vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
-
-    VkRenderPassBeginInfo info    = {};
-    info.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    info.renderPass               = m_vk_backend->swapchain_render_pass()->handle();
-    info.framebuffer              = m_vk_backend->swapchain_framebuffer()->handle();
-    info.renderArea.extent.width  = m_width;
-    info.renderArea.extent.height = m_height;
-    info.clearValueCount          = 0;
-    info.pClearValues             = nullptr;
-
-    vkCmdBeginRenderPass(cmd_buf->handle(), &info, VK_SUBPASS_CONTENTS_INLINE);
-
     ImGui_ImplGlfwVulkan_Render(cmd_buf->handle());
-
-    vkCmdEndRenderPass(cmd_buf->handle());
-
-    vkEndCommandBuffer(cmd_buf->handle());
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -475,6 +476,11 @@ void Application::window_size_callback(GLFWwindow* window, int width, int height
 {
     m_width  = width;
     m_height = height;
+
+#if defined(DWSF_VULKAN)
+    m_vk_backend->recreate_swapchain();
+#endif
+
     window_resized(width, height);
 }
 

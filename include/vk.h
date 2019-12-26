@@ -99,11 +99,14 @@ public:
     std::shared_ptr<RenderPass>     swapchain_render_pass();
     void                            recreate_swapchain();
 
+    void             wait_idle();
     VkDevice         device();
     VkPhysicalDevice physical_device();
     VmaAllocator_T*  allocator();
     VkFormat         find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
+    inline VkFormat          swap_chain_image_format() { return m_swap_chain_image_format; }
+    inline VkFormat          swap_chain_depth_format() { return m_swap_chain_depth_format; }
     inline uint32_t          current_frame_idx() { return m_current_frame; }
     inline const QueueInfos& queue_infos() { return m_selected_queues; }
 

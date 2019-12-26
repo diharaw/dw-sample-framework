@@ -122,8 +122,11 @@ protected:
     GLFWwindow*                         m_window;
     Timer                               m_timer;
     DebugDraw                           m_debug_draw;
-    vk::Backend::Ptr                    m_vk_backend;
-    std::vector<vk::Semaphore::Ptr>     m_image_available_semaphores;
-    std::vector<vk::Semaphore::Ptr>     m_render_finished_semaphores;
+
+#if defined(DWSF_VULKAN)
+    vk::Backend::Ptr                m_vk_backend;
+    std::vector<vk::Semaphore::Ptr> m_image_available_semaphores;
+    std::vector<vk::Semaphore::Ptr> m_render_finished_semaphores;
+#endif
 };
 } // namespace dw

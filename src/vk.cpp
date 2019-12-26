@@ -82,29 +82,32 @@ const char* get_vendor_name(uint32_t id)
 
 struct ThreadLocalCommandBuffers
 {
-    CommandPool::Ptr   command_pool;
-    CommandBuffer::Ptr command_buffers[MAX_THREAD_LOCAL_COMMAND_BUFFERS];
+    CommandPool::Ptr   command_pool[Backend::kMaxFramesInFlight];
+    CommandBuffer::Ptr command_buffers[Backend::kMaxFramesInFlight][MAX_THREAD_LOCAL_COMMAND_BUFFERS];
     uint32_t           allocated_buffers = 0;
 
     ThreadLocalCommandBuffers(Backend::Ptr backend, uint32_t queue_family)
     {
-        command_pool = CommandPool::create(backend, queue_family);
+        for (int i = 0; i < Backend::kMaxFramesInFlight; i++)
+        {
+            command_pool[i] = CommandPool::create(backend, queue_family);
 
-        for (int i = 0; i < MAX_THREAD_LOCAL_COMMAND_BUFFERS; i++)
-            command_buffers[i] = CommandBuffer::create(backend, command_pool);
+            for (int j = 0; j < MAX_THREAD_LOCAL_COMMAND_BUFFERS; j++)
+                command_buffers[i][j] = CommandBuffer::create(backend, command_pool[i]);
+        }
     }
 
     ~ThreadLocalCommandBuffers()
     {
     }
 
-    void reset()
+    void reset(uint32_t frame_index)
     {
         allocated_buffers = 0;
-        command_pool->reset();
+        command_pool[frame_index]->reset();
     }
 
-    CommandBuffer::Ptr allocate()
+    CommandBuffer::Ptr allocate(uint32_t frame_index)
     {
         if (allocated_buffers >= MAX_THREAD_LOCAL_COMMAND_BUFFERS)
         {
@@ -112,7 +115,7 @@ struct ThreadLocalCommandBuffers
             throw std::runtime_error("(Vulkan) Max thread local command buffer count reached!");
         }
 
-        return command_buffers[allocated_buffers++];
+        return command_buffers[frame_index][allocated_buffers++];
     }
 };
 
@@ -1973,22 +1976,58 @@ Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require
 
 Backend::~Backend()
 {
+    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
+    {
+        g_graphics_command_buffers[i].reset();
+        g_compute_command_buffers[i].reset();
+        g_transfer_command_buffers[i].reset();
+    }
+
+    for (int i = 0; i < MAX_DESCRIPTOR_POOL_THREADS; i++)
+        g_descriptor_pools[i].reset();
+
     for (int i = 0; i < m_swap_chain_images.size(); i++)
     {
         m_swap_chain_framebuffers[i].reset();
         m_swap_chain_image_views[i].reset();
     }
 
+    for (int i = 0; i < m_in_flight_fences.size(); i++)
+        m_in_flight_fences[i].reset();
+
     m_swap_chain_render_pass.reset();
     m_swap_chain_depth_view.reset();
     m_swap_chain_depth.reset();
 
     if (m_vk_debug_messenger)
+    {
         destroy_debug_utils_messenger(m_vk_instance, m_vk_debug_messenger, nullptr);
+        m_vk_debug_messenger = nullptr;
+    }
 
-    vkDestroySwapchainKHR(m_vk_device, m_vk_swap_chain, nullptr);
-    vkDestroySurfaceKHR(m_vk_instance, m_vk_surface, nullptr);
-    vkDestroyInstance(m_vk_instance, nullptr);
+    if (m_vk_swap_chain)
+    {
+        vkDestroySwapchainKHR(m_vk_device, m_vk_swap_chain, nullptr);
+        m_vk_swap_chain = nullptr;
+    }
+
+    if (m_vk_surface)
+    {
+        vkDestroySurfaceKHR(m_vk_instance, m_vk_surface, nullptr);
+        m_vk_surface = nullptr;
+    }
+
+    if (m_vk_device)
+    {
+        vkDestroyDevice(m_vk_device, nullptr);
+        m_vk_device = nullptr;
+    }
+
+    if (m_vk_instance)
+    {
+        vkDestroyInstance(m_vk_instance, nullptr);
+        m_vk_instance = nullptr;
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2030,42 +2069,42 @@ std::shared_ptr<DescriptorSet> Backend::allocate_descriptor_set(std::shared_ptr<
 
 std::shared_ptr<CommandBuffer> Backend::allocate_graphics_command_buffer()
 {
-    return g_graphics_command_buffers[g_thread_idx]->allocate();
+    return g_graphics_command_buffers[g_thread_idx]->allocate(m_current_frame);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 std::shared_ptr<CommandBuffer> Backend::allocate_compute_command_buffer()
 {
-    return g_compute_command_buffers[g_thread_idx]->allocate();
+    return g_compute_command_buffers[g_thread_idx]->allocate(m_current_frame);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 std::shared_ptr<CommandBuffer> Backend::allocate_transfer_command_buffer()
 {
-    return g_transfer_command_buffers[g_thread_idx]->allocate();
+    return g_transfer_command_buffers[g_thread_idx]->allocate(m_current_frame);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 std::shared_ptr<CommandPool> Backend::thread_local_graphics_command_pool()
 {
-    return g_graphics_command_buffers[g_thread_idx]->command_pool;
+    return g_graphics_command_buffers[g_thread_idx]->command_pool[m_current_frame];
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 std::shared_ptr<CommandPool> Backend::thread_local_compute_command_pool()
 {
-    return g_compute_command_buffers[g_thread_idx]->command_pool;
+    return g_compute_command_buffers[g_thread_idx]->command_pool[m_current_frame];
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 std::shared_ptr<CommandPool> Backend::thread_local_transfer_command_pool()
 {
-    return g_transfer_command_buffers[g_thread_idx]->command_pool;
+    return g_transfer_command_buffers[g_thread_idx]->command_pool[m_current_frame];
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2218,6 +2257,13 @@ void Backend::acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& se
 {
     vkWaitForFences(m_vk_device, 1, &m_in_flight_fences[m_current_frame]->handle(), VK_TRUE, UINT64_MAX);
 
+    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
+    {
+        g_graphics_command_buffers[i]->reset(m_current_frame);
+        g_compute_command_buffers[i]->reset(m_current_frame);
+        g_transfer_command_buffers[i]->reset(m_current_frame);
+    }
+
     VkResult result = vkAcquireNextImageKHR(m_vk_device, m_vk_swap_chain, UINT64_MAX, semaphore->handle(), VK_NULL_HANDLE, &m_image_index);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
@@ -2237,7 +2283,7 @@ void Backend::acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& se
 void Backend::present(const std::vector<std::shared_ptr<Semaphore>>& semaphores)
 {
     VkSemaphore signal_semaphores[16];
-
+    
     for (int i = 0; i < semaphores.size(); i++)
         signal_semaphores[i] = semaphores[i]->handle();
 
@@ -2260,13 +2306,6 @@ void Backend::present(const std::vector<std::shared_ptr<Semaphore>>& semaphores)
     }
 
     m_current_frame = (m_current_frame + 1) % kMaxFramesInFlight;
-
-    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
-    {
-        g_graphics_command_buffers[i]->reset();
-        g_compute_command_buffers[i]->reset();
-        g_transfer_command_buffers[i]->reset();
-    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2295,6 +2334,13 @@ Framebuffer::Ptr Backend::swapchain_framebuffer()
 RenderPass::Ptr Backend::swapchain_render_pass()
 {
     return m_swap_chain_render_pass;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::wait_idle()
+{
+    vkDeviceWaitIdle(m_vk_device);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3075,20 +3121,11 @@ VkExtent2D Backend::choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilit
 #        undef min
 #    endif
 
-    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
-        return capabilities.currentExtent;
-    else
-    {
-        int width, height;
-        glfwGetWindowSize(m_window, &width, &height);
+    VkSurfaceCapabilitiesKHR caps;
 
-        VkExtent2D actual_extent = { width, height };
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_vk_physical_device, m_vk_surface, &caps);
 
-        // Make sure the window size is between the surfaces allowed max and min image extents.
-        actual_extent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actual_extent.width));
-
-        return actual_extent;
-    }
+    return caps.maxImageExtent;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
