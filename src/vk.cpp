@@ -4,6 +4,7 @@
 #    include <logger.h>
 #    include <macros.h>
 #    include <utility.h>
+#    include <fstream>
 
 #    define VMA_IMPLEMENTATION
 #    include <vk_mem_alloc.h>
@@ -157,9 +158,9 @@ Object::Object(Backend::Ptr backend, VkDevice device) :
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Image::Ptr Image::create(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, void* data)
+Image::Ptr Image::create(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, size_t size, void* data)
 {
-    return std::shared_ptr<Image>(new Image(backend, type, width, height, depth, mip_levels, array_size, format, memory_usage, usage, sample_count, initial_layout, data));
+    return std::shared_ptr<Image>(new Image(backend, type, width, height, depth, mip_levels, array_size, format, memory_usage, usage, sample_count, initial_layout, size, data));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -185,7 +186,7 @@ Image::Ptr Image::create_from_file(Backend::Ptr backend, std::string path, bool 
         if (!data)
             return nullptr;
 
-        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 1, 1, VK_FORMAT_R32G32B32_SFLOAT, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, data));
+        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 1, 1, VK_FORMAT_R32G32B32_SFLOAT, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, x * y * sizeof(float) * 3, data));
 
         stbi_image_free(data);
 
@@ -198,6 +199,13 @@ Image::Ptr Image::create_from_file(Backend::Ptr backend, std::string path, bool 
         if (!data)
             return nullptr;
 
+        if (n == 3)
+        {
+            stbi_image_free(data);
+            data = stbi_load(path.c_str(), &x, &y, &n, 4);
+            n    = 4;
+        }
+
         VkFormat format;
 
         if (n == 1)
@@ -205,22 +213,12 @@ Image::Ptr Image::create_from_file(Backend::Ptr backend, std::string path, bool 
         else
         {
             if (srgb)
-            {
-                if (n == 4)
-                    format = VK_FORMAT_R8G8B8A8_SRGB;
-                else
-                    format = VK_FORMAT_R8G8B8_SRGB;
-            }
+                format = VK_FORMAT_R8G8B8A8_SRGB;
             else
-            {
-                if (n == 4)
-                    format = VK_FORMAT_R8G8B8A8_UNORM;
-                else
-                    format = VK_FORMAT_R8G8B8_UNORM;
-            }
+                format = VK_FORMAT_R8G8B8A8_UNORM;
         }
 
-        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 1, 1, format, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, data));
+        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 1, 1, format, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, x * y * n, data));
 
         stbi_image_free(data);
 
@@ -230,7 +228,7 @@ Image::Ptr Image::create_from_file(Backend::Ptr backend, std::string path, bool 
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Image::Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, void* data) :
+Image::Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, size_t size, void* data) :
     Object(backend), m_type(type), m_width(width), m_height(height), m_depth(depth), m_mip_levels(mip_levels), m_array_size(array_size), m_format(format), m_memory_usage(memory_usage), m_sample_count(sample_count)
 {
     m_vma_allocator = backend->allocator();
@@ -266,6 +264,9 @@ Image::Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t he
     }
 
     m_vk_device_memory = alloc_info.deviceMemory;
+
+    if (data)
+        upload_data(0, 0, data, size);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -312,7 +313,7 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size)
     subresource_range.layerCount     = 1;
     subresource_range.baseArrayLayer = array_index;
 
-    CommandBuffer::Ptr cmd_buf = backend->allocate_transfer_command_buffer();
+    CommandBuffer::Ptr cmd_buf = backend->allocate_graphics_command_buffer();
 
     VkCommandBufferBeginInfo begin_info;
     DW_ZERO_MEMORY(begin_info);
@@ -346,7 +347,7 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size)
 
     vkEndCommandBuffer(cmd_buf->handle());
 
-    backend->flush_transfer({ cmd_buf });
+    backend->flush_graphics({ cmd_buf });
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -588,7 +589,7 @@ void Buffer::upload_data(void* data, size_t size, size_t offset)
         // Create VMA_MEMORY_USAGE_CPU_ONLY staging buffer and perfom Buffer-to-Buffer copy
         Buffer::Ptr staging = Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, size, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT, data);
 
-        CommandBuffer::Ptr cmd_buf = backend->allocate_transfer_command_buffer();
+        CommandBuffer::Ptr cmd_buf = backend->allocate_graphics_command_buffer();
 
         VkCommandBufferBeginInfo begin_info;
         DW_ZERO_MEMORY(begin_info);
@@ -607,7 +608,7 @@ void Buffer::upload_data(void* data, size_t size, size_t offset)
 
         vkEndCommandBuffer(cmd_buf->handle());
 
-        backend->flush_transfer({ cmd_buf });
+        backend->flush_graphics({ cmd_buf });
     }
     else
     {
@@ -740,14 +741,34 @@ void CommandBuffer::reset()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-ShaderModule::Ptr ShaderModule::create(Backend::Ptr backend, std::vector<uint32_t> spirv)
+ShaderModule::Ptr ShaderModule::create_from_file(Backend::Ptr backend, std::string path)
+{
+    std::ifstream file(path, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open())
+        throw std::runtime_error("Failed to open SPIRV shader!");
+
+    size_t            file_size = (size_t)file.tellg();
+    std::vector<char> buffer(file_size);
+
+    file.seekg(0);
+    file.read(buffer.data(), file_size);
+
+    file.close();
+
+    return std::shared_ptr<ShaderModule>(new ShaderModule(backend, buffer));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+ShaderModule::Ptr ShaderModule::create(Backend::Ptr backend, std::vector<char> spirv)
 {
     return std::shared_ptr<ShaderModule>(new ShaderModule(backend, spirv));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-ShaderModule::ShaderModule(Backend::Ptr backend, std::vector<uint32_t> spirv) :
+ShaderModule::ShaderModule(Backend::Ptr backend, std::vector<char> spirv) :
     Object(backend)
 {
     VkShaderModuleCreateInfo create_info;
@@ -757,9 +778,7 @@ ShaderModule::ShaderModule(Backend::Ptr backend, std::vector<uint32_t> spirv) :
     create_info.codeSize = spirv.size();
     create_info.pCode    = reinterpret_cast<const uint32_t*>(spirv.data());
 
-    VkShaderModule shader_module;
-
-    if (vkCreateShaderModule(backend->device(), &create_info, nullptr, &shader_module) != VK_SUCCESS)
+    if (vkCreateShaderModule(backend->device(), &create_info, nullptr, &m_vk_module) != VK_SUCCESS)
     {
         DW_LOG_FATAL("(Vulkan) Failed to create shader module.");
         throw std::runtime_error("(Vulkan) Failed to create shader module.");
@@ -1175,6 +1194,13 @@ DepthStencilStateDesc& DepthStencilStateDesc::set_max_depth_bounds(float value)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+ColorBlendAttachmentStateDesc::ColorBlendAttachmentStateDesc()
+{
+    DW_ZERO_MEMORY(create_info);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 ColorBlendAttachmentStateDesc& ColorBlendAttachmentStateDesc::set_blend_enable(VkBool32 value)
 {
     create_info.blendEnable = value;
@@ -1287,6 +1313,71 @@ ColorBlendStateDesc& ColorBlendStateDesc::set_blend_constants(float r, float g, 
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+ViewportStateDesc::ViewportStateDesc()
+{
+    DW_ZERO_MEMORY(create_info);
+
+    create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+
+    for (int i = 0; i < 32; i++)
+    {
+        DW_ZERO_MEMORY(viewports[i]);
+        DW_ZERO_MEMORY(scissors[i]);
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+ViewportStateDesc& ViewportStateDesc::add_viewport(float x,
+                                                   float y,
+                                                   float width,
+                                                   float height,
+                                                   float min_depth,
+                                                   float max_depth)
+{
+    if (viewport_count == 32)
+    {
+        DW_LOG_FATAL("(Vulkan) Max viewport count reached.");
+        throw std::runtime_error("(Vulkan) Max viewport count reached.");
+    }
+
+    uint32_t idx = viewport_count++;
+
+    viewports[idx].x        = x;
+    viewports[idx].y        = y;
+    viewports[idx].width    = width;
+    viewports[idx].height   = height;
+    viewports[idx].minDepth = min_depth;
+    viewports[idx].maxDepth = max_depth;
+
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+ViewportStateDesc& ViewportStateDesc::add_scissor(int32_t  x,
+                                                  int32_t  y,
+                                                  uint32_t w,
+                                                  uint32_t h)
+{
+    if (scissor_count == 32)
+    {
+        DW_LOG_FATAL("(Vulkan) Max scissor count reached.");
+        throw std::runtime_error("(Vulkan) Max scissor count reached.");
+    }
+
+    uint32_t idx = scissor_count++;
+
+    scissors[idx].extent.width  = w;
+    scissors[idx].extent.height = h;
+    scissors[idx].offset.x      = x;
+    scissors[idx].offset.y      = y;
+
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 GraphicsPipeline::Desc::Desc()
 {
     DW_ZERO_MEMORY(create_info);
@@ -1298,11 +1389,44 @@ GraphicsPipeline::Desc::Desc()
         DW_ZERO_MEMORY(shader_stages[i]);
         shader_stages[i].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     }
+
+    DW_ZERO_MEMORY(dynamic_state);
+
+    dynamic_state.sType          = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic_state.pDynamicStates = nullptr;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GraphicsPipeline::Desc& GraphicsPipeline::Desc::add_shader_stage(VkShaderStageFlagBits stage, ShaderModule::Ptr shader_module, std::string name)
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::add_dynamic_state(const VkDynamicState& state)
+{
+    if (dynamic_state_count == 32)
+    {
+        DW_LOG_FATAL("(Vulkan) Max dynamic state count reached.");
+        throw std::runtime_error("(Vulkan) Max dynamic state count reached.");
+    }
+
+    dynamic_states[dynamic_state_count++] = state;
+    
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_viewport_state(ViewportStateDesc& state)
+{
+    state.create_info.viewportCount = state.viewport_count;
+    state.create_info.scissorCount  = state.scissor_count;
+    state.create_info.pScissors     = state.scissors;
+    state.create_info.pViewports    = state.viewports;
+    create_info.pViewportState      = &state.create_info;
+
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::add_shader_stage(const VkShaderStageFlagBits& stage, const ShaderModule::Ptr& shader_module, const std::string& name)
 {
     uint32_t idx = shader_stage_count++;
 
@@ -1316,7 +1440,15 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::add_shader_stage(VkShaderStageFl
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_input_assembly_state(InputAssemblyStateDesc state)
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_vertex_input_state(const VertexInputStateDesc& state)
+{
+    create_info.pVertexInputState = &state.create_info;
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_input_assembly_state(const InputAssemblyStateDesc& state)
 {
     create_info.pInputAssemblyState = &state.create_info;
     return *this;
@@ -1324,7 +1456,7 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_input_assembly_state(InputAs
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_tessellation_state(TessellationStateDesc state)
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_tessellation_state(const TessellationStateDesc& state)
 {
     create_info.pTessellationState = &state.create_info;
     return *this;
@@ -1332,7 +1464,7 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_tessellation_state(Tessellat
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_rasterization_state(RasterizationStateDesc state)
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_rasterization_state(const RasterizationStateDesc& state)
 {
     create_info.pRasterizationState = &state.create_info;
     return *this;
@@ -1340,7 +1472,7 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_rasterization_state(Rasteriz
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_multisample_state(MultisampleStateDesc state)
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_multisample_state(const MultisampleStateDesc& state)
 {
     create_info.pMultisampleState = &state.create_info;
     return *this;
@@ -1348,7 +1480,7 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_multisample_state(Multisampl
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_depth_stencil_state(DepthStencilStateDesc state)
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_depth_stencil_state(const DepthStencilStateDesc& state)
 {
     create_info.pDepthStencilState = &state.create_info;
     return *this;
@@ -1356,7 +1488,7 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_depth_stencil_state(DepthSte
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_color_blend_state(ColorBlendStateDesc state)
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_color_blend_state(const ColorBlendStateDesc& state)
 {
     create_info.pColorBlendState = &state.create_info;
     return *this;
@@ -1364,7 +1496,7 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_color_blend_state(ColorBlend
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_pipeline_layout(std::shared_ptr<PipelineLayout> layout)
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_pipeline_layout(const std::shared_ptr<PipelineLayout>& layout)
 {
     create_info.layout = layout->handle();
     return *this;
@@ -1372,7 +1504,7 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_pipeline_layout(std::shared_
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_render_pass(RenderPass::Ptr render_pass)
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_render_pass(const RenderPass::Ptr& render_pass)
 {
     create_info.renderPass = render_pass->handle();
     return *this;
@@ -1380,7 +1512,7 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_render_pass(RenderPass::Ptr 
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_sub_pass(uint32_t subpass)
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_sub_pass(const uint32_t& subpass)
 {
     create_info.subpass = subpass;
     return *this;
@@ -1388,7 +1520,7 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_sub_pass(uint32_t subpass)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_base_pipeline(GraphicsPipeline::Ptr pipeline)
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_base_pipeline(const GraphicsPipeline::Ptr& pipeline)
 {
     create_info.basePipelineHandle = pipeline->handle();
     return *this;
@@ -1396,7 +1528,7 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_base_pipeline(GraphicsPipeli
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_base_pipeline_index(int32_t index)
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_base_pipeline_index(const int32_t& index)
 {
     create_info.basePipelineIndex = index;
     return *this;
@@ -1414,6 +1546,12 @@ GraphicsPipeline::Ptr GraphicsPipeline::create(Backend::Ptr backend, Desc desc)
 GraphicsPipeline::GraphicsPipeline(Backend::Ptr backend, Desc desc) :
     Object(backend)
 {
+    desc.create_info.pStages             = &desc.shader_stages[0];
+    desc.create_info.stageCount = desc.shader_stage_count;
+    desc.dynamic_state.dynamicStateCount = desc.dynamic_state_count;
+    desc.dynamic_state.pDynamicStates = &desc.dynamic_states[0];
+    desc.create_info.pDynamicState       = &desc.dynamic_state;
+
     if (vkCreateGraphicsPipelines(backend->device(), nullptr, 1, &desc.create_info, nullptr, &m_vk_pipeline) != VK_SUCCESS)
     {
         DW_LOG_FATAL("(Vulkan) Failed to create Graphics Pipeline.");
@@ -2366,6 +2504,26 @@ VmaAllocator_T* Backend::allocator()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+size_t Backend::min_dynamic_ubo_alignment()
+{
+    return m_device_properties.limits.minUniformBufferOffsetAlignment;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+size_t Backend::aligned_dynamic_ubo_size(size_t size)
+{
+    size_t min_ubo_alignment         = m_device_properties.limits.minUniformBufferOffsetAlignment;
+    size_t aligned_size      = size;
+
+    if (min_ubo_alignment > 0)
+        aligned_size = (aligned_size + min_ubo_alignment - 1) & ~(min_ubo_alignment - 1);
+
+    return aligned_size;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 VkFormat Backend::find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
 {
     for (VkFormat format : candidates)
@@ -2581,22 +2739,21 @@ bool Backend::find_physical_device(bool require_ray_tracing)
 
 bool Backend::is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType type, QueueInfos& infos, SwapChainSupportDetails& details, bool require_ray_tracing)
 {
-    VkPhysicalDeviceProperties properties;
-    vkGetPhysicalDeviceProperties(device, &properties);
+    vkGetPhysicalDeviceProperties(device, &m_device_properties);
 
-    uint32_t vendorId = properties.vendorID;
+    uint32_t vendorId = m_device_properties.vendorID;
 
-    if (properties.deviceType == type)
+    if (m_device_properties.deviceType == type)
     {
         bool extensions_supported = check_device_extension_support(device, require_ray_tracing);
         query_swap_chain_support(device, details);
 
         if (details.format.size() > 0 && details.present_modes.size() > 0 && extensions_supported)
         {
-            DW_LOG_INFO("(Vulkan) Vendor : " + std::string(get_vendor_name(properties.vendorID)));
-            DW_LOG_INFO("(Vulkan) Name   : " + std::string(properties.deviceName));
-            DW_LOG_INFO("(Vulkan) Type   : " + std::string(kDeviceTypes[properties.deviceType]));
-            DW_LOG_INFO("(Vulkan) Driver : " + std::to_string(properties.driverVersion));
+            DW_LOG_INFO("(Vulkan) Vendor : " + std::string(get_vendor_name(m_device_properties.vendorID)));
+            DW_LOG_INFO("(Vulkan) Name   : " + std::string(m_device_properties.deviceName));
+            DW_LOG_INFO("(Vulkan) Type   : " + std::string(kDeviceTypes[m_device_properties.deviceType]));
+            DW_LOG_INFO("(Vulkan) Driver : " + std::to_string(m_device_properties.driverVersion));
 
             m_ray_tracing_properties.sType                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;
             m_ray_tracing_properties.pNext                 = nullptr;

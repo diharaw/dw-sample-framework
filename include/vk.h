@@ -103,6 +103,8 @@ public:
     VkDevice         device();
     VkPhysicalDevice physical_device();
     VmaAllocator_T*  allocator();
+    size_t           min_dynamic_ubo_alignment();
+    size_t           aligned_dynamic_ubo_size(size_t size);
     VkFormat         find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
     inline VkFormat          swap_chain_image_format() { return m_swap_chain_image_format; }
@@ -166,6 +168,7 @@ private:
     std::vector<std::shared_ptr<Fence>>       m_in_flight_fences;
     std::shared_ptr<Image>                    m_swap_chain_depth      = nullptr;
     std::shared_ptr<ImageView>                m_swap_chain_depth_view = nullptr;
+    VkPhysicalDeviceProperties                m_device_properties;
 };
 
 class Object
@@ -182,7 +185,7 @@ class Image : public Object
 public:
     using Ptr = std::shared_ptr<Image>;
 
-    static Image::Ptr create(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED, void* data = nullptr);
+    static Image::Ptr create(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED, size_t size = 0, void* data = nullptr);
     static Image::Ptr create_from_swapchain(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count);
     static Image::Ptr create_from_file(Backend::Ptr backend, std::string path, bool flip_vertical = false, bool srgb = false);
 
@@ -203,7 +206,7 @@ public:
     inline VkSampleCountFlags sample_count() { return m_sample_count; }
 
 private:
-    Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, void* data);
+    Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, size_t size, void* data);
     Image(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count);
 
 private:
@@ -351,14 +354,15 @@ class ShaderModule : public Object
 public:
     using Ptr = std::shared_ptr<ShaderModule>;
 
-    static ShaderModule::Ptr create(Backend::Ptr backend, std::vector<uint32_t> spirv);
+    static ShaderModule::Ptr create_from_file(Backend::Ptr backend, std::string path);
+    static ShaderModule::Ptr create(Backend::Ptr backend, std::vector<char> spirv);
 
     ~ShaderModule();
 
     inline const VkShaderModule& handle() { return m_vk_module; }
 
 private:
-    ShaderModule(Backend::Ptr backend, std::vector<uint32_t> spirv);
+    ShaderModule(Backend::Ptr backend, std::vector<char> spirv);
 
 private:
     VkShaderModule m_vk_module;
@@ -460,6 +464,7 @@ struct ColorBlendAttachmentStateDesc
 {
     VkPipelineColorBlendAttachmentState create_info;
 
+    ColorBlendAttachmentStateDesc();
     ColorBlendAttachmentStateDesc& set_blend_enable(VkBool32 value);
     ColorBlendAttachmentStateDesc& set_src_color_blend_factor(VkBlendFactor value);
     ColorBlendAttachmentStateDesc& set_dst_color_blend_Factor(VkBlendFactor value);
@@ -482,6 +487,27 @@ struct ColorBlendStateDesc
     ColorBlendStateDesc& set_blend_constants(float r, float g, float b, float a);
 };
 
+struct ViewportStateDesc
+{
+    VkPipelineViewportStateCreateInfo create_info;
+    uint32_t                          viewport_count = 0;
+    uint32_t                          scissor_count  = 0;
+    VkViewport                        viewports[32];
+    VkRect2D                          scissors[32];
+
+    ViewportStateDesc();
+    ViewportStateDesc&         add_viewport(float x,
+                                            float y,
+                                            float width,
+                                            float height,
+                                            float min_depth,
+                                            float max_depth);
+    ViewportStateDesc& add_scissor(int32_t  x,
+                                           int32_t y,
+                                           uint32_t w,
+                                           uint32_t h);
+};
+
 class GraphicsPipeline : public Object
 {
 public:
@@ -492,21 +518,27 @@ public:
         VkGraphicsPipelineCreateInfo    create_info;
         uint32_t                        shader_stage_count = 0;
         VkPipelineShaderStageCreateInfo shader_stages[6];
+        VkPipelineDynamicStateCreateInfo dynamic_state;
         std::string                     shader_entry_names[6];
+        uint32_t                        dynamic_state_count = 0;
+        VkDynamicState                  dynamic_states[32];
 
         Desc();
-        Desc& add_shader_stage(VkShaderStageFlagBits stage, ShaderModule::Ptr shader_module, std::string name);
-        Desc& set_input_assembly_state(InputAssemblyStateDesc state);
-        Desc& set_tessellation_state(TessellationStateDesc state);
-        Desc& set_rasterization_state(RasterizationStateDesc state);
-        Desc& set_multisample_state(MultisampleStateDesc state);
-        Desc& set_depth_stencil_state(DepthStencilStateDesc state);
-        Desc& set_color_blend_state(ColorBlendStateDesc state);
-        Desc& set_pipeline_layout(std::shared_ptr<PipelineLayout> layout);
-        Desc& set_render_pass(RenderPass::Ptr render_pass);
-        Desc& set_sub_pass(uint32_t subpass);
-        Desc& set_base_pipeline(GraphicsPipeline::Ptr pipeline);
-        Desc& set_base_pipeline_index(int32_t index);
+        Desc& add_dynamic_state(const VkDynamicState& state);
+        Desc& set_viewport_state(ViewportStateDesc& state);
+        Desc& add_shader_stage(const VkShaderStageFlagBits& stage, const ShaderModule::Ptr& shader_module, const std::string& name);
+        Desc& set_vertex_input_state(const VertexInputStateDesc& state);
+        Desc& set_input_assembly_state(const InputAssemblyStateDesc& state);
+        Desc& set_tessellation_state(const TessellationStateDesc& state);
+        Desc& set_rasterization_state(const RasterizationStateDesc& state);
+        Desc& set_multisample_state(const MultisampleStateDesc& state);
+        Desc& set_depth_stencil_state(const DepthStencilStateDesc& state);
+        Desc& set_color_blend_state(const ColorBlendStateDesc& state);
+        Desc& set_pipeline_layout(const std::shared_ptr<PipelineLayout>& layout);
+        Desc& set_render_pass(const RenderPass::Ptr& render_pass);
+        Desc& set_sub_pass(const uint32_t& subpass);
+        Desc& set_base_pipeline(const GraphicsPipeline::Ptr& pipeline);
+        Desc& set_base_pipeline_index(const int32_t& index);
     };
 
     static GraphicsPipeline::Ptr create(Backend::Ptr backend, Desc desc);
