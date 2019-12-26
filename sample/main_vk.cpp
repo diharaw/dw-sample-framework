@@ -73,9 +73,9 @@ protected:
         // Set custom settings here...
         dw::AppSettings settings;
 
-        settings.width  = 1280;
-        settings.height = 720;
-        settings.title  = "Hello dwSampleFramework (Vulkan)";
+        settings.width       = 1280;
+        settings.height      = 720;
+        settings.title       = "Hello dwSampleFramework (Vulkan)";
         settings.ray_tracing = false;
 
         return settings;

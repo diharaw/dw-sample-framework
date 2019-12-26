@@ -2283,7 +2283,7 @@ void Backend::acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& se
 void Backend::present(const std::vector<std::shared_ptr<Semaphore>>& semaphores)
 {
     VkSemaphore signal_semaphores[16];
-    
+
     for (int i = 0; i < semaphores.size(); i++)
         signal_semaphores[i] = semaphores[i]->handle();
 

@@ -166,8 +166,8 @@ bool Application::init_base(int argc, const char* argv[])
 #    else
                                        false
 #    endif
-    , settings.ray_tracing
-    );
+                                       ,
+                                       settings.ray_tracing);
 
     m_image_available_semaphores.resize(vk::Backend::kMaxFramesInFlight);
     m_render_finished_semaphores.resize(vk::Backend::kMaxFramesInFlight);
@@ -286,7 +286,7 @@ void Application::shutdown_base()
         m_render_finished_semaphores[i].reset();
     }
 
-    m_vk_backend->~Backend();  
+    m_vk_backend->~Backend();
 #else
     // Shutdown debug draw.
     m_debug_draw.shutdown();
