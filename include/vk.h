@@ -100,6 +100,11 @@ public:
     void                            recreate_swapchain();
 
     void             wait_idle();
+    uint32_t         swap_image_count();
+    VkInstance       instance();
+    VkQueue          graphics_queue();
+    VkQueue          transfer_queue();
+    VkQueue          compute_queue();
     VkDevice         device();
     VkPhysicalDevice physical_device();
     VmaAllocator_T*  allocator();
@@ -753,8 +758,10 @@ public:
     {
         uint32_t                          max_sets;
         std::vector<VkDescriptorPoolSize> pool_sizes;
+        VkDescriptorPoolCreateFlags       create_flags = 0;
 
         Desc& set_max_sets(uint32_t num);
+        Desc& set_create_flags(VkDescriptorPoolCreateFlags flags);
         Desc& add_pool_size(VkDescriptorType type, uint32_t descriptor_count);
     };
 
@@ -762,12 +769,14 @@ public:
 
     ~DescriptorPool();
 
+    inline VkDescriptorPoolCreateFlags create_flags() { return m_vk_create_flags; }
     inline const VkDescriptorPool& handle() { return m_vk_ds_pool; }
 
 private:
     DescriptorPool(Backend::Ptr backend, Desc desc);
 
 private:
+    VkDescriptorPoolCreateFlags m_vk_create_flags;
     VkDescriptorPool m_vk_ds_pool;
 };
 
@@ -786,6 +795,7 @@ private:
     DescriptorSet(Backend::Ptr backend, DescriptorSetLayout::Ptr layout, DescriptorPool::Ptr pool);
 
 private:
+    bool                          m_should_destroy = false;
     VkDescriptorSet               m_vk_ds;
     std::weak_ptr<DescriptorPool> m_vk_pool;
 };

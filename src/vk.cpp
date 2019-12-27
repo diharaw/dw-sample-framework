@@ -1840,6 +1840,14 @@ DescriptorPool::Desc& DescriptorPool::Desc::set_max_sets(uint32_t num)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+DescriptorPool::Desc& DescriptorPool::Desc::set_create_flags(VkDescriptorPoolCreateFlags flags)
+{
+    create_flags = flags;
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 DescriptorPool::Desc& DescriptorPool::Desc::add_pool_size(VkDescriptorType type, uint32_t descriptor_count)
 {
     pool_sizes.push_back({ type, descriptor_count });
@@ -1858,6 +1866,8 @@ DescriptorPool::Ptr DescriptorPool::create(Backend::Ptr backend, Desc desc)
 DescriptorPool::DescriptorPool(Backend::Ptr backend, Desc desc) :
     Object(backend)
 {
+    m_vk_create_flags = desc.create_flags;
+
     VkDescriptorPoolCreateInfo pool_info;
     DW_ZERO_MEMORY(pool_info);
 
@@ -1865,6 +1875,7 @@ DescriptorPool::DescriptorPool(Backend::Ptr backend, Desc desc) :
     pool_info.poolSizeCount = static_cast<uint32_t>(desc.pool_sizes.size());
     pool_info.pPoolSizes    = desc.pool_sizes.data();
     pool_info.maxSets       = desc.max_sets;
+    pool_info.flags         = desc.create_flags;
 
     if (vkCreateDescriptorPool(backend->device(), &pool_info, nullptr, &m_vk_ds_pool) != VK_SUCCESS)
     {
@@ -1912,6 +1923,9 @@ DescriptorSet::DescriptorSet(Backend::Ptr backend, DescriptorSetLayout::Ptr layo
     info.descriptorSetCount = 1;
     info.pSetLayouts        = &vk_layout;
 
+    if ((pool->create_flags() & VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT) == VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT)
+        m_should_destroy = true;
+
     if (vkAllocateDescriptorSets(backend->device(), &info, &m_vk_ds) != VK_SUCCESS)
     {
         DW_LOG_FATAL("(Vulkan) Failed to allocate descriptor set.");
@@ -1932,7 +1946,8 @@ DescriptorSet::~DescriptorSet()
     auto backend = m_vk_backend.lock();
     auto pool    = m_vk_pool.lock();
 
-    vkFreeDescriptorSets(backend->device(), pool->handle(), 1, &m_vk_ds);
+    if (m_should_destroy)
+        vkFreeDescriptorSets(backend->device(), pool->handle(), 1, &m_vk_ds);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2533,6 +2548,41 @@ RenderPass::Ptr Backend::swapchain_render_pass()
 void Backend::wait_idle()
 {
     vkDeviceWaitIdle(m_vk_device);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+uint32_t Backend::swap_image_count()
+{
+    return m_swap_chain_images.size();
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+VkInstance Backend::instance()
+{
+    return m_vk_instance;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+VkQueue Backend::graphics_queue()
+{
+    return m_vk_graphics_queue;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+VkQueue Backend::transfer_queue()
+{
+    return m_vk_transfer_queue;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+VkQueue Backend::compute_queue()
+{
+    return m_vk_compute_queue;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

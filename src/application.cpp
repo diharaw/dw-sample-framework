@@ -1,9 +1,11 @@
 #include <application.h>
 
+#include <examples/imgui_impl_glfw.h>
+
 #if defined(DWSF_VULKAN)
-#    include <imgui_impl_glfw_vulkan.h>
+#    include <examples/imgui_impl_vulkan.h>
 #else
-#    include <imgui_impl_glfw_gl3.h>
+#    include <examples/imgui_impl_opengl3.h>
 #endif
 #include <profiler.h>
 #include <iostream>
@@ -62,6 +64,10 @@ int Application::run(int argc, const char* argv[])
 #else
     while (!exit_requested())
         update_base(m_delta);
+#endif
+
+#if defined(DWSF_VULKAN)
+    m_vk_backend->wait_idle();
 #endif
 
     shutdown_base();
@@ -189,17 +195,23 @@ bool Application::init_base(int argc, const char* argv[])
     ImGui::CreateContext();
 
 #if defined(DWSF_VULKAN)
-    ImGui_ImplGlfwVulkan_Init_Data init_data = {};
-    init_data.allocator                      = nullptr;
-    init_data.gpu                            = m_vk_backend->physical_device();
-    init_data.device                         = m_vk_backend->device();
-    init_data.render_pass                    = m_vk_backend->swapchain_render_pass()->handle();
-    init_data.pipeline_cache                 = nullptr;
-    init_data.descriptor_pool                = m_vk_backend->thread_local_descriptor_pool()->handle();
-    init_data.check_vk_result                = imgui_vulkan_error_check;
+    ImGui_ImplGlfw_InitForVulkan(m_window, true);
 
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-    ImGui_ImplGlfwVulkan_Init(m_window, true, &init_data);
+    ImGui_ImplVulkan_InitInfo init_info = {};
+
+    init_info.Instance                  = m_vk_backend->instance();
+    init_info.PhysicalDevice            = m_vk_backend->physical_device();
+    init_info.Device                    = m_vk_backend->device();
+    init_info.QueueFamily               = m_vk_backend->queue_infos().graphics_queue_index;
+    init_info.Queue                     = m_vk_backend->graphics_queue();
+    init_info.PipelineCache             = nullptr;
+    init_info.DescriptorPool            = m_vk_backend->thread_local_descriptor_pool()->handle();
+    init_info.Allocator                 = nullptr;
+    init_info.MinImageCount             = 2;
+    init_info.ImageCount                = m_vk_backend->swap_image_count();
+    init_info.CheckVkResultFn           = nullptr;
+
+    ImGui_ImplVulkan_Init(&init_info, m_vk_backend->swapchain_render_pass()->handle());
 
     vk::CommandBuffer::Ptr cmd_buf = m_vk_backend->allocate_graphics_command_buffer();
 
@@ -209,14 +221,14 @@ bool Application::init_base(int argc, const char* argv[])
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
     vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
-
-    ImGui_ImplGlfwVulkan_CreateFontsTexture(cmd_buf->handle());
+ 
+    ImGui_ImplVulkan_CreateFontsTexture(cmd_buf->handle());
 
     vkEndCommandBuffer(cmd_buf->handle());
 
     m_vk_backend->flush_graphics({ cmd_buf });
 
-    ImGui_ImplGlfwVulkan_InvalidateFontUploadObjects();
+    ImGui_ImplVulkan_DestroyFontUploadObjects();
 #else
     ImGui_ImplGlfwGL3_Init(m_window, false);
 #endif
@@ -273,7 +285,6 @@ void Application::shutdown_base()
 
 #if defined(DWSF_VULKAN)
     // Shutdown debug draw.
-    m_vk_backend->wait_idle();
 
     // Shutdown profiler.
     profiler::shutdown();
@@ -282,8 +293,8 @@ void Application::shutdown_base()
     Material::shutdown_common_resources();
 
     // Shutdown ImGui.
-    ImGui_ImplGlfwVulkan_Shutdown();
-
+    ImGui_ImplVulkan_Shutdown();
+    
     for (int i = 0; i < vk::Backend::kMaxFramesInFlight; i++)
     {
         m_image_available_semaphores[i].reset();
@@ -296,6 +307,7 @@ void Application::shutdown_base()
     m_debug_draw.shutdown();
     ImGui_ImplGlfwGL3_Shutdown();
 #endif
+    ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
     // Shutdown GLFW.
@@ -313,7 +325,8 @@ void Application::shutdown_base()
 
 void Application::render_gui(vk::CommandBuffer::Ptr cmd_buf)
 {
-    ImGui_ImplGlfwVulkan_Render(cmd_buf->handle());
+    ImGui::Render();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd_buf->handle());
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -340,7 +353,10 @@ void Application::begin_frame()
 
 #if defined(DWSF_VULKAN)
     m_vk_backend->acquire_next_swap_chain_image(m_image_available_semaphores[m_vk_backend->current_frame_idx()]);
-    ImGui_ImplGlfwVulkan_NewFrame();
+    
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
 #else
     ImGui_ImplGlfwGL3_NewFrame();
 #endif
@@ -493,7 +509,6 @@ void Application::window_size_callback(GLFWwindow* window, int width, int height
 
 void Application::key_callback_glfw(GLFWwindow* window, int key, int scancode, int action, int mode)
 {
-    ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mode);
     Application* app = (Application*)glfwGetWindowUserPointer(window);
     app->key_callback(window, key, scancode, action, mode);
 }
@@ -510,7 +525,6 @@ void Application::mouse_callback_glfw(GLFWwindow* window, double xpos, double yp
 
 void Application::scroll_callback_glfw(GLFWwindow* window, double xoffset, double yoffset)
 {
-    ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
     Application* app = (Application*)glfwGetWindowUserPointer(window);
     app->scroll_callback(window, xoffset, yoffset);
 }
@@ -519,7 +533,6 @@ void Application::scroll_callback_glfw(GLFWwindow* window, double xoffset, doubl
 
 void Application::mouse_button_callback_glfw(GLFWwindow* window, int button, int action, int mods)
 {
-    ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
     Application* app = (Application*)glfwGetWindowUserPointer(window);
     app->mouse_button_callback(window, button, action, mods);
 }
@@ -528,7 +541,7 @@ void Application::mouse_button_callback_glfw(GLFWwindow* window, int button, int
 
 void Application::char_callback_glfw(GLFWwindow* window, unsigned int c)
 {
-    ImGui_ImplGlfw_CharCallback(window, c);
+    
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

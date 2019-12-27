@@ -293,7 +293,8 @@ private:
         // Create dynamic state
         // ---------------------------------------------------------------------------
 
-        pso_desc.add_dynamic_state(VK_DYNAMIC_STATE_VIEWPORT);
+        pso_desc.add_dynamic_state(VK_DYNAMIC_STATE_VIEWPORT)
+            .add_dynamic_state(VK_DYNAMIC_STATE_SCISSOR);
 
         // ---------------------------------------------------------------------------
         // Create pipeline
@@ -361,6 +362,15 @@ private:
         vp.maxDepth = 1.0f;
 
         vkCmdSetViewport(cmd_buf->handle(), 0, 1, &vp);
+
+        VkRect2D scissor_rect;
+
+        scissor_rect.extent.width = m_width;
+        scissor_rect.extent.height = m_height;
+        scissor_rect.offset.x      = 0;
+        scissor_rect.offset.y      = 0;
+
+        vkCmdSetScissor(cmd_buf->handle(), 0, 1, &scissor_rect);
 
         const uint32_t dynamic_offset = m_ubo_size * m_vk_backend->current_frame_idx();
 
