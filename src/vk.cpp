@@ -2024,11 +2024,11 @@ QueryPool::Ptr QueryPool::create(Backend::Ptr backend, VkQueryType query_type, u
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void QueryPool::results(uint32_t           first_query,
-             uint32_t           query_count,
-             size_t             data_size,
-             void*              ptr,
-             VkDeviceSize       stride,
-             VkQueryResultFlags flags)
+                        uint32_t           query_count,
+                        size_t             data_size,
+                        void*              ptr,
+                        VkDeviceSize       stride,
+                        VkQueryResultFlags flags)
 {
     auto backend = m_vk_backend.lock();
 

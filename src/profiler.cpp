@@ -32,8 +32,10 @@ struct Profiler
     {
         vk::QueryPool::Ptr                   query_pool;
         std::vector<std::unique_ptr<Sample>> samples;
-        int32_t                              index = 0;
+        int32_t                              index       = 0;
+#if defined(DWSF_VULKAN)
         uint32_t                             query_index = 0;
+#endif
 
         Buffer()
         {
@@ -81,12 +83,14 @@ struct Profiler
 #endif
     )
     {
+#if defined(DWSF_VULKAN)
         if (m_should_reset)
         {
             m_sample_buffers[m_write_buffer_idx].query_index = 0;
             vkCmdResetQueryPool(cmd_buf->handle(), m_sample_buffers[m_write_buffer_idx].query_pool->handle(), 0, MAX_SAMPLES);
             m_should_reset = false;
         }
+#endif
 
         int32_t idx = m_sample_buffers[m_write_buffer_idx].index++;
 
@@ -98,13 +102,12 @@ struct Profiler
         sample->name = name;
 #if defined(DWSF_VULKAN)
         sample->query_index = m_sample_buffers[m_write_buffer_idx].query_index++;
+        vkCmdWriteTimestamp(cmd_buf->handle(), VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_sample_buffers[m_write_buffer_idx].query_pool->handle(), sample->query_index);
 #else
         sample->query.query_counter(GL_TIMESTAMP);
 #endif
         sample->end_sample = nullptr;
         sample->start      = true;
-
-        vkCmdWriteTimestamp(cmd_buf->handle(), VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_sample_buffers[m_write_buffer_idx].query_pool->handle(), sample->query_index);
 
 #ifdef WIN32
         LARGE_INTEGER cpu_time;
@@ -139,7 +142,6 @@ struct Profiler
         sample->start = false;
 #if defined(DWSF_VULKAN)
         sample->query_index = m_sample_buffers[m_write_buffer_idx].query_index++;
-
         vkCmdWriteTimestamp(cmd_buf->handle(), VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_sample_buffers[m_write_buffer_idx].query_pool->handle(), sample->query_index);
 #else
         sample->query.query_counter(GL_TIMESTAMP);
