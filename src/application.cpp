@@ -243,7 +243,11 @@ bool Application::init_base(int argc, const char* argv[])
     if (!m_debug_draw.init())
         return false;
 
-    profiler::initialize();
+    profiler::initialize(
+#if defined(DWSF_VULKAN)
+        m_vk_backend
+#endif
+    );
 
     if (!init(argc, argv))
         return false;
@@ -267,12 +271,12 @@ void Application::shutdown_base()
     // Execute user-side shutdown method.
     shutdown();
 
-    // Shutdown profiler.
-    profiler::shutdown();
-
 #if defined(DWSF_VULKAN)
     // Shutdown debug draw.
     m_vk_backend->wait_idle();
+
+    // Shutdown profiler.
+    profiler::shutdown();
 
     m_debug_draw.shutdown();
     Material::shutdown_common_resources();

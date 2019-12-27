@@ -2016,6 +2016,62 @@ Semaphore::Semaphore(Backend::Ptr backend) :
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+QueryPool::Ptr QueryPool::create(Backend::Ptr backend, VkQueryType query_type, uint32_t query_count, VkQueryPipelineStatisticFlags pipeline_statistics)
+{
+    return std::shared_ptr<QueryPool>(new QueryPool(backend, query_type, query_count, pipeline_statistics));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void QueryPool::results(uint32_t           first_query,
+             uint32_t           query_count,
+             size_t             data_size,
+             void*              ptr,
+             VkDeviceSize       stride,
+             VkQueryResultFlags flags)
+{
+    auto backend = m_vk_backend.lock();
+
+    vkGetQueryPoolResults(backend->device(), m_vk_query_pool, first_query, query_count, data_size, ptr, stride, flags);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+QueryPool::~QueryPool()
+{
+    if (m_vk_backend.expired())
+    {
+        DW_LOG_FATAL("(Vulkan) Destructing after Device.");
+        throw std::runtime_error("(Vulkan) Destructing after Device.");
+    }
+
+    auto backend = m_vk_backend.lock();
+
+    vkDestroyQueryPool(backend->device(), m_vk_query_pool, nullptr);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+QueryPool::QueryPool(Backend::Ptr backend, VkQueryType query_type, uint32_t query_count, VkQueryPipelineStatisticFlags pipeline_statistics) :
+    Object(backend)
+{
+    VkQueryPoolCreateInfo query_pool_info;
+    DW_ZERO_MEMORY(query_pool_info);
+
+    query_pool_info.sType              = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+    query_pool_info.queryType          = query_type;
+    query_pool_info.pipelineStatistics = pipeline_statistics;
+    query_pool_info.queryCount         = query_count;
+
+    if (vkCreateQueryPool(backend->device(), &query_pool_info, nullptr, &m_vk_query_pool) != VK_SUCCESS)
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to create Query Pool.");
+        throw std::runtime_error("(Vulkan) Failed to create Query Pool.");
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 Backend::Ptr Backend::create(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing)
 {
     std::shared_ptr<Backend> backend = std::shared_ptr<Backend>(new Backend(window, enable_validation_layers, require_ray_tracing));

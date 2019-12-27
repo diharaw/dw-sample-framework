@@ -826,6 +826,30 @@ private:
     VkSemaphore m_vk_semaphore;
 };
 
+class QueryPool : public Object
+{
+public:
+    using Ptr = std::shared_ptr<QueryPool>;
+
+    static QueryPool::Ptr create(Backend::Ptr backend, VkQueryType query_type, uint32_t query_count, VkQueryPipelineStatisticFlags pipeline_statistics = 0);
+
+     void results(uint32_t           first_query,
+                 uint32_t           query_count,
+                 size_t             data_size,
+                 void*              ptr,
+                 VkDeviceSize       stride,
+                 VkQueryResultFlags flags);
+    ~QueryPool();
+
+    inline const VkQueryPool& handle() { return m_vk_query_pool; }
+
+private:
+    QueryPool(Backend::Ptr backend, VkQueryType query_type, uint32_t query_count, VkQueryPipelineStatisticFlags pipeline_statistics);
+
+private:
+    VkQueryPool m_vk_query_pool;
+};
+
 namespace utilities
 {
 extern void set_image_layout(VkCommandBuffer         cmdbuffer,

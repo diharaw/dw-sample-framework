@@ -30,8 +30,10 @@ struct Profiler
 
     struct Buffer
     {
+        vk::QueryPool::Ptr                   query_pool;
         std::vector<std::unique_ptr<Sample>> samples;
         int32_t                              index = 0;
+        uint32_t                             query_index = 0;
 
         Buffer()
         {
@@ -44,10 +46,29 @@ struct Profiler
 
     // -----------------------------------------------------------------------------------------------------------------------------------
 
-    Profiler()
+    Profiler(
+#if defined(DWSF_VULKAN)
+        vk::Backend::Ptr backend
+#endif
+    )
     {
 #ifdef WIN32
         QueryPerformanceFrequency(&m_frequency);
+#endif
+
+#if defined(DWSF_VULKAN)
+        for (int i = 0; i < BUFFER_COUNT; i++)
+            m_sample_buffers[i].query_pool = vk::QueryPool::create(backend, VK_QUERY_TYPE_TIMESTAMP, MAX_SAMPLES);
+#endif
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------------------------
+
+    ~Profiler()
+    {
+#if defined(DWSF_VULKAN)
+        for (int i = 0; i < BUFFER_COUNT; i++)
+            m_sample_buffers[i].query_pool.reset();
 #endif
     }
 
@@ -56,10 +77,17 @@ struct Profiler
     void begin_sample(std::string name
 #if defined(DWSF_VULKAN)
                       ,
-                      VkCommandBuffer cmd_buf
+                      vk::CommandBuffer::Ptr cmd_buf
 #endif
     )
     {
+        if (m_should_reset)
+        {
+            m_sample_buffers[m_write_buffer_idx].query_index = 0;
+            vkCmdResetQueryPool(cmd_buf->handle(), m_sample_buffers[m_write_buffer_idx].query_pool->handle(), 0, MAX_SAMPLES);
+            m_should_reset = false;
+        }
+
         int32_t idx = m_sample_buffers[m_write_buffer_idx].index++;
 
         if (!m_sample_buffers[m_write_buffer_idx].samples[idx])
@@ -69,12 +97,14 @@ struct Profiler
 
         sample->name = name;
 #if defined(DWSF_VULKAN)
-        sample->query_index = m_query_index++;
+        sample->query_index = m_sample_buffers[m_write_buffer_idx].query_index++;
 #else
         sample->query.query_counter(GL_TIMESTAMP);
 #endif
         sample->end_sample = nullptr;
         sample->start      = true;
+
+        vkCmdWriteTimestamp(cmd_buf->handle(), VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_sample_buffers[m_write_buffer_idx].query_pool->handle(), sample->query_index);
 
 #ifdef WIN32
         LARGE_INTEGER cpu_time;
@@ -94,7 +124,7 @@ struct Profiler
     void end_sample(std::string name
 #if defined(DWSF_VULKAN)
                     ,
-                    VkCommandBuffer cmd_buf
+                    vk::CommandBuffer::Ptr cmd_buf
 #endif
     )
     {
@@ -108,7 +138,9 @@ struct Profiler
         sample->name  = name;
         sample->start = false;
 #if defined(DWSF_VULKAN)
-        sample->query_index = m_query_index++;
+        sample->query_index = m_sample_buffers[m_write_buffer_idx].query_index++;
+
+        vkCmdWriteTimestamp(cmd_buf->handle(), VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_sample_buffers[m_write_buffer_idx].query_pool->handle(), sample->query_index);
 #else
         sample->query.query_counter(GL_TIMESTAMP);
 #endif
@@ -135,7 +167,9 @@ struct Profiler
 
     void begin_frame()
     {
-        m_query_index = 0;
+#if defined(DWSF_VULKAN)
+        m_should_reset = true;
+#endif
         m_read_buffer_idx++;
         m_write_buffer_idx++;
 
@@ -181,7 +215,8 @@ struct Profiler
                     uint64_t end_time   = 0;
 
 #if defined(DWSF_VULKAN)
-                    // TODO: vkGetQueryPoolResults
+                    m_sample_buffers[m_read_buffer_idx].query_pool->results(sample->query_index, 1, sizeof(uint64_t), &start_time, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
+                    m_sample_buffers[m_read_buffer_idx].query_pool->results(sample->end_sample->query_index, 1, sizeof(uint64_t), &end_time, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
 #else
                     sample->query.result_64(&start_time);
                     sample->end_sample->query.result_64(&end_time);
@@ -219,7 +254,10 @@ struct Profiler
     Buffer              m_sample_buffers[BUFFER_COUNT];
     std::stack<Sample*> m_sample_stack;
     std::stack<bool>    m_should_pop_stack;
-    uint32_t            m_query_index = 0;
+
+#if defined(DWSF_VULKAN)
+    bool m_should_reset = true;
+#endif
 
 #ifdef WIN32
     LARGE_INTEGER m_frequency;
@@ -233,7 +271,7 @@ Profiler* g_profiler = nullptr;
 ScopedProfile::ScopedProfile(std::string name
 #if defined(DWSF_VULKAN)
                              ,
-                             VkCommandBuffer cmd_buf
+                             vk::CommandBuffer::Ptr cmd_buf
 #endif
                              ) :
     m_name(name)
@@ -264,7 +302,18 @@ ScopedProfile::~ScopedProfile()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void initialize() { g_profiler = new Profiler(); }
+void initialize(
+#if defined(DWSF_VULKAN)
+    vk::Backend::Ptr backend
+#endif
+)
+{
+    g_profiler = new Profiler(
+#if defined(DWSF_VULKAN)
+        backend
+#endif
+    );
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -275,7 +324,7 @@ void shutdown() { DW_SAFE_DELETE(g_profiler); }
 void begin_sample(std::string name
 #if defined(DWSF_VULKAN)
                   ,
-                  VkCommandBuffer cmd_buf
+                  vk::CommandBuffer::Ptr cmd_buf
 #endif
 )
 {
@@ -292,7 +341,7 @@ void begin_sample(std::string name
 void end_sample(std::string name
 #if defined(DWSF_VULKAN)
                 ,
-                VkCommandBuffer cmd_buf
+                vk::CommandBuffer::Ptr cmd_buf
 #endif
 )
 {

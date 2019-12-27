@@ -50,17 +50,34 @@ protected:
 
     void update(double delta) override
     {
-        // Render profiler.
-        dw::profiler::ui();
+        dw::vk::CommandBuffer::Ptr cmd_buf = m_vk_backend->allocate_graphics_command_buffer();
 
-        // Update camera.
-        m_main_camera->update();
+        VkCommandBufferBeginInfo begin_info;
+        DW_ZERO_MEMORY(begin_info);
 
-        // Update uniforms.
-        update_uniforms();
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-        // Render.
-        render();
+        vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
+
+        {
+            DW_SCOPED_SAMPLE("update", cmd_buf);
+
+            // Render profiler.
+            dw::profiler::ui();
+
+            // Update camera.
+            m_main_camera->update();
+
+            // Update uniforms.
+            update_uniforms(cmd_buf);
+
+            // Render.
+            render(cmd_buf);
+        }
+
+        vkEndCommandBuffer(cmd_buf->handle());
+
+        submit_and_present({ cmd_buf });
     }
 
     // -----------------------------------------------------------------------------------------------------------------------------------
@@ -305,16 +322,9 @@ private:
 
     // -----------------------------------------------------------------------------------------------------------------------------------
 
-    void render()
+    void render(dw::vk::CommandBuffer::Ptr cmd_buf)
     {
-        dw::vk::CommandBuffer::Ptr cmd_buf = m_vk_backend->allocate_graphics_command_buffer();
-
-        VkCommandBufferBeginInfo begin_info;
-        DW_ZERO_MEMORY(begin_info);
-
-        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-        vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
+        DW_SCOPED_SAMPLE("render", cmd_buf);
 
         VkClearValue clear_values[2];
 
@@ -373,16 +383,14 @@ private:
         render_gui(cmd_buf);
 
         vkCmdEndRenderPass(cmd_buf->handle());
-
-        vkEndCommandBuffer(cmd_buf->handle());
-
-        submit_and_present({ cmd_buf });
     }
 
     // -----------------------------------------------------------------------------------------------------------------------------------
 
-    void update_uniforms()
+    void update_uniforms(dw::vk::CommandBuffer::Ptr cmd_buf)
     {
+        DW_SCOPED_SAMPLE("update_uniforms", cmd_buf);
+
         m_transforms.model      = glm::mat4(1.0f);
         m_transforms.model      = glm::translate(m_transforms.model, glm::vec3(0.0f, -20.0f, 0.0f));
         m_transforms.model      = glm::rotate(m_transforms.model, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
