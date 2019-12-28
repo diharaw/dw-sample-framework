@@ -3150,6 +3150,7 @@ bool Backend::create_logical_device()
 
 bool Backend::create_swapchain()
 {
+    m_current_frame                   = 0;
     VkSurfaceFormatKHR surface_format = choose_swap_surface_format(m_swapchain_details.format);
     VkPresentModeKHR   present_mode   = choose_swap_present_mode(m_swapchain_details.present_modes);
     VkExtent2D         extent         = choose_swap_extent(m_swapchain_details.capabilities);

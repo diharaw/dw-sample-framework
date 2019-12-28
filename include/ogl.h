@@ -8,7 +8,7 @@
 #        include <GLES3/gl3.h>
 #        include <GLES3/gl2ext.h>
 #    else
-#        include <glad.h>
+#        include <glad/glad.h>
 #    endif
 #    include <vector>
 #    include <string>

@@ -110,11 +110,14 @@ bool Application::init_base(int argc, const char* argv[])
     int major_ver = 4;
 #if defined(__APPLE__)
     int minor_ver = 1;
+    const char* imgui_glsl_version = "#version 150";
 #elif defined(__EMSCRIPTEN__)
     major_ver     = 3;
     int minor_ver = 0;
+    const char* imgui_glsl_version = "#version 150";
 #else
     int minor_ver = 5;
+    const char* imgui_glsl_version = "#version 130";
 #endif
 
     if (glfwInit() != GLFW_TRUE)
@@ -230,7 +233,8 @@ bool Application::init_base(int argc, const char* argv[])
 
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 #else
-    ImGui_ImplGlfwGL3_Init(m_window, false);
+    ImGui_ImplGlfw_InitForOpenGL(m_window, true);
+    ImGui_ImplOpenGL3_Init(imgui_glsl_version);
 #endif
 
     ImGui::StyleColorsDark();
@@ -305,7 +309,8 @@ void Application::shutdown_base()
 #else
     // Shutdown debug draw.
     m_debug_draw.shutdown();
-    ImGui_ImplGlfwGL3_Shutdown();
+
+    ImGui_ImplOpenGL3_Shutdown();
 #endif
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -361,11 +366,12 @@ void Application::begin_frame()
     m_vk_backend->acquire_next_swap_chain_image(m_image_available_semaphores[m_vk_backend->current_frame_idx()]);
 
     ImGui_ImplVulkan_NewFrame();
+#else
+    ImGui_ImplOpenGL3_NewFrame();
+#endif
+
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-#else
-    ImGui_ImplGlfwGL3_NewFrame();
-#endif
 
     m_mouse_delta_x = m_mouse_x - m_last_mouse_x;
     m_mouse_delta_y = m_mouse_y - m_last_mouse_y;
@@ -384,7 +390,7 @@ void Application::end_frame()
 
 #if !defined(DWSF_VULKAN)
     ImGui::Render();
-    ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     glfwSwapBuffers(m_window);
 #endif
 
