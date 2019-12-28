@@ -3258,10 +3258,11 @@ void Backend::recreate_swapchain()
     // Destroy existing swap chain resources
     for (int i = 0; i < m_swap_chain_images.size(); i++)
     {
+        m_swap_chain_images[i].reset();
         m_swap_chain_framebuffers[i].reset();
         m_swap_chain_image_views[i].reset();
     }
-
+    
     vkDestroySwapchainKHR(m_vk_device, m_vk_swap_chain, nullptr);
 
     if (!create_swapchain())

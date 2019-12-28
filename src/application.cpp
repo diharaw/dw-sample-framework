@@ -352,6 +352,12 @@ void Application::begin_frame()
     glfwPollEvents();
 
 #if defined(DWSF_VULKAN)
+    if (m_should_recreate_swap_chain)
+    {
+        m_vk_backend->recreate_swapchain();
+        m_should_recreate_swap_chain = false;
+    }
+
     m_vk_backend->acquire_next_swap_chain_image(m_image_available_semaphores[m_vk_backend->current_frame_idx()]);
     
     ImGui_ImplVulkan_NewFrame();
@@ -431,9 +437,7 @@ void Application::mouse_released(int code) {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Application::mouse_move(double x, double y, double deltaX, double deltaY)
-{
-}
+void Application::mouse_move(double x, double y, double deltaX, double deltaY) {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -499,7 +503,7 @@ void Application::window_size_callback(GLFWwindow* window, int width, int height
     m_height = height;
 
 #if defined(DWSF_VULKAN)
-    m_vk_backend->recreate_swapchain();
+    m_should_recreate_swap_chain = true;
 #endif
 
     window_resized(width, height);
@@ -539,10 +543,7 @@ void Application::mouse_button_callback_glfw(GLFWwindow* window, int button, int
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Application::char_callback_glfw(GLFWwindow* window, unsigned int c)
-{
-    
-}
+void Application::char_callback_glfw(GLFWwindow* window, unsigned int c) {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
