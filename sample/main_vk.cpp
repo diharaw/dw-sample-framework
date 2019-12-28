@@ -365,7 +365,7 @@ private:
 
         VkRect2D scissor_rect;
 
-        scissor_rect.extent.width = m_width;
+        scissor_rect.extent.width  = m_width;
         scissor_rect.extent.height = m_height;
         scissor_rect.offset.x      = 0;
         scissor_rect.offset.y      = 0;

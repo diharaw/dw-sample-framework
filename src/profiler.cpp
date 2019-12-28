@@ -32,9 +32,9 @@ struct Profiler
     {
         vk::QueryPool::Ptr                   query_pool;
         std::vector<std::unique_ptr<Sample>> samples;
-        int32_t                              index       = 0;
+        int32_t                              index = 0;
 #if defined(DWSF_VULKAN)
-        uint32_t                             query_index = 0;
+        uint32_t query_index = 0;
 #endif
 
         Buffer()

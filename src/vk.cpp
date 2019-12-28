@@ -3262,7 +3262,7 @@ void Backend::recreate_swapchain()
         m_swap_chain_framebuffers[i].reset();
         m_swap_chain_image_views[i].reset();
     }
-    
+
     vkDestroySwapchainKHR(m_vk_device, m_vk_swap_chain, nullptr);
 
     if (!create_swapchain())

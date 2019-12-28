@@ -770,14 +770,14 @@ public:
     ~DescriptorPool();
 
     inline VkDescriptorPoolCreateFlags create_flags() { return m_vk_create_flags; }
-    inline const VkDescriptorPool& handle() { return m_vk_ds_pool; }
+    inline const VkDescriptorPool&     handle() { return m_vk_ds_pool; }
 
 private:
     DescriptorPool(Backend::Ptr backend, Desc desc);
 
 private:
     VkDescriptorPoolCreateFlags m_vk_create_flags;
-    VkDescriptorPool m_vk_ds_pool;
+    VkDescriptorPool            m_vk_ds_pool;
 };
 
 class DescriptorSet : public Object

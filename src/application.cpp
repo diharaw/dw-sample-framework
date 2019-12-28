@@ -199,17 +199,17 @@ bool Application::init_base(int argc, const char* argv[])
 
     ImGui_ImplVulkan_InitInfo init_info = {};
 
-    init_info.Instance                  = m_vk_backend->instance();
-    init_info.PhysicalDevice            = m_vk_backend->physical_device();
-    init_info.Device                    = m_vk_backend->device();
-    init_info.QueueFamily               = m_vk_backend->queue_infos().graphics_queue_index;
-    init_info.Queue                     = m_vk_backend->graphics_queue();
-    init_info.PipelineCache             = nullptr;
-    init_info.DescriptorPool            = m_vk_backend->thread_local_descriptor_pool()->handle();
-    init_info.Allocator                 = nullptr;
-    init_info.MinImageCount             = 2;
-    init_info.ImageCount                = m_vk_backend->swap_image_count();
-    init_info.CheckVkResultFn           = nullptr;
+    init_info.Instance        = m_vk_backend->instance();
+    init_info.PhysicalDevice  = m_vk_backend->physical_device();
+    init_info.Device          = m_vk_backend->device();
+    init_info.QueueFamily     = m_vk_backend->queue_infos().graphics_queue_index;
+    init_info.Queue           = m_vk_backend->graphics_queue();
+    init_info.PipelineCache   = nullptr;
+    init_info.DescriptorPool  = m_vk_backend->thread_local_descriptor_pool()->handle();
+    init_info.Allocator       = nullptr;
+    init_info.MinImageCount   = 2;
+    init_info.ImageCount      = m_vk_backend->swap_image_count();
+    init_info.CheckVkResultFn = nullptr;
 
     ImGui_ImplVulkan_Init(&init_info, m_vk_backend->swapchain_render_pass()->handle());
 
@@ -221,7 +221,7 @@ bool Application::init_base(int argc, const char* argv[])
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
     vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
- 
+
     ImGui_ImplVulkan_CreateFontsTexture(cmd_buf->handle());
 
     vkEndCommandBuffer(cmd_buf->handle());
@@ -294,7 +294,7 @@ void Application::shutdown_base()
 
     // Shutdown ImGui.
     ImGui_ImplVulkan_Shutdown();
-    
+
     for (int i = 0; i < vk::Backend::kMaxFramesInFlight; i++)
     {
         m_image_available_semaphores[i].reset();
@@ -359,7 +359,7 @@ void Application::begin_frame()
     }
 
     m_vk_backend->acquire_next_swap_chain_image(m_image_available_semaphores[m_vk_backend->current_frame_idx()]);
-    
+
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
