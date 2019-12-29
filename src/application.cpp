@@ -552,7 +552,7 @@ void Application::mouse_button_callback_glfw(GLFWwindow* window, int button, int
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Application::char_callback_glfw(GLFWwindow* window, unsigned int c) 
+void Application::char_callback_glfw(GLFWwindow* window, unsigned int c)
 {
     ImGui_ImplGlfw_CharCallback(window, c);
 }

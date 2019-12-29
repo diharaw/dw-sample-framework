@@ -2556,8 +2556,8 @@ void Backend::initialize()
 
 void Backend::load_ray_tracing_funcs()
 {
-    g_ray_tracing_func_table._vkCreateAccelerationStructureNV = reinterpret_cast<PFN_vkCreateAccelerationStructureNV>(vkGetDeviceProcAddr(m_vk_device, "vkCreateAccelerationStructureNV"));
-    g_ray_tracing_func_table._vkDestroyAccelerationStructureNV = reinterpret_cast<PFN_vkDestroyAccelerationStructureNV>(vkGetDeviceProcAddr(m_vk_device, "vkDestroyAccelerationStructureNV"));
+    g_ray_tracing_func_table._vkCreateAccelerationStructureNV                = reinterpret_cast<PFN_vkCreateAccelerationStructureNV>(vkGetDeviceProcAddr(m_vk_device, "vkCreateAccelerationStructureNV"));
+    g_ray_tracing_func_table._vkDestroyAccelerationStructureNV               = reinterpret_cast<PFN_vkDestroyAccelerationStructureNV>(vkGetDeviceProcAddr(m_vk_device, "vkDestroyAccelerationStructureNV"));
     g_ray_tracing_func_table._vkGetAccelerationStructureMemoryRequirementsNV = reinterpret_cast<PFN_vkGetAccelerationStructureMemoryRequirementsNV>(vkGetDeviceProcAddr(m_vk_device, "vkGetAccelerationStructureMemoryRequirementsNV"));
     g_ray_tracing_func_table._vkBindAccelerationStructureMemoryNV            = reinterpret_cast<PFN_vkBindAccelerationStructureMemoryNV>(vkGetDeviceProcAddr(m_vk_device, "vkBindAccelerationStructureMemoryNV"));
     g_ray_tracing_func_table._vkCmdBuildAccelerationStructureNV              = reinterpret_cast<PFN_vkCmdBuildAccelerationStructureNV>(vkGetDeviceProcAddr(m_vk_device, "vkCmdBuildAccelerationStructureNV"));
