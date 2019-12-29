@@ -58,7 +58,7 @@ void Scene::build_acceleration_structure(vk::Backend::Ptr backend)
     // Allocate instance buffer
 
     vk::Buffer::Ptr instance_buffer = vk::Buffer::create(backend, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, sizeof(vk::GeometryInstanceNV) * m_instances.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, m_instances.data());
-    
+
     // Create top-level acceleration structure
 
     vk::AccelerationStructure::Desc desc;
@@ -78,7 +78,7 @@ void Scene::build_acceleration_structure(vk::Backend::Ptr backend)
 
     for (uint32_t i = 0; i < m_instances.size(); i++)
     {
-        memory_requirements_info.type                = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
+        memory_requirements_info.type                  = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
         memory_requirements_info.accelerationStructure = m_meshes[i]->acceleration_structure()->handle();
 
         VkMemoryRequirements2 mem_req_blas;
@@ -88,7 +88,7 @@ void Scene::build_acceleration_structure(vk::Backend::Ptr backend)
     }
 
     VkMemoryRequirements2 mem_req_tlas;
-    memory_requirements_info.type                = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
+    memory_requirements_info.type                  = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
     memory_requirements_info.accelerationStructure = m_vk_top_level_as->handle();
     vkGetAccelerationStructureMemoryRequirementsNV(backend->device(), &memory_requirements_info, &mem_req_tlas);
 

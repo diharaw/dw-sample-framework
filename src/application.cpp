@@ -109,14 +109,14 @@ bool Application::init_base(int argc, const char* argv[])
 
     int major_ver = 4;
 #if defined(__APPLE__)
-    int minor_ver = 1;
+    int         minor_ver          = 1;
     const char* imgui_glsl_version = "#version 150";
 #elif defined(__EMSCRIPTEN__)
-    major_ver     = 3;
-    int minor_ver = 0;
+    major_ver                      = 3;
+    int         minor_ver          = 0;
     const char* imgui_glsl_version = "#version 150";
 #else
-    int minor_ver = 5;
+    int         minor_ver          = 5;
     const char* imgui_glsl_version = "#version 130";
 #endif
 

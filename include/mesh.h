@@ -61,7 +61,6 @@ public:
         glm::vec3          max_extents,
         glm::vec3          min_extents);
 
-   
 #if defined(DWSF_VULKAN)
     void initialize_for_ray_tracing(vk::Backend::Ptr backend);
 
@@ -70,8 +69,8 @@ public:
     {
         return m_vbo;
     }
-    inline vk::Buffer::Ptr                 index_buffer() { return m_ibo; }
-    inline const vk::VertexInputStateDesc& vertex_input_state_desc() { return m_vertex_input_state_desc; }
+    inline vk::Buffer::Ptr                  index_buffer() { return m_ibo; }
+    inline const vk::VertexInputStateDesc&  vertex_input_state_desc() { return m_vertex_input_state_desc; }
     inline const std::vector<VkGeometryNV>& ray_tracing_geometry() { return m_rt_geometries; }
     inline vk::AccelerationStructure::Ptr   acceleration_structure() { return m_rt_as; }
 #else
@@ -133,11 +132,11 @@ private:
 
     // GPU resources.
 #if defined(DWSF_VULKAN)
-    std::vector<VkGeometryNV> m_rt_geometries;
+    std::vector<VkGeometryNV>      m_rt_geometries;
     vk::AccelerationStructure::Ptr m_rt_as;
-    vk::Buffer::Ptr          m_vbo;
-    vk::Buffer::Ptr          m_ibo;
-    vk::VertexInputStateDesc m_vertex_input_state_desc;
+    vk::Buffer::Ptr                m_vbo;
+    vk::Buffer::Ptr                m_ibo;
+    vk::VertexInputStateDesc       m_vertex_input_state_desc;
 #else
     std::unique_ptr<gl::VertexArray>  m_vao = nullptr;
     std::unique_ptr<gl::VertexBuffer> m_vbo = nullptr;

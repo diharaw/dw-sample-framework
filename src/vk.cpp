@@ -1732,9 +1732,9 @@ AccelerationStructure::AccelerationStructure(Backend::Ptr backend, Desc desc) :
     VkAccelerationStructureMemoryRequirementsInfoNV memory_requirements_info;
     DW_ZERO_MEMORY(memory_requirements_info);
 
-    memory_requirements_info.sType               = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
-    memory_requirements_info.pNext               = nullptr;
-    memory_requirements_info.type                = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_NV;
+    memory_requirements_info.sType                 = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
+    memory_requirements_info.pNext                 = nullptr;
+    memory_requirements_info.type                  = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_NV;
     memory_requirements_info.accelerationStructure = m_vk_acceleration_structure;
 
     VkMemoryRequirements2 memory_requirements;

@@ -34,7 +34,7 @@ struct Profiler
         int32_t                              index = 0;
 #if defined(DWSF_VULKAN)
         vk::QueryPool::Ptr query_pool;
-        uint32_t query_index = 0;
+        uint32_t           query_index = 0;
 #endif
 
         Buffer()
