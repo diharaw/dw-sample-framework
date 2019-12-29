@@ -21,8 +21,7 @@ set(DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/external/imgui/imgui.cpp
 				 ${PROJECT_SOURCE_DIR}/src/application.cpp
 				 ${PROJECT_SOURCE_DIR}/src/profiler.cpp
 				 ${PROJECT_SOURCE_DIR}/src/scene.cpp
-				 ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_glfw.cpp
-				 ${PROJECT_SOURCE_DIR}/external/vulkannv/vulkan_raytracing.cpp)
+				 ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_glfw.cpp)
 
 set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 				  ${PROJECT_SOURCE_DIR}/external/imgui/imconfig.h
