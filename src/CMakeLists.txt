@@ -20,6 +20,7 @@ set(DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/external/imgui/imgui.cpp
 				 ${PROJECT_SOURCE_DIR}/src/material.cpp
 				 ${PROJECT_SOURCE_DIR}/src/application.cpp
 				 ${PROJECT_SOURCE_DIR}/src/profiler.cpp
+				 ${PROJECT_SOURCE_DIR}/src/scene.cpp
 				 ${PROJECT_SOURCE_DIR}/include/vk.h ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_glfw.cpp)
 
 set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
@@ -40,6 +41,7 @@ set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 				  ${PROJECT_SOURCE_DIR}/include/logger.h
 				  ${PROJECT_SOURCE_DIR}/include/utility.h
 				  ${PROJECT_SOURCE_DIR}/include/profiler.h
+				  ${PROJECT_SOURCE_DIR}/include/scene.h
 				  ${PROJECT_SOURCE_DIR}/include/vk.h ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_glfw.h)
 
 if (USE_VULKAN)

@@ -1721,6 +1721,8 @@ AccelerationStructure::~AccelerationStructure()
 AccelerationStructure::AccelerationStructure(Backend::Ptr backend, Desc desc) :
     Object(backend)
 {
+    m_vk_acceleration_structure_info = desc.create_info.info;
+
     if (vkCreateAccelerationStructureNV(backend->device(), &desc.create_info, nullptr, &m_vk_acceleration_structure) != VK_SUCCESS)
     {
         DW_LOG_FATAL("(Vulkan) Failed to create Acceleration Structure.");

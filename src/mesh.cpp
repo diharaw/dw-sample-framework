@@ -140,7 +140,7 @@ void Mesh::initialize_for_ray_tracing(vk::Backend::Ptr backend)
     vk::AccelerationStructure::Desc desc;
 
     desc.set_geometries(m_rt_geometries);
-    desc.set_instance_count(1);
+    desc.set_instance_count(0);
     desc.set_type(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV);
 
     m_rt_as = vk::AccelerationStructure::create(backend, desc);

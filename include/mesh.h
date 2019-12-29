@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <memory>
 #include <ogl.h>
-#include <vulkan/vulkan.h>
+#include <vk.h>
 
 namespace dw
 {
@@ -73,6 +73,7 @@ public:
     inline vk::Buffer::Ptr                 index_buffer() { return m_ibo; }
     inline const vk::VertexInputStateDesc& vertex_input_state_desc() { return m_vertex_input_state_desc; }
     inline const std::vector<VkGeometryNV>& ray_tracing_geometry() { return m_rt_geometries; }
+    inline vk::AccelerationStructure::Ptr   acceleration_structure() { return m_rt_as; }
 #else
     inline gl::VertexArray* mesh_vertex_array()
     {

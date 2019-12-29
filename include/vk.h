@@ -641,7 +641,9 @@ public:
 
     static AccelerationStructure::Ptr create(Backend::Ptr backend, Desc desc);
 
+    inline VkAccelerationStructureInfoNV&    info() { return m_vk_acceleration_structure_info; }; 
     inline const VkAccelerationStructureNV& handle() { return m_vk_acceleration_structure; }
+    inline uint64_t                         opaque_handle() { return m_handle; }
 
     ~AccelerationStructure();
 
@@ -650,7 +652,8 @@ private:
 
 private:
     VmaAllocation_T*          m_vma_allocation            = nullptr;
-    uint64_t                  m_handle = 0;             
+    uint64_t                  m_handle = 0;
+    VkAccelerationStructureInfoNV m_vk_acceleration_structure_info; 
     VkAccelerationStructureNV m_vk_acceleration_structure = nullptr;
 };
 
