@@ -198,7 +198,7 @@ bool Application::init_base(int argc, const char* argv[])
     ImGui::CreateContext();
 
 #if defined(DWSF_VULKAN)
-    ImGui_ImplGlfw_InitForVulkan(m_window, true);
+    ImGui_ImplGlfw_InitForVulkan(m_window, false);
 
     ImGui_ImplVulkan_InitInfo init_info = {};
 
@@ -233,7 +233,7 @@ bool Application::init_base(int argc, const char* argv[])
 
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 #else
-    ImGui_ImplGlfw_InitForOpenGL(m_window, true);
+    ImGui_ImplGlfw_InitForOpenGL(m_window, false);
     ImGui_ImplOpenGL3_Init(imgui_glsl_version);
 #endif
 
@@ -519,6 +519,7 @@ void Application::window_size_callback(GLFWwindow* window, int width, int height
 
 void Application::key_callback_glfw(GLFWwindow* window, int key, int scancode, int action, int mode)
 {
+    ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mode);
     Application* app = (Application*)glfwGetWindowUserPointer(window);
     app->key_callback(window, key, scancode, action, mode);
 }
@@ -535,6 +536,7 @@ void Application::mouse_callback_glfw(GLFWwindow* window, double xpos, double yp
 
 void Application::scroll_callback_glfw(GLFWwindow* window, double xoffset, double yoffset)
 {
+    ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
     Application* app = (Application*)glfwGetWindowUserPointer(window);
     app->scroll_callback(window, xoffset, yoffset);
 }
@@ -543,13 +545,17 @@ void Application::scroll_callback_glfw(GLFWwindow* window, double xoffset, doubl
 
 void Application::mouse_button_callback_glfw(GLFWwindow* window, int button, int action, int mods)
 {
+    ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
     Application* app = (Application*)glfwGetWindowUserPointer(window);
     app->mouse_button_callback(window, button, action, mods);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Application::char_callback_glfw(GLFWwindow* window, unsigned int c) {}
+void Application::char_callback_glfw(GLFWwindow* window, unsigned int c) 
+{
+    ImGui_ImplGlfw_CharCallback(window, c);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
