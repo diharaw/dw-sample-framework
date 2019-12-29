@@ -36,6 +36,16 @@ struct SwapChainSupportDetails
     std::vector<VkPresentModeKHR>   present_modes;
 };
 
+struct GeometryInstanceNV
+{
+    float    transform[12];
+    uint32_t instanceCustomIndex : 24;
+    uint32_t mask : 8;
+    uint32_t instanceOffset : 24;
+    uint32_t flags : 8;
+    uint64_t accelerationStructureHandle;
+};
+
 struct QueueInfos
 {
     // Most ideal queue = 3
@@ -620,6 +630,13 @@ public:
 
     struct Desc
     {
+        VkAccelerationStructureCreateInfoNV create_info;
+        std::vector<VkGeometryNV>           geometries;
+
+        Desc();
+        Desc& set_type(VkAccelerationStructureTypeNV type);
+        Desc& set_geometries(std::vector<VkGeometryNV> geometry_vec);
+        Desc& set_instance_count(uint32_t count);
     };
 
     static AccelerationStructure::Ptr create(Backend::Ptr backend, Desc desc);
@@ -632,29 +649,9 @@ private:
     AccelerationStructure(Backend::Ptr backend, Desc desc);
 
 private:
-    VkAccelerationStructureNV m_vk_acceleration_structure;
-};
-
-class Geometry : public Object
-{
-public:
-    using Ptr = std::shared_ptr<Geometry>;
-
-    struct Desc
-    {
-    };
-
-    static Geometry::Ptr create(Backend::Ptr backend, Desc desc);
-
-    inline const VkGeometryNV& handle() { return m_vk_geometry; }
-
-    ~Geometry();
-
-private:
-    Geometry(Backend::Ptr backend, Desc desc);
-
-private:
-    VkGeometryNV m_vk_geometry;
+    VmaAllocation_T*          m_vma_allocation            = nullptr;
+    uint64_t                  m_handle = 0;             
+    VkAccelerationStructureNV m_vk_acceleration_structure = nullptr;
 };
 
 class Sampler : public Object

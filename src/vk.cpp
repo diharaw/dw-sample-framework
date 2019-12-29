@@ -1651,6 +1651,124 @@ ComputePipeline::~ComputePipeline()
 
     vkDestroyPipeline(backend->device(), m_vk_pipeline, nullptr);
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+AccelerationStructure::Desc::Desc()
+{
+    DW_ZERO_MEMORY(create_info);
+
+    create_info.sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
+    create_info.pNext         = nullptr;
+    create_info.compactedSize = 0;
+
+    create_info.info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
+    create_info.info.pNext = nullptr;
+    create_info.info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+AccelerationStructure::Desc& AccelerationStructure::Desc::set_type(VkAccelerationStructureTypeNV type)
+{
+    create_info.info.type = type;
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+AccelerationStructure::Desc& AccelerationStructure::Desc::set_geometries(std::vector<VkGeometryNV> geometry_vec)
+{
+    create_info.info.geometryCount = geometry_vec.size();
+    geometries                     = geometry_vec;
+    create_info.info.pGeometries   = geometries.data();
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+AccelerationStructure::Desc& AccelerationStructure::Desc::set_instance_count(uint32_t count)
+{
+    create_info.info.instanceCount = count;
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+AccelerationStructure::Ptr AccelerationStructure::create(Backend::Ptr backend, Desc desc)
+{
+    return std::shared_ptr<AccelerationStructure>(new AccelerationStructure(backend, desc));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+AccelerationStructure::~AccelerationStructure()
+{
+    if (m_vk_backend.expired())
+    {
+        DW_LOG_FATAL("(Vulkan) Destructing after Device.");
+        throw std::runtime_error("(Vulkan) Destructing after Device.");
+    }
+
+    auto backend = m_vk_backend.lock();
+
+    vkDestroyAccelerationStructureNV(backend->device(), m_vk_acceleration_structure, nullptr);
+    vmaFreeMemory(backend->allocator(), m_vma_allocation);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+AccelerationStructure::AccelerationStructure(Backend::Ptr backend, Desc desc) :
+    Object(backend)
+{
+    if (vkCreateAccelerationStructureNV(backend->device(), &desc.create_info, nullptr, &m_vk_acceleration_structure) != VK_SUCCESS)
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to create Acceleration Structure.");
+        throw std::runtime_error("(Vulkan) Failed to create Acceleration Structure.");
+    }
+
+    VkAccelerationStructureMemoryRequirementsInfoNV memory_requirements_info;
+    DW_ZERO_MEMORY(memory_requirements_info);
+
+    memory_requirements_info.sType               = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
+    memory_requirements_info.pNext               = nullptr;
+    memory_requirements_info.type                = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_NV;
+    memory_requirements_info.accelerationStructure = m_vk_acceleration_structure;
+
+    VkMemoryRequirements2 memory_requirements;
+    vkGetAccelerationStructureMemoryRequirementsNV(backend->device(), &memory_requirements_info, &memory_requirements);
+
+    VmaAllocationInfo       alloc_info;
+    VmaAllocationCreateInfo alloc_create_info;
+    DW_ZERO_MEMORY(alloc_create_info);
+
+    alloc_create_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    alloc_create_info.flags = 0;
+
+    vmaAllocateMemory(backend->allocator(), &memory_requirements.memoryRequirements, &alloc_create_info, &m_vma_allocation, &alloc_info);
+
+    VkBindAccelerationStructureMemoryInfoNV bind_info;
+    bind_info.sType                 = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
+    bind_info.pNext                 = nullptr;
+    bind_info.accelerationStructure = m_vk_acceleration_structure;
+    bind_info.memory                = alloc_info.deviceMemory;
+    bind_info.memoryOffset          = 0;
+    bind_info.deviceIndexCount      = 0;
+    bind_info.pDeviceIndices        = nullptr;
+
+    if (vkBindAccelerationStructureMemoryNV(backend->device(), 1, &bind_info) != VK_SUCCESS)
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to create Acceleration Structure.");
+        throw std::runtime_error("(Vulkan) Failed to create Acceleration Structure.");
+    }
+
+    if (vkGetAccelerationStructureHandleNV(backend->device(), m_vk_acceleration_structure, sizeof(uint64_t), &m_handle) != VK_SUCCESS)
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to create Acceleration Structure.");
+        throw std::runtime_error("(Vulkan) Failed to create Acceleration Structure.");
+    }
+}
+
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Sampler::Ptr Sampler::create(Backend::Ptr backend, Desc desc)

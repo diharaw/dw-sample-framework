@@ -102,6 +102,54 @@ Mesh* Mesh::load(
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+#if defined(DWSF_VULKAN)
+
+void Mesh::initialize_for_ray_tracing(vk::Backend::Ptr backend)
+{
+    m_rt_geometries.resize(m_sub_mesh_count);
+
+    for (int i = 0; i < m_sub_mesh_count; i++)
+    {
+        SubMesh& submesh = m_sub_meshes[i];
+
+        VkGeometryNV current = {};
+
+        current.sType                              = VK_STRUCTURE_TYPE_GEOMETRY_NV;
+        current.pNext                              = nullptr;
+        current.geometryType                       = VK_GEOMETRY_TYPE_TRIANGLES_NV;
+        current.geometry.triangles.sType           = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
+        current.geometry.triangles.pNext           = nullptr;
+        current.geometry.triangles.vertexData      = m_vbo->handle();
+        current.geometry.triangles.vertexOffset    = submesh.base_vertex;
+        current.geometry.triangles.vertexCount     = submesh.index_count;
+        current.geometry.triangles.vertexStride    = sizeof(Vertex);
+        current.geometry.triangles.vertexFormat    = VK_FORMAT_R32G32B32_SFLOAT;
+        current.geometry.triangles.indexData       = m_ibo->handle();
+        current.geometry.triangles.indexOffset     = submesh.base_index;
+        current.geometry.triangles.indexCount      = submesh.index_count;
+        current.geometry.triangles.indexType       = VK_INDEX_TYPE_UINT32;
+        current.geometry.triangles.transformData   = VK_NULL_HANDLE;
+        current.geometry.triangles.transformOffset = 0;
+        current.geometry.aabbs                     = {};
+        current.geometry.aabbs.sType               = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
+        current.flags                              = VK_GEOMETRY_OPAQUE_BIT_NV;
+
+        m_rt_geometries[i] = current;
+    }
+
+    vk::AccelerationStructure::Desc desc;
+
+    desc.set_geometries(m_rt_geometries);
+    desc.set_instance_count(1);
+    desc.set_type(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV);
+
+    m_rt_as = vk::AccelerationStructure::create(backend, desc);
+}
+
+#endif
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 bool Mesh::is_loaded(const std::string& name)
 {
     return m_cache.find(name) != m_cache.end();

@@ -82,7 +82,7 @@ Material::Material(vk::Backend::Ptr backend, const std::string& name, const std:
         if (!textures[i].empty())
         {
             // First index must always be diffuse/albedo, so SRGB is set to true.
-            m_images[i]      = load_image(backend, textures[i], i == 0 ? true : false);
+            m_images[i]      = load_image(backend, textures[i], i == aiTextureType_DIFFUSE ? true : false);
             m_image_views[i] = load_image_view(backend, textures[i], m_images[i]);
         }
     }

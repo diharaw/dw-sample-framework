@@ -61,14 +61,18 @@ public:
         glm::vec3          max_extents,
         glm::vec3          min_extents);
 
-    // Rendering-related getters.
+   
 #if defined(DWSF_VULKAN)
+    void initialize_for_ray_tracing(vk::Backend::Ptr backend);
+
+    // Rendering-related getters.
     inline vk::Buffer::Ptr vertex_buffer()
     {
         return m_vbo;
     }
     inline vk::Buffer::Ptr                 index_buffer() { return m_ibo; }
     inline const vk::VertexInputStateDesc& vertex_input_state_desc() { return m_vertex_input_state_desc; }
+    inline const std::vector<VkGeometryNV>& ray_tracing_geometry() { return m_rt_geometries; }
 #else
     inline gl::VertexArray* mesh_vertex_array()
     {
@@ -128,6 +132,8 @@ private:
 
     // GPU resources.
 #if defined(DWSF_VULKAN)
+    std::vector<VkGeometryNV> m_rt_geometries;
+    vk::AccelerationStructure::Ptr m_rt_as;
     vk::Buffer::Ptr          m_vbo;
     vk::Buffer::Ptr          m_ibo;
     vk::VertexInputStateDesc m_vertex_input_state_desc;
