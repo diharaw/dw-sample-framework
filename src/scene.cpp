@@ -146,7 +146,7 @@ void Scene::build_acceleration_structure(vk::Backend::Ptr backend)
 
     vkEndCommandBuffer(cmd_buf->handle());
 
-    backend->wait_idle();
+    backend->flush_graphics({ cmd_buf });
 }
 
 #endif
