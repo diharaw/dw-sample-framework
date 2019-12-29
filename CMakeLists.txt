@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
 project("dwSampleFramework")
 
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+
 # Options
 set(BUILD_SAMPLES true CACHE BOOL "Build example projects.")
 set(BUILD_SHARED_LIBRARY false CACHE BOOL "Build shared library.")
