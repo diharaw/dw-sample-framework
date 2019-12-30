@@ -608,7 +608,14 @@ public:
     struct Desc
     {
         VkRayTracingPipelineCreateInfoNV create_info;
-        std::string                      shader_entry_name;
+
+        Desc();
+        Desc& set_shader_stages(std::vector<VkPipelineShaderStageCreateInfo> shader_stages);
+        Desc& set_shader_groups(std::vector<VkRayTracingShaderGroupCreateInfoNV> groups);
+        Desc& set_pipeline_layout(PipelineLayout::Ptr layout);
+        Desc& set_recursion_depth(uint32_t depth);
+        Desc& set_base_pipeline(RayTracingPipeline::Ptr pipeline);
+        Desc& set_base_pipeline_index(int32_t index);
     };
 
     static RayTracingPipeline::Ptr create(Backend::Ptr backend, Desc desc);

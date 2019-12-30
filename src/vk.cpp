@@ -1818,6 +1818,100 @@ ComputePipeline::~ComputePipeline()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+RayTracingPipeline::Desc::Desc()
+{
+    DW_ZERO_MEMORY(create_info);
+
+    create_info.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_NV;
+    create_info.pNext = nullptr;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+RayTracingPipeline::Desc& RayTracingPipeline::Desc::set_shader_stages(std::vector<VkPipelineShaderStageCreateInfo> shader_stages)
+{
+    create_info.stageCount = shader_stages.size();
+    create_info.pStages    = shader_stages.data();
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+RayTracingPipeline::Desc& RayTracingPipeline::Desc::set_shader_groups(std::vector<VkRayTracingShaderGroupCreateInfoNV> groups)
+{
+    create_info.groupCount = groups.size();
+    create_info.pGroups    = groups.data();
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+RayTracingPipeline::Desc& RayTracingPipeline::Desc::set_pipeline_layout(PipelineLayout::Ptr layout)
+{
+    create_info.layout = layout->handle();
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+RayTracingPipeline::Desc& RayTracingPipeline::Desc::set_recursion_depth(uint32_t depth)
+{
+    create_info.maxRecursionDepth = depth;
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+RayTracingPipeline::Desc& RayTracingPipeline::Desc::set_base_pipeline(RayTracingPipeline::Ptr pipeline)
+{
+    create_info.basePipelineHandle = pipeline->handle();
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+RayTracingPipeline::Desc& RayTracingPipeline::Desc::set_base_pipeline_index(int32_t index)
+{
+    create_info.basePipelineIndex = index;
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+RayTracingPipeline::Ptr RayTracingPipeline::create(Backend::Ptr backend, Desc desc)
+{
+    return std::shared_ptr<RayTracingPipeline>(new RayTracingPipeline(backend, desc));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+RayTracingPipeline::~RayTracingPipeline()
+{
+    if (m_vk_backend.expired())
+    {
+        DW_LOG_FATAL("(Vulkan) Destructing after Device.");
+        throw std::runtime_error("(Vulkan) Destructing after Device.");
+    }
+
+    auto backend = m_vk_backend.lock();
+
+    vkDestroyPipeline(backend->device(), m_vk_pipeline, nullptr);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+RayTracingPipeline::RayTracingPipeline(Backend::Ptr backend, Desc desc) :
+    Object(backend)
+{
+    if (vkCreateRayTracingPipelinesNV(backend->device(), VK_NULL_HANDLE, 1, &desc.create_info, VK_NULL_HANDLE, &m_vk_pipeline) != VK_SUCCESS)
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to create Ray Tracing Pipeline.");
+        throw std::runtime_error("(Vulkan) Failed to create Ray Tracing Pipeline.");
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 AccelerationStructure::Desc::Desc()
 {
     DW_ZERO_MEMORY(create_info);
