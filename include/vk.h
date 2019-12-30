@@ -28,6 +28,7 @@ class Semaphore;
 class DescriptorSet;
 class DescriptorSetLayout;
 class DescriptorPool;
+class PipelineLayout;
 
 struct SwapChainSupportDetails
 {
@@ -133,17 +134,17 @@ private:
     void                     load_ray_tracing_funcs();
     VkFormat                 find_depth_format();
     bool                     check_validation_layer_support(std::vector<const char*> layers);
-    bool                     check_device_extension_support(VkPhysicalDevice device, bool require_ray_tracing);
+    bool                     check_device_extension_support(VkPhysicalDevice device, std::vector<const char*> extensions);
     void                     query_swap_chain_support(VkPhysicalDevice device, SwapChainSupportDetails& details);
     std::vector<const char*> required_extensions(bool enable_validation_layers);
     VkResult                 create_debug_utils_messenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
     void                     destroy_debug_utils_messenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
     bool                     create_surface(GLFWwindow* window);
-    bool                     find_physical_device(bool require_ray_tracing);
-    bool                     is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType type, QueueInfos& infos, SwapChainSupportDetails& details, bool require_ray_tracing);
+    bool                     find_physical_device(std::vector<const char*> extensions);
+    bool                     is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType type, QueueInfos& infos, SwapChainSupportDetails& details, std::vector<const char*> extensions);
     bool                     find_queues(VkPhysicalDevice device, QueueInfos& infos);
     bool                     is_queue_compatible(VkQueueFlags current_queue_flags, int32_t graphics, int32_t compute, int32_t transfer);
-    bool                     create_logical_device();
+    bool                     create_logical_device(std::vector<const char*> extensions);
     bool                     create_swapchain();
     void                     create_render_pass();
     VkSurfaceFormatKHR       choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats);
@@ -612,7 +613,7 @@ public:
         Desc();
         Desc& set_shader_stages(std::vector<VkPipelineShaderStageCreateInfo> shader_stages);
         Desc& set_shader_groups(std::vector<VkRayTracingShaderGroupCreateInfoNV> groups);
-        Desc& set_pipeline_layout(PipelineLayout::Ptr layout);
+        Desc& set_pipeline_layout(std::shared_ptr<PipelineLayout> layout);
         Desc& set_recursion_depth(uint32_t depth);
         Desc& set_base_pipeline(RayTracingPipeline::Ptr pipeline);
         Desc& set_base_pipeline_index(int32_t index);

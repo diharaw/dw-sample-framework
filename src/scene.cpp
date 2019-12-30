@@ -6,6 +6,13 @@ namespace dw
 {
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+Scene::Ptr Scene::create()
+{
+    return std::shared_ptr<Scene>(new Scene());
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 Scene::Scene()
 {
 }
@@ -18,7 +25,7 @@ Scene::~Scene()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Scene::add_instance(dw::Mesh* mesh, glm::mat4 transform)
+void Scene::add_instance(dw::Mesh::Ptr mesh, glm::mat4 transform)
 {
     const float xform[12] = {
         1.0f,
@@ -57,7 +64,7 @@ void Scene::build_acceleration_structure(vk::Backend::Ptr backend)
 {
     // Allocate instance buffer
 
-    vk::Buffer::Ptr instance_buffer = vk::Buffer::create(backend, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, sizeof(vk::GeometryInstanceNV) * m_instances.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, m_instances.data());
+    vk::Buffer::Ptr instance_buffer = vk::Buffer::create(backend, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(vk::GeometryInstanceNV) * m_instances.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, m_instances.data());
 
     // Create top-level acceleration structure
 
@@ -78,8 +85,10 @@ void Scene::build_acceleration_structure(vk::Backend::Ptr backend)
 
     for (uint32_t i = 0; i < m_instances.size(); i++)
     {
+        auto mesh = m_meshes[i].lock();
+
         memory_requirements_info.type                  = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
-        memory_requirements_info.accelerationStructure = m_meshes[i]->acceleration_structure()->handle();
+        memory_requirements_info.accelerationStructure = mesh->acceleration_structure()->handle();
 
         VkMemoryRequirements2 mem_req_blas;
         vkGetAccelerationStructureMemoryRequirementsNV(backend->device(), &memory_requirements_info, &mem_req_blas);
@@ -117,19 +126,21 @@ void Scene::build_acceleration_structure(vk::Backend::Ptr backend)
 
     for (size_t i = 0; i < m_meshes.size(); ++i)
     {
-        const std::vector<VkGeometryNV>& geometry = m_meshes[i]->ray_tracing_geometry();
+        auto mesh = m_meshes[i].lock();
 
-        VkAccelerationStructureInfoNV& info = m_meshes[i]->acceleration_structure()->info();
+        const std::vector<VkGeometryNV>& geometry = mesh->ray_tracing_geometry();
+
+        VkAccelerationStructureInfoNV& info = mesh->acceleration_structure()->info();
 
         info.instanceCount = 0;
         info.geometryCount = geometry.size();
         info.pGeometries   = geometry.data();
 
-        VkAccelerationStructureNV as = m_meshes[i]->acceleration_structure()->handle();
+        VkAccelerationStructureNV as = mesh->acceleration_structure()->handle();
 
-        vkCmdBuildAccelerationStructureNV(cmd_buf->handle(), &m_meshes[i]->acceleration_structure()->info(), VK_NULL_HANDLE, 0, VK_FALSE, as, VK_NULL_HANDLE, scratch_buffer->handle(), 0);
+        vkCmdBuildAccelerationStructureNV(cmd_buf->handle(), &mesh->acceleration_structure()->info(), VK_NULL_HANDLE, 0, VK_FALSE, as, VK_NULL_HANDLE, scratch_buffer->handle(), 0);
 
-        vkCmdPipelineBarrier(cmd_buf->handle(), VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memory_barrier, 0, 0, 0, 0);
+        vkCmdPipelineBarrier(cmd_buf->handle(), VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 0, 1, &memory_barrier, 0, 0, 0, 0);
     }
 
     // Build top-level AS
@@ -142,7 +153,7 @@ void Scene::build_acceleration_structure(vk::Backend::Ptr backend)
 
     vkCmdBuildAccelerationStructureNV(cmd_buf->handle(), &m_vk_top_level_as->info(), instance_buffer->handle(), 0, VK_FALSE, as, VK_NULL_HANDLE, scratch_buffer->handle(), 0);
 
-    vkCmdPipelineBarrier(cmd_buf->handle(), VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memory_barrier, 0, 0, 0, 0);
+    vkCmdPipelineBarrier(cmd_buf->handle(), VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 0, 1, &memory_barrier, 0, 0, 0, 0);
 
     vkEndCommandBuffer(cmd_buf->handle());
 

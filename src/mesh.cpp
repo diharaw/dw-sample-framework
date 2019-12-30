@@ -11,7 +11,7 @@
 
 namespace dw
 {
-std::unordered_map<std::string, Mesh*> Mesh::m_cache;
+std::unordered_map<std::string, std::weak_ptr<Mesh>> Mesh::m_cache;
 
 // Assimp texture enum lookup table.
 static const aiTextureType kTextureTypes[] = {
@@ -34,31 +34,34 @@ bool        assimp_does_material_exist(std::vector<unsigned int>& materials,
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Mesh* Mesh::load(
+Mesh::Ptr Mesh::load(
 #if defined(DWSF_VULKAN)
     vk::Backend::Ptr backend,
 #endif
     const std::string& path,
     bool               load_materials)
 {
-    if (m_cache.find(path) == m_cache.end())
+    if (m_cache.find(path) == m_cache.end() || m_cache[path].expired())
     {
-        Mesh* mesh = new Mesh(
+        Mesh::Ptr mesh = std::shared_ptr<Mesh>(new Mesh(
 #if defined(DWSF_VULKAN)
             backend,
 #endif
             path,
-            load_materials);
+            load_materials));
         m_cache[path] = mesh;
         return mesh;
     }
     else
-        return m_cache[path];
+    {
+        auto ptr = m_cache[path];
+        return ptr.lock();
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Mesh* Mesh::load(
+Mesh::Ptr Mesh::load(
 #if defined(DWSF_VULKAN)
     vk::Backend::Ptr backend,
 #endif
@@ -72,9 +75,9 @@ Mesh* Mesh::load(
     glm::vec3          max_extents,
     glm::vec3          min_extents)
 {
-    if (m_cache.find(name) == m_cache.end())
+    if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
     {
-        Mesh* mesh = new Mesh();
+        Mesh::Ptr mesh = std::shared_ptr<Mesh>(new Mesh());
 
         // Manually assign properties...
         mesh->m_vertices       = vertices;
@@ -97,7 +100,10 @@ Mesh* Mesh::load(
         return mesh;
     }
     else
-        return m_cache[name];
+    {
+        auto ptr = m_cache[name];            
+        return ptr.lock();
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -153,21 +159,6 @@ void Mesh::initialize_for_ray_tracing(vk::Backend::Ptr backend)
 bool Mesh::is_loaded(const std::string& name)
 {
     return m_cache.find(name) != m_cache.end();
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Mesh::unload(Mesh*& mesh)
-{
-    for (auto itr : m_cache)
-    {
-        if (itr.second == mesh)
-        {
-            m_cache.erase(itr.first);
-            DW_SAFE_DELETE(mesh);
-            return;
-        }
-    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

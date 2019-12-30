@@ -9,6 +9,7 @@ set(BUILD_SAMPLES true CACHE BOOL "Build example projects.")
 set(BUILD_SHARED_LIBRARY false CACHE BOOL "Build shared library.")
 set(ENABLE_CLANG_FORMATTING false CACHE BOOL "Enable clang formatting.")
 set(USE_VULKAN false CACHE BOOL "Use Vulkan graphics API.")
+set(ENABLE_VULKAN_RAY_TRACING false CACHE BOOL "Enable Vulkan ray tracing.")
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")

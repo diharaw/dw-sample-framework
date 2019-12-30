@@ -36,18 +36,19 @@ struct SubMesh
 class Mesh
 {
 public:
+    using Ptr = std::shared_ptr<Mesh>;
+
     static bool is_loaded(const std::string& name);
-    static void unload(Mesh*& mesh);
 
     // Static factory methods.
-    static Mesh* load(
+    static Mesh::Ptr load(
 #if defined(DWSF_VULKAN)
         vk::Backend::Ptr backend,
 #endif
         const std::string& path,
         bool               load_materials = true);
     // Custom factory method for creating a mesh from provided data.
-    static Mesh* load(
+    static Mesh::Ptr load(
 #if defined(DWSF_VULKAN)
         vk::Backend::Ptr backend,
 #endif
@@ -90,6 +91,8 @@ public:
     inline uint32_t* indices() { return m_indices; }
     inline Vertex*   vertices() { return m_vertices; }
 
+    ~Mesh();
+
 private:
     // Private constructor and destructor to prevent manual creation.
     Mesh();
@@ -114,11 +117,9 @@ private:
         const std::string& path,
         bool               load_materials);
 
-    ~Mesh();
-
 private:
     // Mesh cache. Used to prevent multiple loads.
-    static std::unordered_map<std::string, Mesh*> m_cache;
+    static std::unordered_map<std::string, std::weak_ptr<Mesh>> m_cache;
 
     // Mesh geometry.
     uint32_t  m_vertex_count   = 0;

@@ -5,7 +5,12 @@ set (CMAKE_CXX_STANDARD 14)
 
 if (USE_VULKAN)
     add_definitions(-DDWSF_VULKAN)
-    set(DWSFW_SAMPLE_SOURCE main_vk.cpp)
+
+    if (ENABLE_VULKAN_RAY_TRACING)
+        set(DWSFW_SAMPLE_SOURCE main_vk_rt.cpp)
+    else()
+        set(DWSFW_SAMPLE_SOURCE main_vk.cpp)
+    endif()
 
     if (${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "AMD64")
         set(GLSL_VALIDATOR "$ENV{VULKAN_SDK}/Bin/glslangValidator.exe")
