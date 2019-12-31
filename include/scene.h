@@ -24,9 +24,9 @@ private:
 
 private:
 #if defined(DWSF_VULKAN)
-    std::vector<vk::GeometryInstanceNV> m_instances;
+    std::vector<vk::GeometryInstanceNV>  m_instances;
     std::vector<std::weak_ptr<dw::Mesh>> m_meshes;
-    vk::AccelerationStructure::Ptr      m_vk_top_level_as;
+    vk::AccelerationStructure::Ptr       m_vk_top_level_as;
 #endif
 };
 } // namespace dw

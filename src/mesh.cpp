@@ -101,7 +101,7 @@ Mesh::Ptr Mesh::load(
     }
     else
     {
-        auto ptr = m_cache[name];            
+        auto ptr = m_cache[name];
         return ptr.lock();
     }
 }

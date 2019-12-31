@@ -436,7 +436,7 @@ private:
     std::unique_ptr<dw::Camera> m_main_camera;
 
     // Assets.
-    dw::Mesh::Ptr              m_mesh;
+    dw::Mesh::Ptr  m_mesh;
     dw::Scene::Ptr m_scene;
 
     // Uniforms.

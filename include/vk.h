@@ -124,10 +124,10 @@ public:
     VkFormat         find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
     inline VkPhysicalDeviceRayTracingPropertiesNV ray_tracing_properties() { return m_ray_tracing_properties; }
-    inline VkFormat          swap_chain_image_format() { return m_swap_chain_image_format; }
-    inline VkFormat          swap_chain_depth_format() { return m_swap_chain_depth_format; }
-    inline uint32_t          current_frame_idx() { return m_current_frame; }
-    inline const QueueInfos& queue_infos() { return m_selected_queues; }
+    inline VkFormat                               swap_chain_image_format() { return m_swap_chain_image_format; }
+    inline VkFormat                               swap_chain_depth_format() { return m_swap_chain_depth_format; }
+    inline uint32_t                               current_frame_idx() { return m_current_frame; }
+    inline const QueueInfos&                      queue_infos() { return m_selected_queues; }
 
 private:
     Backend(GLFWwindow* window, bool enable_validation_layers = false, bool require_ray_tracing = false);
@@ -612,17 +612,17 @@ public:
     private:
         struct HitGroupDesc
         {
-            VkPipelineShaderStageCreateInfo* closest_hit_stage = nullptr;
-            VkPipelineShaderStageCreateInfo* any_hit_stage     = nullptr;
+            VkPipelineShaderStageCreateInfo* closest_hit_stage  = nullptr;
+            VkPipelineShaderStageCreateInfo* any_hit_stage      = nullptr;
             VkPipelineShaderStageCreateInfo* intersection_stage = nullptr;
         };
 
     public:
-        std::vector<VkPipelineShaderStageCreateInfo>     ray_gen_stages;
-        std::vector<VkPipelineShaderStageCreateInfo>     hit_stages;
-        std::vector<VkPipelineShaderStageCreateInfo>     miss_stages;
-        std::vector<HitGroupDesc>                        hit_groups;
-        std::vector<std::string>                         entry_point_names;
+        std::vector<VkPipelineShaderStageCreateInfo> ray_gen_stages;
+        std::vector<VkPipelineShaderStageCreateInfo> hit_stages;
+        std::vector<VkPipelineShaderStageCreateInfo> miss_stages;
+        std::vector<HitGroupDesc>                    hit_groups;
+        std::vector<std::string>                     entry_point_names;
 
         Desc();
         Desc& add_ray_gen_group(ShaderModule::Ptr shader, std::string entry_point);
@@ -646,7 +646,7 @@ private:
     ShaderBindingTable(Backend::Ptr backend, Desc desc);
 
 private:
-    std::vector<VkPipelineShaderStageCreateInfo> m_stages;
+    std::vector<VkPipelineShaderStageCreateInfo>     m_stages;
     std::vector<VkRayTracingShaderGroupCreateInfoNV> m_groups;
 };
 
@@ -678,8 +678,8 @@ private:
     RayTracingPipeline(Backend::Ptr backend, Desc desc);
 
 private:
-    VkPipeline m_vk_pipeline;
-    vk::Buffer::Ptr   m_vk_buffer;
+    VkPipeline              m_vk_pipeline;
+    vk::Buffer::Ptr         m_vk_buffer;
     ShaderBindingTable::Ptr m_sbt;
 };
 
