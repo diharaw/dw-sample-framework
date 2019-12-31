@@ -123,6 +123,7 @@ public:
     size_t           aligned_dynamic_ubo_size(size_t size);
     VkFormat         find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
+    inline VkPhysicalDeviceRayTracingPropertiesNV ray_tracing_properties() { return m_ray_tracing_properties; }
     inline VkFormat          swap_chain_image_format() { return m_swap_chain_image_format; }
     inline VkFormat          swap_chain_depth_format() { return m_swap_chain_depth_format; }
     inline uint32_t          current_frame_idx() { return m_current_frame; }
@@ -601,6 +602,54 @@ private:
     VkPipeline m_vk_pipeline;
 };
 
+class ShaderBindingTable : public Object
+{
+public:
+    using Ptr = std::shared_ptr<ShaderBindingTable>;
+
+    struct Desc
+    {
+    private:
+        struct HitGroupDesc
+        {
+            VkPipelineShaderStageCreateInfo* closest_hit_stage = nullptr;
+            VkPipelineShaderStageCreateInfo* any_hit_stage     = nullptr;
+            VkPipelineShaderStageCreateInfo* intersection_stage = nullptr;
+        };
+
+    public:
+        std::vector<VkPipelineShaderStageCreateInfo>     ray_gen_stages;
+        std::vector<VkPipelineShaderStageCreateInfo>     hit_stages;
+        std::vector<VkPipelineShaderStageCreateInfo>     miss_stages;
+        std::vector<HitGroupDesc>                        hit_groups;
+        std::vector<std::string>                         entry_point_names;
+
+        Desc();
+        Desc& add_ray_gen_group(ShaderModule::Ptr shader, std::string entry_point);
+        Desc& add_hit_group(ShaderModule::Ptr closest_hit_shader,
+                            std::string       closest_hit_entry_point,
+                            ShaderModule::Ptr any_hit_shader,
+                            std::string       any_hit_entry_point,
+                            ShaderModule::Ptr intersection_shader,
+                            std::string       intersection_entry_point);
+        Desc& add_miss_group(ShaderModule::Ptr shader, std::string entry_point);
+    };
+
+    static ShaderBindingTable::Ptr create(Backend::Ptr backend, Desc desc);
+
+    inline const std::vector<VkPipelineShaderStageCreateInfo>&     stages() { return m_stages; }
+    inline const std::vector<VkRayTracingShaderGroupCreateInfoNV>& groups() { return m_groups; }
+
+    ~ShaderBindingTable();
+
+private:
+    ShaderBindingTable(Backend::Ptr backend, Desc desc);
+
+private:
+    std::vector<VkPipelineShaderStageCreateInfo> m_stages;
+    std::vector<VkRayTracingShaderGroupCreateInfoNV> m_groups;
+};
+
 class RayTracingPipeline : public Object
 {
 public:
@@ -609,10 +658,10 @@ public:
     struct Desc
     {
         VkRayTracingPipelineCreateInfoNV create_info;
+        ShaderBindingTable::Ptr          sbt;
 
         Desc();
-        Desc& set_shader_stages(std::vector<VkPipelineShaderStageCreateInfo> shader_stages);
-        Desc& set_shader_groups(std::vector<VkRayTracingShaderGroupCreateInfoNV> groups);
+        Desc& set_shader_binding_table(ShaderBindingTable::Ptr table);
         Desc& set_pipeline_layout(std::shared_ptr<PipelineLayout> layout);
         Desc& set_recursion_depth(uint32_t depth);
         Desc& set_base_pipeline(RayTracingPipeline::Ptr pipeline);
@@ -630,6 +679,8 @@ private:
 
 private:
     VkPipeline m_vk_pipeline;
+    vk::Buffer::Ptr   m_vk_buffer;
+    ShaderBindingTable::Ptr m_sbt;
 };
 
 class AccelerationStructure : public Object

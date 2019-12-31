@@ -1812,6 +1812,206 @@ ComputePipeline::~ComputePipeline()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+ShaderBindingTable::Desc::Desc()
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+ShaderBindingTable::Desc& ShaderBindingTable::Desc::add_ray_gen_group(ShaderModule::Ptr shader, std::string entry_point)
+{
+    VkPipelineShaderStageCreateInfo stage;
+    DW_ZERO_MEMORY(stage);
+
+    entry_point_names.push_back(entry_point);
+
+    stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stage.module = shader->handle();
+    stage.stage  = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+    stage.pName  = entry_point_names.back().data();
+
+    ray_gen_stages.push_back(stage);
+
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+ShaderBindingTable::Desc& ShaderBindingTable::Desc::add_hit_group(ShaderModule::Ptr closest_hit_shader,
+                                                                  std::string       closest_hit_entry_point,
+                                                                  ShaderModule::Ptr any_hit_shader,
+                                                                  std::string       any_hit_entry_point,
+                                                                  ShaderModule::Ptr intersection_shader,
+                                                                  std::string       intersection_entry_point)
+{
+    HitGroupDesc group_desc;
+
+    VkPipelineShaderStageCreateInfo closest_hit_stage;
+    DW_ZERO_MEMORY(closest_hit_stage);
+
+    entry_point_names.push_back(closest_hit_entry_point);
+
+    closest_hit_stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    closest_hit_stage.module = closest_hit_shader->handle();
+    closest_hit_stage.stage  = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
+    closest_hit_stage.pName  = entry_point_names.back().data();
+
+    hit_stages.push_back(closest_hit_stage);
+
+    group_desc.closest_hit_stage = &hit_stages.back();
+
+    if (any_hit_shader)
+    {
+        VkPipelineShaderStageCreateInfo any_hit_stage;
+        DW_ZERO_MEMORY(any_hit_stage);
+
+        entry_point_names.push_back(any_hit_entry_point);
+
+        any_hit_stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        any_hit_stage.module = any_hit_shader->handle();
+        any_hit_stage.stage  = VK_SHADER_STAGE_ANY_HIT_BIT_NV;
+        any_hit_stage.pName  = entry_point_names.back().data();
+
+        hit_stages.push_back(any_hit_stage);
+
+        group_desc.any_hit_stage = &hit_stages.back();
+    }
+
+    if (intersection_shader)
+    {
+        VkPipelineShaderStageCreateInfo intersection_stage;
+        DW_ZERO_MEMORY(intersection_stage);
+
+        entry_point_names.push_back(intersection_entry_point);
+
+        intersection_stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        intersection_stage.module = intersection_shader->handle();
+        intersection_stage.stage  = VK_SHADER_STAGE_INTERSECTION_BIT_NV;
+        intersection_stage.pName  = entry_point_names.back().data();
+
+        hit_stages.push_back(intersection_stage);
+
+        group_desc.intersection_stage = &hit_stages.back();
+    }
+
+    hit_groups.push_back(group_desc);
+
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+ShaderBindingTable::Desc& ShaderBindingTable::Desc::add_miss_group(ShaderModule::Ptr shader, std::string entry_point)
+{
+    VkPipelineShaderStageCreateInfo stage;
+    DW_ZERO_MEMORY(stage);
+
+    entry_point_names.push_back(entry_point);
+
+    stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stage.module = shader->handle();
+    stage.stage  = VK_SHADER_STAGE_MISS_BIT_NV;
+    stage.pName  = entry_point_names.back().data();
+
+    miss_stages.push_back(stage);
+
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+ShaderBindingTable::Ptr ShaderBindingTable::create(Backend::Ptr backend, Desc desc)
+{
+    return std::shared_ptr<ShaderBindingTable>(new ShaderBindingTable(backend, desc));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+ShaderBindingTable::~ShaderBindingTable()
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+ShaderBindingTable::ShaderBindingTable(Backend::Ptr backend, Desc desc) :
+    Object(backend)
+{
+    // Ray gen shaders
+    for (auto& stage : desc.ray_gen_stages)
+    {
+        VkRayTracingShaderGroupCreateInfoNV group_info;
+        DW_ZERO_MEMORY(group_info);
+
+        group_info.sType              = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
+        group_info.pNext              = nullptr;
+        group_info.type               = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_NV;
+        group_info.generalShader      = m_stages.size();
+        group_info.closestHitShader   = VK_SHADER_UNUSED_NV;
+        group_info.anyHitShader       = VK_SHADER_UNUSED_NV;
+        group_info.intersectionShader = VK_SHADER_UNUSED_NV;
+
+        m_stages.push_back(stage);
+        m_groups.push_back(group_info);
+    }
+
+    // Ray hit shaders
+    for (auto& group : desc.hit_groups)
+    {
+        if (!group.closest_hit_stage)
+        {
+            DW_LOG_FATAL("(Vulkan) Hit shader group does not have Closest Hit stage.");
+            throw std::runtime_error("(Vulkan) Hit shader group does not have Closest Hit stage.");
+        }
+
+        VkRayTracingShaderGroupCreateInfoNV group_info;
+        DW_ZERO_MEMORY(group_info);
+
+        group_info.sType              = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
+        group_info.pNext              = nullptr;
+        group_info.type               = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_NV;
+        group_info.generalShader      = VK_SHADER_UNUSED_NV;
+        group_info.closestHitShader   = m_stages.size();
+        group_info.anyHitShader       = VK_SHADER_UNUSED_NV;
+        group_info.intersectionShader = VK_SHADER_UNUSED_NV;
+
+        m_stages.push_back(*group.closest_hit_stage);
+
+        if (group.any_hit_stage)
+        {
+            group_info.anyHitShader = m_stages.size();
+            m_stages.push_back(*group.any_hit_stage);
+        }
+
+        if (group.intersection_stage)
+        {
+            group_info.intersectionShader = m_stages.size();
+            m_stages.push_back(*group.intersection_stage);
+        }
+
+        m_groups.push_back(group_info);
+    }
+
+    // Ray miss shaders
+    for (auto& stage : desc.ray_gen_stages)
+    {
+        VkRayTracingShaderGroupCreateInfoNV group_info;
+        DW_ZERO_MEMORY(group_info);
+
+        group_info.sType              = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
+        group_info.pNext              = nullptr;
+        group_info.type               = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_NV;
+        group_info.generalShader      = VK_SHADER_UNUSED_NV;
+        group_info.closestHitShader   = VK_SHADER_UNUSED_NV;
+        group_info.anyHitShader       = VK_SHADER_UNUSED_NV;
+        group_info.intersectionShader = m_stages.size();
+
+        m_stages.push_back(stage);
+        m_groups.push_back(group_info);
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 RayTracingPipeline::Desc::Desc()
 {
     DW_ZERO_MEMORY(create_info);
@@ -1822,19 +2022,18 @@ RayTracingPipeline::Desc::Desc()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-RayTracingPipeline::Desc& RayTracingPipeline::Desc::set_shader_stages(std::vector<VkPipelineShaderStageCreateInfo> shader_stages)
+RayTracingPipeline::Desc& RayTracingPipeline::Desc::set_shader_binding_table(ShaderBindingTable::Ptr table)
 {
-    create_info.stageCount = shader_stages.size();
-    create_info.pStages    = shader_stages.data();
-    return *this;
-}
+    sbt                                                            = table;
+    const std::vector<VkPipelineShaderStageCreateInfo>&     stages = table->stages();
+    const std::vector<VkRayTracingShaderGroupCreateInfoNV>& groups = table->groups();
 
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-RayTracingPipeline::Desc& RayTracingPipeline::Desc::set_shader_groups(std::vector<VkRayTracingShaderGroupCreateInfoNV> groups)
-{
     create_info.groupCount = groups.size();
     create_info.pGroups    = groups.data();
+
+    create_info.stageCount = stages.size();
+    create_info.pStages    = stages.data();
+
     return *this;
 }
 
@@ -1889,6 +2088,8 @@ RayTracingPipeline::~RayTracingPipeline()
 
     auto backend = m_vk_backend.lock();
 
+    m_vk_buffer.reset();
+    m_sbt.reset();
     vkDestroyPipeline(backend->device(), m_vk_pipeline, nullptr);
 }
 
@@ -1897,10 +2098,24 @@ RayTracingPipeline::~RayTracingPipeline()
 RayTracingPipeline::RayTracingPipeline(Backend::Ptr backend, Desc desc) :
     Object(backend)
 {
+    m_sbt = desc.sbt;
+
     if (vkCreateRayTracingPipelinesNV(backend->device(), VK_NULL_HANDLE, 1, &desc.create_info, VK_NULL_HANDLE, &m_vk_pipeline) != VK_SUCCESS)
     {
         DW_LOG_FATAL("(Vulkan) Failed to create Ray Tracing Pipeline.");
         throw std::runtime_error("(Vulkan) Failed to create Ray Tracing Pipeline.");
+    }
+
+    const auto& rt_props = backend->ray_tracing_properties();
+
+    size_t sbt_size = m_sbt->groups().size() * rt_props.shaderGroupHandleSize;
+
+    m_vk_buffer = vk::Buffer::create(backend, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sbt_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+
+    if (vkGetRayTracingShaderGroupHandlesNV(backend->device(), m_vk_pipeline, 0, m_sbt->groups().size(), sbt_size, m_vk_buffer->mapped_ptr()) != VK_SUCCESS)
+    {
+        DW_LOG_FATAL("(Vulkan) Failed to get Shader Group handles.");
+        throw std::runtime_error("(Vulkan) Failed to get Shader Group handles.");
     }
 }
 
@@ -3065,7 +3280,7 @@ bool Backend::check_device_extension_support(VkPhysicalDevice device, std::vecto
     std::vector<VkExtensionProperties> available_extensions(extension_count);
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, &available_extensions[0]);
 
-    int  unavailable_extensions = extensions.size();
+    int unavailable_extensions = extensions.size();
 
     for (auto& str : extensions)
     {
