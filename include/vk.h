@@ -625,20 +625,22 @@ public:
         std::vector<std::string>                     entry_point_names;
 
         Desc();
-        Desc& add_ray_gen_group(ShaderModule::Ptr shader, std::string entry_point);
+        Desc& add_ray_gen_group(ShaderModule::Ptr shader, const std::string& entry_point);
         Desc& add_hit_group(ShaderModule::Ptr closest_hit_shader,
-                            std::string       closest_hit_entry_point,
-                            ShaderModule::Ptr any_hit_shader,
-                            std::string       any_hit_entry_point,
-                            ShaderModule::Ptr intersection_shader,
-                            std::string       intersection_entry_point);
-        Desc& add_miss_group(ShaderModule::Ptr shader, std::string entry_point);
+                            const std::string& closest_hit_entry_point,
+                            ShaderModule::Ptr any_hit_shader = nullptr,
+                            const std::string& any_hit_entry_point      = "",
+                            ShaderModule::Ptr intersection_shader = nullptr,
+                            const std::string& intersection_entry_point = "");
+        Desc& add_miss_group(ShaderModule::Ptr shader, const std::string& entry_point);
     };
 
     static ShaderBindingTable::Ptr create(Backend::Ptr backend, Desc desc);
 
     inline const std::vector<VkPipelineShaderStageCreateInfo>&     stages() { return m_stages; }
     inline const std::vector<VkRayTracingShaderGroupCreateInfoNV>& groups() { return m_groups; }
+    VkDeviceSize                                                   hit_group_offset();
+    VkDeviceSize                                                   miss_group_offset();
 
     ~ShaderBindingTable();
 
@@ -646,6 +648,10 @@ private:
     ShaderBindingTable(Backend::Ptr backend, Desc desc);
 
 private:
+    VkDeviceSize                                     m_ray_gen_size;
+    VkDeviceSize                                     m_hit_group_size;
+    VkDeviceSize                                     m_miss_group_size;
+    std::vector<std::string>                         m_entry_point_names;
     std::vector<VkPipelineShaderStageCreateInfo>     m_stages;
     std::vector<VkRayTracingShaderGroupCreateInfoNV> m_groups;
 };
@@ -670,6 +676,8 @@ public:
 
     static RayTracingPipeline::Ptr create(Backend::Ptr backend, Desc desc);
 
+    inline ShaderBindingTable::Ptr shader_binding_table() { return m_sbt; }
+    inline Buffer::Ptr   shader_binding_table_buffer() { return m_vk_buffer; }
     inline const VkPipeline& handle() { return m_vk_pipeline; }
 
     ~RayTracingPipeline();

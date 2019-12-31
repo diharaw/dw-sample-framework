@@ -19,7 +19,10 @@ if (USE_VULKAN)
     endif()
 
     set(VULKAN_SHADERS ${PROJECT_SOURCE_DIR}/sample/mesh.vert
-                       ${PROJECT_SOURCE_DIR}/sample/mesh.frag)
+                       ${PROJECT_SOURCE_DIR}/sample/mesh.frag
+                       ${PROJECT_SOURCE_DIR}/sample/mesh.rgen
+                       ${PROJECT_SOURCE_DIR}/sample/mesh.rmiss
+                       ${PROJECT_SOURCE_DIR}/sample/mesh.rchit)
 
     source_group("shaders" FILES  ${VULKAN_SHADERS})
 else()

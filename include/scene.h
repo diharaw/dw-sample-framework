@@ -17,6 +17,8 @@ public:
 
 #if defined(DWSF_VULKAN)
     void build_acceleration_structure(vk::Backend::Ptr backend);
+
+    inline vk::AccelerationStructure::Ptr acceleration_structure() { return m_vk_top_level_as; }
 #endif
 
 private:
