@@ -46,7 +46,7 @@ void Scene::add_instance(dw::Mesh::Ptr mesh, glm::mat4 transform)
 
     std::memcpy(instance.transform, xform, sizeof(xform));
 
-    instance.instanceCustomIndex         = static_cast<uint32_t>(m_instances.size());
+    instance.instanceCustomIndex         = 0;
     instance.mask                        = 0xff;
     instance.instanceOffset              = 0;
     instance.flags                       = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;

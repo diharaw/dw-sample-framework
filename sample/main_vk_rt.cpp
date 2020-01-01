@@ -17,6 +17,14 @@ struct Transforms
     glm::mat4 view;
     DW_ALIGNED(16)
     glm::mat4 projection;
+    DW_ALIGNED(16)
+    glm::vec4 cam_pos_fovy;
+    DW_ALIGNED(16)
+    glm::vec4 cam_dir_farz;
+    DW_ALIGNED(16)
+    glm::vec4 cam_up;
+    DW_ALIGNED(16)
+    glm::vec4 cam_right;
 };
 
 class Sample : public dw::Application
@@ -137,6 +145,8 @@ private:
         return true;
     }
 
+    // -----------------------------------------------------------------------------------------------------------------------------------
+
     void create_output_image()
     {
         m_output_image = dw::vk::Image::create(m_vk_backend, VK_IMAGE_TYPE_2D, m_width, m_height, 1, 1, 1, m_vk_backend->swap_chain_image_format(), VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT);
@@ -187,7 +197,7 @@ private:
 
             buffer_info.buffer = m_ubo->handle();
             buffer_info.offset = 0;
-            buffer_info.range  = sizeof(glm::mat4);
+            buffer_info.range  = sizeof(Transforms);
 
             VkWriteDescriptorSet write_data;
             DW_ZERO_MEMORY(write_data);
@@ -240,7 +250,7 @@ private:
 
             buffer_info.buffer = m_ubo->handle();
             buffer_info.offset = 0;
-            buffer_info.range  = sizeof(glm::mat4);
+            buffer_info.range  = sizeof(Transforms);
 
             write_data[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             write_data[2].descriptorCount = 1;
@@ -471,14 +481,23 @@ private:
 
         vkCmdBindDescriptorSets(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, m_raytracing_pipeline_layout->handle(), 0, 1, &m_ray_tracing_ds->handle(), 1, &dynamic_offset);
 
-        vkCmdTraceRaysNV(cmd_buf->handle(), 
-            m_raytracing_pipeline->shader_binding_table_buffer()->handle(), 0, 
-            m_raytracing_pipeline->shader_binding_table_buffer()->handle(), m_sbt->hit_group_offset(),  rt_props.shaderGroupHandleSize, 
-            m_raytracing_pipeline->shader_binding_table_buffer()->handle(), m_sbt->miss_group_offset(), rt_props.shaderGroupHandleSize, 
-            VK_NULL_HANDLE, 0, 0, 
-            m_width, m_height, 1);
+        vkCmdTraceRaysNV(cmd_buf->handle(),
+                         m_raytracing_pipeline->shader_binding_table_buffer()->handle(),
+                         0,
+                         m_raytracing_pipeline->shader_binding_table_buffer()->handle(),
+                         m_sbt->miss_group_offset(),
+                         rt_props.shaderGroupHandleSize,
+                         m_raytracing_pipeline->shader_binding_table_buffer()->handle(),
+                         m_sbt->hit_group_offset(),
+                         rt_props.shaderGroupHandleSize,
+                         VK_NULL_HANDLE,
+                         0,
+                         0,
+                         m_width,
+                         m_height,
+                         1);
 
-       // dw::vk::utilities::set_image_layout(cmd_buf->handle(), m_output_image->handle(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresource_range);
+        //dw::vk::utilities::set_image_layout(cmd_buf->handle(), m_output_image->handle(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresource_range);
         //dw::vk::utilities::set_image_layout(cmd_buf->handle(), m_vk_backend->swapchain_image()->handle(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresource_range);
     }
 
@@ -525,8 +544,6 @@ private:
 
         vkCmdBeginRenderPass(cmd_buf->handle(), &info, VK_SUBPASS_CONTENTS_INLINE);
 
-        vkCmdBindPipeline(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics_pipeline->handle());
-
         VkViewport vp;
 
         vp.x        = 0.0f;
@@ -564,6 +581,10 @@ private:
         m_transforms.model      = glm::scale(m_transforms.model, glm::vec3(0.6f));
         m_transforms.view       = m_main_camera->m_view;
         m_transforms.projection = m_main_camera->m_projection;
+        m_transforms.cam_dir_farz = glm::vec4(m_main_camera->m_forward, m_main_camera->m_far);
+        m_transforms.cam_pos_fovy = glm::vec4(m_main_camera->m_position, m_main_camera->m_fov);
+        m_transforms.cam_right = glm::vec4(m_main_camera->m_right, 0.0f);
+        m_transforms.cam_up = glm::vec4(m_main_camera->m_up, 0.0f);
 
         uint8_t* ptr = (uint8_t*)m_ubo->mapped_ptr();
         memcpy(ptr + m_ubo_size * m_vk_backend->current_frame_idx(), &m_transforms, sizeof(Transforms));

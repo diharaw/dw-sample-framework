@@ -1930,14 +1930,14 @@ ShaderBindingTable::Ptr ShaderBindingTable::create(Backend::Ptr backend, Desc de
 
 VkDeviceSize ShaderBindingTable::hit_group_offset()
 {
-    return m_ray_gen_size;
+    return m_ray_gen_size + m_miss_group_size;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 VkDeviceSize ShaderBindingTable::miss_group_offset()
 {
-    return m_ray_gen_size + m_hit_group_size;
+    return m_ray_gen_size;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1972,6 +1972,27 @@ ShaderBindingTable::ShaderBindingTable(Backend::Ptr backend, Desc desc) :
         group_info.closestHitShader   = VK_SHADER_UNUSED_NV;
         group_info.anyHitShader       = VK_SHADER_UNUSED_NV;
         group_info.intersectionShader = VK_SHADER_UNUSED_NV;
+
+        m_stages.push_back(stage);
+        m_groups.push_back(group_info);
+    }
+
+    // Ray miss shaders
+    for (auto& stage : desc.miss_stages)
+    {
+        VkRayTracingShaderGroupCreateInfoNV group_info;
+        DW_ZERO_MEMORY(group_info);
+
+        group_info.sType              = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
+        group_info.pNext              = nullptr;
+        group_info.type               = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_NV;
+        group_info.generalShader      = m_stages.size();
+        group_info.closestHitShader   = VK_SHADER_UNUSED_NV;
+        group_info.anyHitShader       = VK_SHADER_UNUSED_NV;
+        group_info.intersectionShader = VK_SHADER_UNUSED_NV;
+
+        m_entry_point_names.push_back(std::string(stage.pName));
+        stage.pName = m_entry_point_names[m_entry_point_names.size() - 1].c_str();
 
         m_stages.push_back(stage);
         m_groups.push_back(group_info);
@@ -2025,29 +2046,8 @@ ShaderBindingTable::ShaderBindingTable(Backend::Ptr backend, Desc desc) :
         m_groups.push_back(group_info);
     }
 
-    // Ray miss shaders
-    for (auto& stage : desc.miss_stages)
-    {
-        VkRayTracingShaderGroupCreateInfoNV group_info;
-        DW_ZERO_MEMORY(group_info);
-
-        group_info.sType              = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
-        group_info.pNext              = nullptr;
-        group_info.type               = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_NV;
-        group_info.generalShader      = m_stages.size();
-        group_info.closestHitShader   = VK_SHADER_UNUSED_NV;
-        group_info.anyHitShader       = VK_SHADER_UNUSED_NV;
-        group_info.intersectionShader = VK_SHADER_UNUSED_NV;
-
-        m_entry_point_names.push_back(std::string(stage.pName));
-        stage.pName = m_entry_point_names[m_entry_point_names.size() - 1].c_str();
-
-        m_stages.push_back(stage);
-        m_groups.push_back(group_info);
-    }
-
-    m_ray_gen_size = desc.ray_gen_stages.size() * rt_props.shaderGroupHandleSize;
-    m_hit_group_size = desc.hit_groups.size() * rt_props.shaderGroupHandleSize;
+    m_ray_gen_size    = desc.ray_gen_stages.size() * rt_props.shaderGroupHandleSize;
+    m_hit_group_size  = desc.hit_groups.size() * rt_props.shaderGroupHandleSize;
     m_miss_group_size = desc.miss_stages.size() * rt_props.shaderGroupHandleSize;
 }
 
@@ -2154,7 +2154,7 @@ RayTracingPipeline::RayTracingPipeline(Backend::Ptr backend, Desc desc) :
 
     size_t sbt_size = m_sbt->groups().size() * rt_props.shaderGroupHandleSize;
 
-    m_vk_buffer = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, sbt_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+    m_vk_buffer = vk::Buffer::create(backend, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sbt_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
     if (vkGetRayTracingShaderGroupHandlesNV(backend->device(), m_vk_pipeline, 0, m_sbt->groups().size(), sbt_size, m_vk_buffer->mapped_ptr()) != VK_SUCCESS)
     {
@@ -2792,7 +2792,10 @@ Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require
     std::vector<const char*> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
     if (require_ray_tracing)
+    {
         device_extensions.push_back(VK_NV_RAY_TRACING_EXTENSION_NAME);
+        device_extensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+    }
 
     if (!find_physical_device(device_extensions))
     {
@@ -2893,7 +2896,8 @@ void Backend::initialize()
         .add_pool_size(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 256)
         .add_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 32)
         .add_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 32)
-        .add_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 16);
+        .add_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 16)
+        .add_pool_size(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 16);
 
     for (int i = 0; i < MAX_DESCRIPTOR_POOL_THREADS; i++)
         g_descriptor_pools[i] = DescriptorPool::create(shared_from_this(), dp_desc);

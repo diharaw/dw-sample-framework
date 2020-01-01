@@ -61,14 +61,14 @@ void main()
     traceNV(Scene,
             ray_flags,
             cull_mask,
-            CLOSEST_HIT_SHADER_IDX,
-            stb_record_stride,
-            MISS_SHADER_IDX,
+            0,
+            0,
+            0,
             origin,
             tmin,
             direction,
             tmax,
-            PRIMARY_RAY_PAYLOAD_LOC);
+            0);
 
     final_color = PrimaryRay.color_dist.xyz;
 
