@@ -5,7 +5,7 @@
 
 #include "common.glsl"
 
-layout(location = PRIMARY_RAY_PAYLOAD_LOC) rayPayloadNV RayPayload PrimaryRay;
+layout(location = PRIMARY_RAY_PAYLOAD_LOC) rayPayloadInNV RayPayload PrimaryRay;
 hitAttributeNV vec3 attribs;
 
 void main() 
