@@ -700,6 +700,8 @@ Buffer::Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaM
     m_vk_memory_property = memory_prop_flags;
     m_vk_usage_flags     = usage_flags;
 
+    buffer_info.usage = m_vk_usage_flags;
+
     VmaAllocationInfo vma_alloc_info;
 
     VmaAllocationCreateInfo alloc_create_info;
@@ -1692,6 +1694,133 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_base_pipeline_index(const in
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+GraphicsPipeline::Ptr GraphicsPipeline::create_for_post_process(Backend::Ptr backend, std::string vs, std::string fs, std::shared_ptr<PipelineLayout> pipeline_layout, RenderPass::Ptr render_pass)
+{
+    // ---------------------------------------------------------------------------
+    // Create shader modules
+    // ---------------------------------------------------------------------------
+
+    dw::vk::ShaderModule::Ptr vs_module = dw::vk::ShaderModule::create_from_file(backend, vs);
+    dw::vk::ShaderModule::Ptr fs_module = dw::vk::ShaderModule::create_from_file(backend, fs);
+
+    dw::vk::GraphicsPipeline::Desc pso_desc;
+
+    pso_desc.add_shader_stage(VK_SHADER_STAGE_VERTEX_BIT, vs_module, "main")
+        .add_shader_stage(VK_SHADER_STAGE_FRAGMENT_BIT, fs_module, "main");
+
+    // ---------------------------------------------------------------------------
+    // Vertex input state
+    // ---------------------------------------------------------------------------
+
+    VertexInputStateDesc vs_desc;
+
+    pso_desc.set_vertex_input_state(vs_desc);
+
+    // ---------------------------------------------------------------------------
+    // Create pipeline input assembly state
+    // ---------------------------------------------------------------------------
+
+    dw::vk::InputAssemblyStateDesc input_assembly_state_desc;
+
+    input_assembly_state_desc.set_primitive_restart_enable(false)
+        .set_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+
+    pso_desc.set_input_assembly_state(input_assembly_state_desc);
+
+    // ---------------------------------------------------------------------------
+    // Create viewport state
+    // ---------------------------------------------------------------------------
+
+    dw::vk::ViewportStateDesc vp_desc;
+
+    vp_desc.add_viewport(0.0f, 0.0f, 1, 1, 0.0f, 1.0f)
+        .add_scissor(0, 0, 1, 1);
+
+    pso_desc.set_viewport_state(vp_desc);
+
+    // ---------------------------------------------------------------------------
+    // Create rasterization state
+    // ---------------------------------------------------------------------------
+
+    dw::vk::RasterizationStateDesc rs_state;
+
+    rs_state.set_depth_clamp(VK_FALSE)
+        .set_rasterizer_discard_enable(VK_FALSE)
+        .set_polygon_mode(VK_POLYGON_MODE_FILL)
+        .set_line_width(1.0f)
+        .set_cull_mode(VK_CULL_MODE_NONE)
+        .set_front_face(VK_FRONT_FACE_COUNTER_CLOCKWISE)
+        .set_depth_bias(VK_FALSE);
+
+    pso_desc.set_rasterization_state(rs_state);
+
+    // ---------------------------------------------------------------------------
+    // Create multisample state
+    // ---------------------------------------------------------------------------
+
+    dw::vk::MultisampleStateDesc ms_state;
+
+    ms_state.set_sample_shading_enable(VK_FALSE)
+        .set_rasterization_samples(VK_SAMPLE_COUNT_1_BIT);
+
+    pso_desc.set_multisample_state(ms_state);
+
+    // ---------------------------------------------------------------------------
+    // Create depth stencil state
+    // ---------------------------------------------------------------------------
+
+    dw::vk::DepthStencilStateDesc ds_state;
+
+    ds_state.set_depth_test_enable(VK_FALSE)
+        .set_depth_write_enable(VK_FALSE)
+        .set_depth_compare_op(VK_COMPARE_OP_LESS)
+        .set_depth_bounds_test_enable(VK_FALSE)
+        .set_stencil_test_enable(VK_FALSE);
+
+    pso_desc.set_depth_stencil_state(ds_state);
+
+    // ---------------------------------------------------------------------------
+    // Create color blend state
+    // ---------------------------------------------------------------------------
+
+    dw::vk::ColorBlendAttachmentStateDesc blend_att_desc;
+
+    blend_att_desc.set_color_write_mask(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT)
+        .set_blend_enable(VK_FALSE);
+
+    dw::vk::ColorBlendStateDesc blend_state;
+
+    blend_state.set_logic_op_enable(VK_FALSE)
+        .set_logic_op(VK_LOGIC_OP_COPY)
+        .set_blend_constants(0.0f, 0.0f, 0.0f, 0.0f)
+        .add_attachment(blend_att_desc);
+
+    pso_desc.set_color_blend_state(blend_state);
+
+    // ---------------------------------------------------------------------------
+    // Create pipeline layout
+    // ---------------------------------------------------------------------------
+
+    pso_desc.set_pipeline_layout(pipeline_layout);
+
+    // ---------------------------------------------------------------------------
+    // Create dynamic state
+    // ---------------------------------------------------------------------------
+
+    pso_desc.add_dynamic_state(VK_DYNAMIC_STATE_VIEWPORT)
+        .add_dynamic_state(VK_DYNAMIC_STATE_SCISSOR);
+
+    // ---------------------------------------------------------------------------
+    // Create pipeline
+    // ---------------------------------------------------------------------------
+
+    pso_desc.set_render_pass(render_pass);
+
+    return dw::vk::GraphicsPipeline::create(backend, pso_desc);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 GraphicsPipeline::Ptr GraphicsPipeline::create(Backend::Ptr backend, Desc desc)
 {
     return std::shared_ptr<GraphicsPipeline>(new GraphicsPipeline(backend, desc));
@@ -2224,7 +2353,41 @@ AccelerationStructure::~AccelerationStructure()
     auto backend = m_vk_backend.lock();
 
     vkDestroyAccelerationStructureNV(backend->device(), m_vk_acceleration_structure, nullptr);
-    vmaFreeMemory(backend->allocator(), m_vma_allocation);
+    vkFreeMemory(backend->device(), m_memory, nullptr);
+}
+
+uint32_t getMemoryType(VkPhysicalDevice device, uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound = nullptr)
+{
+    VkPhysicalDeviceMemoryProperties prop;
+
+    // Memory properties are used regularly for creating all kinds of buffers
+    vkGetPhysicalDeviceMemoryProperties(device, &prop);
+
+    for (uint32_t i = 0; i < prop.memoryTypeCount; i++)
+    {
+        if ((typeBits & 1) == 1)
+        {
+            if ((prop.memoryTypes[i].propertyFlags & properties) == properties)
+            {
+                if (memTypeFound)
+                {
+                    *memTypeFound = true;
+                }
+                return i;
+            }
+        }
+        typeBits >>= 1;
+    }
+
+    if (memTypeFound)
+    {
+        *memTypeFound = false;
+        return 0;
+    }
+    else
+    {
+        throw std::runtime_error("Could not find a matching memory type");
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2251,20 +2414,26 @@ AccelerationStructure::AccelerationStructure(Backend::Ptr backend, Desc desc) :
     VkMemoryRequirements2 memory_requirements;
     vkGetAccelerationStructureMemoryRequirementsNV(backend->device(), &memory_requirements_info, &memory_requirements);
 
-    VmaAllocationInfo       alloc_info;
+    /*VmaAllocationInfo       alloc_info;
     VmaAllocationCreateInfo alloc_create_info;
     DW_ZERO_MEMORY(alloc_create_info);
 
     alloc_create_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     alloc_create_info.flags = 0;
 
-    vmaAllocateMemory(backend->allocator(), &memory_requirements.memoryRequirements, &alloc_create_info, &m_vma_allocation, &alloc_info);
+    vmaAllocateMemory(backend->allocator(), &memory_requirements.memoryRequirements, &alloc_create_info, &m_vma_allocation, &alloc_info);*/
+
+    VkMemoryAllocateInfo mem_alloc_info {};
+    mem_alloc_info.sType                    = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    mem_alloc_info.allocationSize  = memory_requirements.memoryRequirements.size;
+    mem_alloc_info.memoryTypeIndex          = getMemoryType(backend->physical_device(), memory_requirements.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    vkAllocateMemory(backend->device(), &mem_alloc_info, nullptr, &m_memory);
 
     VkBindAccelerationStructureMemoryInfoNV bind_info;
     bind_info.sType                 = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
     bind_info.pNext                 = nullptr;
     bind_info.accelerationStructure = m_vk_acceleration_structure;
-    bind_info.memory                = alloc_info.deviceMemory;
+    bind_info.memory                = m_memory;
     bind_info.memoryOffset          = 0;
     bind_info.deviceIndexCount      = 0;
     bind_info.pDeviceIndices        = nullptr;
@@ -3848,7 +4017,7 @@ bool Backend::create_swapchain()
     create_info.imageColorSpace  = surface_format.colorSpace;
     create_info.imageExtent      = extent;
     create_info.imageArrayLayers = 1;
-    create_info.imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    create_info.imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
     m_swap_chain_image_format = surface_format.format;
     m_swap_chain_extent       = extent;

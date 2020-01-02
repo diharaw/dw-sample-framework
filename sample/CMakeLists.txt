@@ -18,11 +18,13 @@ if (USE_VULKAN)
         set(GLSL_VALIDATOR "$ENV{VULKAN_SDK}/Bin32/glslangValidator.exe")
     endif()
 
-    set(VULKAN_SHADERS ${PROJECT_SOURCE_DIR}/sample/mesh.vert
-                       ${PROJECT_SOURCE_DIR}/sample/mesh.frag
-                       ${PROJECT_SOURCE_DIR}/sample/mesh.rgen
-                       ${PROJECT_SOURCE_DIR}/sample/mesh.rmiss
-                       ${PROJECT_SOURCE_DIR}/sample/mesh.rchit)
+    set(VULKAN_SHADERS ${PROJECT_SOURCE_DIR}/sample/shaders/mesh.vert
+                       ${PROJECT_SOURCE_DIR}/sample/shaders/mesh.frag
+                       ${PROJECT_SOURCE_DIR}/sample/shaders/copy.frag
+                       ${PROJECT_SOURCE_DIR}/sample/shaders/triangle.vert
+                       ${PROJECT_SOURCE_DIR}/sample/shaders/mesh.rgen
+                       ${PROJECT_SOURCE_DIR}/sample/shaders/mesh.rmiss
+                       ${PROJECT_SOURCE_DIR}/sample/shaders/mesh.rchit)
 
     source_group("shaders" FILES  ${VULKAN_SHADERS})
 else()

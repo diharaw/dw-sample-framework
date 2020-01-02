@@ -559,6 +559,7 @@ public:
         Desc& set_base_pipeline_index(const int32_t& index);
     };
 
+    static GraphicsPipeline::Ptr create_for_post_process(Backend::Ptr backend, std::string vs, std::string fs, std::shared_ptr<PipelineLayout> pipeline_layout, RenderPass::Ptr render_pass);
     static GraphicsPipeline::Ptr create(Backend::Ptr backend, Desc desc);
 
     inline const VkPipeline& handle() { return m_vk_pipeline; }
@@ -673,7 +674,7 @@ public:
         Desc& set_base_pipeline(RayTracingPipeline::Ptr pipeline);
         Desc& set_base_pipeline_index(int32_t index);
     };
-
+    
     static RayTracingPipeline::Ptr create(Backend::Ptr backend, Desc desc);
 
     inline ShaderBindingTable::Ptr shader_binding_table() { return m_sbt; }
@@ -719,7 +720,7 @@ private:
     AccelerationStructure(Backend::Ptr backend, Desc desc);
 
 private:
-    VmaAllocation_T*              m_vma_allocation = nullptr;
+    VkDeviceMemory                m_memory = nullptr;
     uint64_t                      m_handle         = 0;
     VkAccelerationStructureInfoNV m_vk_acceleration_structure_info;
     VkAccelerationStructureNV     m_vk_acceleration_structure = nullptr;
