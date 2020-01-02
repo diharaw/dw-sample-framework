@@ -126,12 +126,12 @@ void Mesh::initialize_for_ray_tracing(vk::Backend::Ptr backend)
         current.geometry.triangles.sType           = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
         current.geometry.triangles.pNext           = nullptr;
         current.geometry.triangles.vertexData      = m_vbo->handle();
-        current.geometry.triangles.vertexOffset    = submesh.base_vertex;
+        current.geometry.triangles.vertexOffset    = submesh.base_vertex * sizeof(Vertex);
         current.geometry.triangles.vertexCount     = submesh.index_count;
         current.geometry.triangles.vertexStride    = sizeof(Vertex);
         current.geometry.triangles.vertexFormat    = VK_FORMAT_R32G32B32_SFLOAT;
         current.geometry.triangles.indexData       = m_ibo->handle();
-        current.geometry.triangles.indexOffset     = submesh.base_index;
+        current.geometry.triangles.indexOffset     = submesh.base_index * sizeof(uint32_t);
         current.geometry.triangles.indexCount      = submesh.index_count;
         current.geometry.triangles.indexType       = VK_INDEX_TYPE_UINT32;
         current.geometry.triangles.transformData   = VK_NULL_HANDLE;
