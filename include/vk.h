@@ -627,11 +627,11 @@ public:
 
         Desc();
         Desc& add_ray_gen_group(ShaderModule::Ptr shader, const std::string& entry_point);
-        Desc& add_hit_group(ShaderModule::Ptr closest_hit_shader,
+        Desc& add_hit_group(ShaderModule::Ptr  closest_hit_shader,
                             const std::string& closest_hit_entry_point,
-                            ShaderModule::Ptr any_hit_shader = nullptr,
+                            ShaderModule::Ptr  any_hit_shader           = nullptr,
                             const std::string& any_hit_entry_point      = "",
-                            ShaderModule::Ptr intersection_shader = nullptr,
+                            ShaderModule::Ptr  intersection_shader      = nullptr,
                             const std::string& intersection_entry_point = "");
         Desc& add_miss_group(ShaderModule::Ptr shader, const std::string& entry_point);
     };
@@ -674,12 +674,12 @@ public:
         Desc& set_base_pipeline(RayTracingPipeline::Ptr pipeline);
         Desc& set_base_pipeline_index(int32_t index);
     };
-    
+
     static RayTracingPipeline::Ptr create(Backend::Ptr backend, Desc desc);
 
     inline ShaderBindingTable::Ptr shader_binding_table() { return m_sbt; }
-    inline Buffer::Ptr   shader_binding_table_buffer() { return m_vk_buffer; }
-    inline const VkPipeline& handle() { return m_vk_pipeline; }
+    inline Buffer::Ptr             shader_binding_table_buffer() { return m_vk_buffer; }
+    inline const VkPipeline&       handle() { return m_vk_pipeline; }
 
     ~RayTracingPipeline();
 
@@ -721,7 +721,7 @@ private:
 
 private:
     VkDeviceMemory                m_memory = nullptr;
-    uint64_t                      m_handle         = 0;
+    uint64_t                      m_handle = 0;
     VkAccelerationStructureInfoNV m_vk_acceleration_structure_info;
     VkAccelerationStructureNV     m_vk_acceleration_structure = nullptr;
 };
@@ -938,7 +938,9 @@ extern void set_image_layout(VkCommandBuffer         cmdbuffer,
                              VkImageSubresourceRange subresourceRange,
                              VkPipelineStageFlags    srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                              VkPipelineStageFlags    dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-}
+
+extern uint32_t get_memory_type(VkPhysicalDevice device, uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound = nullptr);
+} // namespace utilities
 
 } // namespace vk
 } // namespace dw

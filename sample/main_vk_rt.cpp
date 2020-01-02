@@ -100,7 +100,7 @@ protected:
         m_output_view.reset();
         m_output_image.reset();
         m_sbt.reset();
-   
+
         // Unload assets.
         m_scene.reset();
         m_mesh.reset();

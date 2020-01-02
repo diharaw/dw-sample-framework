@@ -2356,40 +2356,6 @@ AccelerationStructure::~AccelerationStructure()
     vkFreeMemory(backend->device(), m_memory, nullptr);
 }
 
-uint32_t getMemoryType(VkPhysicalDevice device, uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound = nullptr)
-{
-    VkPhysicalDeviceMemoryProperties prop;
-
-    // Memory properties are used regularly for creating all kinds of buffers
-    vkGetPhysicalDeviceMemoryProperties(device, &prop);
-
-    for (uint32_t i = 0; i < prop.memoryTypeCount; i++)
-    {
-        if ((typeBits & 1) == 1)
-        {
-            if ((prop.memoryTypes[i].propertyFlags & properties) == properties)
-            {
-                if (memTypeFound)
-                {
-                    *memTypeFound = true;
-                }
-                return i;
-            }
-        }
-        typeBits >>= 1;
-    }
-
-    if (memTypeFound)
-    {
-        *memTypeFound = false;
-        return 0;
-    }
-    else
-    {
-        throw std::runtime_error("Could not find a matching memory type");
-    }
-}
-
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 AccelerationStructure::AccelerationStructure(Backend::Ptr backend, Desc desc) :
@@ -2424,9 +2390,9 @@ AccelerationStructure::AccelerationStructure(Backend::Ptr backend, Desc desc) :
     vmaAllocateMemory(backend->allocator(), &memory_requirements.memoryRequirements, &alloc_create_info, &m_vma_allocation, &alloc_info);*/
 
     VkMemoryAllocateInfo mem_alloc_info {};
-    mem_alloc_info.sType                    = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    mem_alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     mem_alloc_info.allocationSize  = memory_requirements.memoryRequirements.size;
-    mem_alloc_info.memoryTypeIndex          = getMemoryType(backend->physical_device(), memory_requirements.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    mem_alloc_info.memoryTypeIndex = utilities::get_memory_type(backend->physical_device(), memory_requirements.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     vkAllocateMemory(backend->device(), &mem_alloc_info, nullptr, &m_memory);
 
     VkBindAccelerationStructureMemoryInfoNV bind_info;
@@ -4370,6 +4336,40 @@ void set_image_layout(VkCommandBuffer         cmdbuffer,
         nullptr,
         1,
         &image_memory_barrier);
+}
+
+uint32_t get_memory_type(VkPhysicalDevice device, uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound)
+{
+    VkPhysicalDeviceMemoryProperties prop;
+
+    // Memory properties are used regularly for creating all kinds of buffers
+    vkGetPhysicalDeviceMemoryProperties(device, &prop);
+
+    for (uint32_t i = 0; i < prop.memoryTypeCount; i++)
+    {
+        if ((typeBits & 1) == 1)
+        {
+            if ((prop.memoryTypes[i].propertyFlags & properties) == properties)
+            {
+                if (memTypeFound)
+                {
+                    *memTypeFound = true;
+                }
+                return i;
+            }
+        }
+        typeBits >>= 1;
+    }
+
+    if (memTypeFound)
+    {
+        *memTypeFound = false;
+        return 0;
+    }
+    else
+    {
+        throw std::runtime_error("Could not find a matching memory type");
+    }
 }
 } // namespace utilities
 
