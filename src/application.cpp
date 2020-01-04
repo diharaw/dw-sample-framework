@@ -198,7 +198,7 @@ bool Application::init_base(int argc, const char* argv[])
 #if defined(DWSF_IMGUI)
     ImGui::CreateContext();
 
-#   if defined(DWSF_VULKAN)
+#    if defined(DWSF_VULKAN)
     ImGui_ImplGlfw_InitForVulkan(m_window, false);
 
     ImGui_ImplVulkan_InitInfo init_info = {};
@@ -233,10 +233,10 @@ bool Application::init_base(int argc, const char* argv[])
     m_vk_backend->flush_graphics({ cmd_buf });
 
     ImGui_ImplVulkan_DestroyFontUploadObjects();
-#   else
+#    else
     ImGui_ImplGlfw_InitForOpenGL(m_window, false);
     ImGui_ImplOpenGL3_Init(imgui_glsl_version);
-#   endif
+#    endif
 
     ImGui::StyleColorsDark();
 #endif
@@ -301,9 +301,9 @@ void Application::shutdown_base()
     Material::shutdown_common_resources();
 
     // Shutdown ImGui.
-#   if defined(DWSF_IMGUI)
+#    if defined(DWSF_IMGUI)
     ImGui_ImplVulkan_Shutdown();
-#   endif
+#    endif
 
     for (int i = 0; i < vk::Backend::kMaxFramesInFlight; i++)
     {
@@ -316,9 +316,9 @@ void Application::shutdown_base()
     // Shutdown debug draw.
     m_debug_draw.shutdown();
 
-#   if defined(DWSF_IMGUI)
+#    if defined(DWSF_IMGUI)
     ImGui_ImplOpenGL3_Shutdown();
-#   endif
+#    endif
 #endif
 
 #if defined(DWSF_IMGUI)
@@ -377,11 +377,13 @@ void Application::begin_frame()
 
     m_vk_backend->acquire_next_swap_chain_image(m_image_available_semaphores[m_vk_backend->current_frame_idx()]);
 
-#   if defined(DWSF_IMGUI)
+#    if defined(DWSF_IMGUI)
     ImGui_ImplVulkan_NewFrame();
-#   endif
+#    endif
 #else
+#    if defined(DWSF_IMGUI)
     ImGui_ImplOpenGL3_NewFrame();
+#    endif
 #endif
 
 #if defined(DWSF_IMGUI)
@@ -405,10 +407,10 @@ void Application::end_frame()
     profiler::end_frame();
 
 #if !defined(DWSF_VULKAN)
-#   if defined(DWSF_IMGUI)
+#    if defined(DWSF_IMGUI)
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-#   endif
+#    endif
     glfwSwapBuffers(m_window);
 #endif
 
@@ -569,7 +571,7 @@ void Application::mouse_button_callback_glfw(GLFWwindow* window, int button, int
 {
 #if defined(DWSF_IMGUI)
     ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
-#endif 
+#endif
     Application* app = (Application*)glfwGetWindowUserPointer(window);
     app->mouse_button_callback(window, button, action, mods);
 }

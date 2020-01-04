@@ -60,7 +60,6 @@ void Scene::add_instance(dw::Mesh::Ptr mesh, glm::mat4 transform)
 
 void Scene::initialize_for_indirect_draw(vk::Backend::Ptr backend)
 {
-
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

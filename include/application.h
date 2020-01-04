@@ -95,9 +95,9 @@ protected:
     virtual void shutdown();
 
 #if defined(DWSF_VULKAN)
-#   if defined(DWSF_IMGUI)
+#    if defined(DWSF_IMGUI)
     void render_gui(vk::CommandBuffer::Ptr cmd_buf);
-#   endif
+#    endif
     void submit_and_present(const std::vector<vk::CommandBuffer::Ptr>& cmd_bufs);
 #endif
 

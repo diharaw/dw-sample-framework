@@ -18,7 +18,7 @@ public:
 #if defined(DWSF_VULKAN)
     void initialize_for_indirect_draw(vk::Backend::Ptr backend);
     void initialize_for_ray_tracing(vk::Backend::Ptr backend);
-    
+
     inline vk::DescriptorSetLayout::Ptr   ray_tracing_geometry_descriptor_set_layout() { return m_ray_tracing_geometry_ds_layout; }
     inline vk::DescriptorSetLayout::Ptr   indirect_draw_geometry_descriptor_set_layout() { return m_indirect_draw_geometry_ds_layout; }
     inline vk::DescriptorSetLayout::Ptr   material_descriptor_set_layout() { return m_material_ds_layout; }
