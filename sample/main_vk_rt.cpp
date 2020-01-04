@@ -319,7 +319,7 @@ private:
         m_scene = dw::Scene::create();
         m_scene->add_instance(m_mesh, glm::mat4(1.0f));
 
-        m_scene->build_acceleration_structure(m_vk_backend);
+        m_scene->initialize_for_ray_tracing(m_vk_backend);
 
         return m_mesh != nullptr;
     }

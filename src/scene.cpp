@@ -58,6 +58,20 @@ void Scene::add_instance(dw::Mesh::Ptr mesh, glm::mat4 transform)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+void Scene::initialize_for_indirect_draw(vk::Backend::Ptr backend)
+{
+
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Scene::initialize_for_ray_tracing(vk::Backend::Ptr backend)
+{
+    build_acceleration_structure(backend);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 #if defined(DWSF_VULKAN)
 
 void Scene::build_acceleration_structure(vk::Backend::Ptr backend)
