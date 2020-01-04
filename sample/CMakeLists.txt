@@ -5,6 +5,8 @@ set (CMAKE_CXX_STANDARD 14)
 
 if (USE_VULKAN)
     add_definitions(-DDWSF_VULKAN)
+    add_definitions(-DDWSF_IMGUI)
+	add_definitions(-DDWSF_VULKAN_RAY_TRACING)
 
     if (ENABLE_VULKAN_RAY_TRACING)
         set(DWSFW_SAMPLE_SOURCE main_vk_rt.cpp)

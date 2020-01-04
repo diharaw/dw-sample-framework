@@ -442,6 +442,9 @@ Mesh::~Mesh()
             Material::unload(m_sub_meshes[i].mat);
     }
 
+    m_ibo.reset();
+    m_vbo.reset();
+
     // Delete geometry data.
     DW_SAFE_DELETE_ARRAY(m_sub_meshes);
     DW_SAFE_DELETE_ARRAY(m_vertices);

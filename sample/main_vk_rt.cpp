@@ -64,7 +64,9 @@ protected:
             DW_SCOPED_SAMPLE("update", cmd_buf);
 
             // Render profiler.
+#if defined(DWSF_IMGUI)
             dw::profiler::ui();
+#endif
 
             // Update camera.
             m_main_camera->update();
@@ -435,7 +437,9 @@ private:
 
         vkCmdDraw(cmd_buf->handle(), 3, 1, 0, 0);
 
+#if defined(DWSF_IMGUI)
         render_gui(cmd_buf);
+#endif
 
         vkCmdEndRenderPass(cmd_buf->handle());
     }

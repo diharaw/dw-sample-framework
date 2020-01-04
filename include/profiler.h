@@ -55,6 +55,10 @@ extern void end_sample(std::string name
 );
 extern void begin_frame();
 extern void end_frame();
+
+#if defined(DWSF_IMGUI)
 extern void ui();
+#endif
+
 }; // namespace profiler
 } // namespace dw

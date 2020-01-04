@@ -438,6 +438,12 @@ Image::Image(Backend::Ptr backend, VkImage image, VkImageType type, uint32_t wid
 
 Image::~Image()
 {
+    if (m_vk_backend.expired())
+    {
+        DW_LOG_FATAL("(Vulkan) Destructing after Device.");
+        throw std::runtime_error("(Vulkan) Destructing after Device.");
+    }
+
     if (m_vma_allocator && m_vma_allocation)
         vmaDestroyImage(m_vma_allocator, m_vk_image, m_vma_allocation);
 }
@@ -3001,6 +3007,12 @@ Backend::~Backend()
     {
         vkDestroySurfaceKHR(m_vk_instance, m_vk_surface, nullptr);
         m_vk_surface = nullptr;
+    }
+
+    if (m_vma_allocator)
+    {
+        vmaDestroyAllocator(m_vma_allocator);
+        m_vma_allocator = nullptr;
     }
 
     if (m_vk_device)

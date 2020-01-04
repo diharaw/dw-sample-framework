@@ -195,9 +195,10 @@ bool Application::init_base(int argc, const char* argv[])
 #    endif
 #endif
 
+#if defined(DWSF_IMGUI)
     ImGui::CreateContext();
 
-#if defined(DWSF_VULKAN)
+#   if defined(DWSF_VULKAN)
     ImGui_ImplGlfw_InitForVulkan(m_window, false);
 
     ImGui_ImplVulkan_InitInfo init_info = {};
@@ -232,24 +233,27 @@ bool Application::init_base(int argc, const char* argv[])
     m_vk_backend->flush_graphics({ cmd_buf });
 
     ImGui_ImplVulkan_DestroyFontUploadObjects();
-#else
+#   else
     ImGui_ImplGlfw_InitForOpenGL(m_window, false);
     ImGui_ImplOpenGL3_Init(imgui_glsl_version);
-#endif
+#   endif
 
     ImGui::StyleColorsDark();
+#endif
 
     GLFWmonitor* primary = glfwGetPrimaryMonitor();
 
     float xscale, yscale;
     glfwGetMonitorContentScale(primary, &xscale, &yscale);
 
+#if defined(DWSF_IMGUI)
     ImGuiStyle* style = &ImGui::GetStyle();
 
     style->ScaleAllSizes(xscale > yscale ? xscale : yscale);
 
     ImGuiIO& io        = ImGui::GetIO();
     io.FontGlobalScale = xscale > yscale ? xscale : yscale;
+#endif
 
     int display_w, display_h;
     glfwGetFramebufferSize(m_window, &display_w, &display_h);
@@ -297,7 +301,9 @@ void Application::shutdown_base()
     Material::shutdown_common_resources();
 
     // Shutdown ImGui.
+#   if defined(DWSF_IMGUI)
     ImGui_ImplVulkan_Shutdown();
+#   endif
 
     for (int i = 0; i < vk::Backend::kMaxFramesInFlight; i++)
     {
@@ -310,10 +316,15 @@ void Application::shutdown_base()
     // Shutdown debug draw.
     m_debug_draw.shutdown();
 
+#   if defined(DWSF_IMGUI)
     ImGui_ImplOpenGL3_Shutdown();
+#   endif
 #endif
+
+#if defined(DWSF_IMGUI)
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+#endif
 
     // Shutdown GLFW.
     glfwDestroyWindow(m_window);
@@ -327,12 +338,13 @@ void Application::shutdown_base()
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 #if defined(DWSF_VULKAN)
-
+#    if defined(DWSF_IMGUI)
 void Application::render_gui(vk::CommandBuffer::Ptr cmd_buf)
 {
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd_buf->handle());
 }
+#    endif
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -365,13 +377,17 @@ void Application::begin_frame()
 
     m_vk_backend->acquire_next_swap_chain_image(m_image_available_semaphores[m_vk_backend->current_frame_idx()]);
 
+#   if defined(DWSF_IMGUI)
     ImGui_ImplVulkan_NewFrame();
+#   endif
 #else
     ImGui_ImplOpenGL3_NewFrame();
 #endif
 
+#if defined(DWSF_IMGUI)
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+#endif
 
     m_mouse_delta_x = m_mouse_x - m_last_mouse_x;
     m_mouse_delta_y = m_mouse_y - m_last_mouse_y;
@@ -389,8 +405,10 @@ void Application::end_frame()
     profiler::end_frame();
 
 #if !defined(DWSF_VULKAN)
+#   if defined(DWSF_IMGUI)
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+#   endif
     glfwSwapBuffers(m_window);
 #endif
 
@@ -519,7 +537,9 @@ void Application::window_size_callback(GLFWwindow* window, int width, int height
 
 void Application::key_callback_glfw(GLFWwindow* window, int key, int scancode, int action, int mode)
 {
+#if defined(DWSF_IMGUI)
     ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mode);
+#endif
     Application* app = (Application*)glfwGetWindowUserPointer(window);
     app->key_callback(window, key, scancode, action, mode);
 }
@@ -536,7 +556,9 @@ void Application::mouse_callback_glfw(GLFWwindow* window, double xpos, double yp
 
 void Application::scroll_callback_glfw(GLFWwindow* window, double xoffset, double yoffset)
 {
+#if defined(DWSF_IMGUI)
     ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
+#endif
     Application* app = (Application*)glfwGetWindowUserPointer(window);
     app->scroll_callback(window, xoffset, yoffset);
 }
@@ -545,7 +567,9 @@ void Application::scroll_callback_glfw(GLFWwindow* window, double xoffset, doubl
 
 void Application::mouse_button_callback_glfw(GLFWwindow* window, int button, int action, int mods)
 {
+#if defined(DWSF_IMGUI)
     ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+#endif 
     Application* app = (Application*)glfwGetWindowUserPointer(window);
     app->mouse_button_callback(window, button, action, mods);
 }
@@ -554,7 +578,9 @@ void Application::mouse_button_callback_glfw(GLFWwindow* window, int button, int
 
 void Application::char_callback_glfw(GLFWwindow* window, unsigned int c)
 {
+#if defined(DWSF_IMGUI)
     ImGui_ImplGlfw_CharCallback(window, c);
+#endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
