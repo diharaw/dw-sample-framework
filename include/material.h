@@ -9,6 +9,11 @@
 
 namespace dw
 {
+#define TEXTURE_TYPE_ALBEDO 1
+#define TEXTURE_TYPE_NORMAL 5
+#define TEXTURE_TYPE_ROUGHNESS 7
+#define TEXTURE_TYPE_METALLIC 3
+
 class Material
 {
 public:

@@ -239,15 +239,15 @@ vk::DescriptorSet::Ptr Material::create_pbr_descriptor_set(vk::Backend::Ptr back
     image_info[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     image_info[1].sampler     = m_common_sampler->handle();
-    image_info[1].imageView   = m_image_views[aiTextureType_DISPLACEMENT] ? m_image_views[aiTextureType_DISPLACEMENT]->handle() : m_default_image_view->handle();
+    image_info[1].imageView   = m_image_views[aiTextureType_HEIGHT] ? m_image_views[aiTextureType_HEIGHT]->handle() : m_default_image_view->handle();
     image_info[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     image_info[2].sampler     = m_common_sampler->handle();
-    image_info[2].imageView   = m_image_views[aiTextureType_SPECULAR] ? m_image_views[aiTextureType_SPECULAR]->handle() : m_default_image_view->handle();
+    image_info[2].imageView   = m_image_views[aiTextureType_SHININESS] ? m_image_views[aiTextureType_SHININESS]->handle() : m_default_image_view->handle();
     image_info[2].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     image_info[3].sampler     = m_common_sampler->handle();
-    image_info[3].imageView   = m_image_views[aiTextureType_SPECULAR] ? m_image_views[aiTextureType_SPECULAR]->handle() : m_default_image_view->handle();
+    image_info[3].imageView   = m_image_views[aiTextureType_AMBIENT] ? m_image_views[aiTextureType_AMBIENT]->handle() : m_default_image_view->handle();
     image_info[3].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     VkWriteDescriptorSet write_data[4];
