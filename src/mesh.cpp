@@ -283,9 +283,9 @@ void Mesh::load_from_disk(
         for (int k = 0; k < Scene->mMeshes[i]->mNumVertices; k++)
         {
             // Assign vertex values.
-            m_vertices[vertexIndex].position = glm::vec3(temp_mesh->mVertices[k].x, temp_mesh->mVertices[k].y, temp_mesh->mVertices[k].z);
+            m_vertices[vertexIndex].position = glm::vec4(temp_mesh->mVertices[k].x, temp_mesh->mVertices[k].y, temp_mesh->mVertices[k].z, 0.0f);
             glm::vec3 n                      = glm::vec3(temp_mesh->mNormals[k].x, temp_mesh->mNormals[k].y, temp_mesh->mNormals[k].z);
-            m_vertices[vertexIndex].normal   = n;
+            m_vertices[vertexIndex].normal   = glm::vec4(n, 0.0f);
 
             if (temp_mesh->mTangents && temp_mesh->mBitangents)
             {
@@ -296,8 +296,8 @@ void Mesh::load_from_disk(
                 if (glm::dot(glm::cross(n, t), b) < 0.0f)
                     t *= -1.0f; // Flip tangent
 
-                m_vertices[vertexIndex].tangent   = t;
-                m_vertices[vertexIndex].bitangent = b;
+                m_vertices[vertexIndex].tangent = glm::vec4(t, 0.0f);
+                m_vertices[vertexIndex].bitangent = glm::vec4(b, 0.0f);
             }
 
             // Find submesh bounding box extents.
@@ -315,11 +315,9 @@ void Mesh::load_from_disk(
             if (m_vertices[vertexIndex].position.z < m_sub_meshes[i].min_extents.z)
                 m_sub_meshes[i].min_extents.z = m_vertices[vertexIndex].position.z;
 
-            // Assign texture coordinates if it has any. Only the first channel is
-            // considered.
+            // Assign texture coordinates if it has any. Only the first channel is considered.
             if (temp_mesh->HasTextureCoords(0))
-                m_vertices[vertexIndex].tex_coord = glm::vec2(temp_mesh->mTextureCoords[0][k].x,
-                                                              temp_mesh->mTextureCoords[0][k].y);
+                m_vertices[vertexIndex].tex_coord = glm::vec4(temp_mesh->mTextureCoords[0][k].x, temp_mesh->mTextureCoords[0][k].y, 0.0f, 0.0f);
 
             vertexIndex++;
         }
@@ -372,11 +370,11 @@ void Mesh::create_gpu_objects(
 
     m_vertex_input_state_desc.add_binding_desc(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
 
-    m_vertex_input_state_desc.add_attribute_desc(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0);
-    m_vertex_input_state_desc.add_attribute_desc(1, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, tex_coord));
-    m_vertex_input_state_desc.add_attribute_desc(2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal));
-    m_vertex_input_state_desc.add_attribute_desc(3, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, tangent));
-    m_vertex_input_state_desc.add_attribute_desc(4, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, bitangent));
+    m_vertex_input_state_desc.add_attribute_desc(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT, 0);
+    m_vertex_input_state_desc.add_attribute_desc(1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex, tex_coord));
+    m_vertex_input_state_desc.add_attribute_desc(2, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex, normal));
+    m_vertex_input_state_desc.add_attribute_desc(3, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex, tangent));
+    m_vertex_input_state_desc.add_attribute_desc(4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex, bitangent));
 #else
     // Create vertex buffer.
     m_vbo = std::make_unique<gl::VertexBuffer>(
@@ -393,11 +391,11 @@ void Mesh::create_gpu_objects(
         DW_LOG_ERROR("Failed to create Index Buffer");
 
     // Declare vertex attributes.
-    gl::VertexAttrib attribs[] = { { 3, GL_FLOAT, false, 0 },
-                                   { 2, GL_FLOAT, false, offsetof(Vertex, tex_coord) },
-                                   { 3, GL_FLOAT, false, offsetof(Vertex, normal) },
-                                   { 3, GL_FLOAT, false, offsetof(Vertex, tangent) },
-                                   { 3, GL_FLOAT, false, offsetof(Vertex, bitangent) } };
+    gl::VertexAttrib attribs[] = { { 4, GL_FLOAT, false, 0 },
+                                   { 4, GL_FLOAT, false, offsetof(Vertex, tex_coord) },
+                                   { 4, GL_FLOAT, false, offsetof(Vertex, normal) },
+                                   { 4, GL_FLOAT, false, offsetof(Vertex, tangent) },
+                                   { 4, GL_FLOAT, false, offsetof(Vertex, bitangent) } };
 
     // Create vertex array.
     m_vao = std::make_unique<gl::VertexArray>(m_vbo.get(), m_ibo.get(), sizeof(Vertex), 5, attribs);

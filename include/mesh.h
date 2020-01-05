@@ -15,11 +15,11 @@ class Material;
 // Non-skeletal vertex structure.
 struct Vertex
 {
-    glm::vec3 position;
-    glm::vec2 tex_coord;
-    glm::vec3 normal;
-    glm::vec3 tangent;
-    glm::vec3 bitangent;
+    glm::vec4 position;
+    glm::vec4 tex_coord;
+    glm::vec4 normal;
+    glm::vec4 tangent;
+    glm::vec4 bitangent;
 };
 
 // SubMesh structure. Currently limited to one Material.

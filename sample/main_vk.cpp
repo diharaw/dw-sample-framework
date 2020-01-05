@@ -84,14 +84,12 @@ protected:
 
     void shutdown() override
     {
+        m_mesh.reset();
         m_pso.reset();
         m_pipeline_layout.reset();
         m_per_frame_ds_layout.reset();
         m_per_frame_ds.reset();
         m_ubo.reset();
-
-        // Unload assets.
-        dw::Mesh::unload(m_mesh);
     }
 
     // -----------------------------------------------------------------------------------------------------------------------------------
@@ -427,7 +425,7 @@ private:
     std::unique_ptr<dw::Camera> m_main_camera;
 
     // Assets.
-    dw::Mesh* m_mesh;
+    dw::Mesh::Ptr m_mesh;
 
     // Uniforms.
     Transforms m_transforms;
