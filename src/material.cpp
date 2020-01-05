@@ -49,7 +49,9 @@ Material::Ptr Material::load(vk::Backend::Ptr backend, const std::string& name, 
         for (int i = 0; i < num_textures; i++)
         {
             mat->m_images[i]      = images[i];
-            mat->m_image_views[i] = load_image_view(backend, "image_view_" + std::to_string(i), mat->m_images[i]);
+
+            if (images[i])
+                mat->m_image_views[i] = load_image_view(backend, "image_view_" + std::to_string(i), mat->m_images[i]);
         }
 
         mat->m_albedo_val = albedo;
@@ -89,7 +91,9 @@ Material::Material(vk::Backend::Ptr backend, const std::string& name, const std:
         {
             // First index must always be diffuse/albedo, so SRGB is set to true.
             m_images[i]      = load_image(backend, textures[i], i == aiTextureType_DIFFUSE ? true : false);
-            m_image_views[i] = load_image_view(backend, textures[i], m_images[i]);
+
+            if (m_images[i])
+                m_image_views[i] = load_image_view(backend, textures[i], m_images[i]);
         }
     }
 
