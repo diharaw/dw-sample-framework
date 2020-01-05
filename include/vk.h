@@ -37,16 +37,6 @@ struct SwapChainSupportDetails
     std::vector<VkPresentModeKHR>   present_modes;
 };
 
-struct GeometryInstanceNV
-{
-    float    transform[12];
-    uint32_t instanceCustomIndex : 24;
-    uint32_t mask : 8;
-    uint32_t instanceOffset : 24;
-    uint32_t flags : 8;
-    uint64_t accelerationStructureHandle;
-};
-
 struct QueueInfos
 {
     // Most ideal queue = 3
@@ -80,9 +70,9 @@ public:
     ~Backend();
 
     std::shared_ptr<DescriptorSet>  allocate_descriptor_set(std::shared_ptr<DescriptorSetLayout> layout);
-    std::shared_ptr<CommandBuffer>  allocate_graphics_command_buffer();
-    std::shared_ptr<CommandBuffer>  allocate_compute_command_buffer();
-    std::shared_ptr<CommandBuffer>  allocate_transfer_command_buffer();
+    std::shared_ptr<CommandBuffer>  allocate_graphics_command_buffer(bool begin = false);
+    std::shared_ptr<CommandBuffer>  allocate_compute_command_buffer(bool begin = false);
+    std::shared_ptr<CommandBuffer>  allocate_transfer_command_buffer(bool begin = false);
     std::shared_ptr<CommandPool>    thread_local_graphics_command_pool();
     std::shared_ptr<CommandPool>    thread_local_compute_command_pool();
     std::shared_ptr<CommandPool>    thread_local_transfer_command_pool();

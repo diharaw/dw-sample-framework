@@ -23,6 +23,8 @@ static std::string kTextureTypeStrings[] = {
     "aiTextureType_DIFFUSE", "aiTextureType_SPECULAR", "aiTextureType_AMBIENT", "aiTextureType_EMISSIVE", "aiTextureType_HEIGHT", "aiTextureType_NORMALS", "aiTextureType_SHININESS", "aiTextureType_OPACITY", "aiTextureType_DISPLACEMENT", "aiTextureType_LIGHTMAP", "aiTextureType_REFLECTION"
 };
 
+static uint32_t g_last_mesh_idx = 0;
+
 // -----------------------------------------------------------------------------------------------------------------------------------
 // Assimp loader helper method declarations.
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -181,7 +183,7 @@ void Mesh::load_from_disk(
     // Temporary variables
     aiMaterial*                                 temp_material;
     std::vector<unsigned int>                   processed_mat_id;
-    std::unordered_map<unsigned int, Material*> mat_id_mapping;
+    std::unordered_map<unsigned int, Material::Ptr> mat_id_mapping;
 
     // Iterate over submeshes and find materials
     for (int i = 0; i < m_sub_mesh_count; i++)
@@ -241,7 +243,7 @@ void Mesh::load_from_disk(
 #endif
                         current_mat_name,
                         &material_paths[0]);
-                    mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
+                        mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
                 }
                 else if (has_diifuse_val)
                 {
@@ -365,8 +367,8 @@ void Mesh::create_gpu_objects(
 )
 {
 #if defined(DWSF_VULKAN)
-    m_vbo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, sizeof(Vertex) * m_vertex_count, VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_vertices[0]);
-    m_ibo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, sizeof(uint32_t) * m_index_count, VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_indices[0]);
+    m_vbo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(Vertex) * m_vertex_count, VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_vertices[0]);
+    m_ibo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(uint32_t) * m_index_count, VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_indices[0]);
 
     m_vertex_input_state_desc.add_binding_desc(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
 
@@ -407,7 +409,10 @@ void Mesh::create_gpu_objects(
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Mesh::Mesh() {}
+Mesh::Mesh() 
+{
+    m_id = g_last_mesh_idx++;
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -418,6 +423,8 @@ Mesh::Mesh(
     const std::string& path,
     bool               load_materials)
 {
+    m_id = g_last_mesh_idx++;
+
     load_from_disk(
 #if defined(DWSF_VULKAN)
         backend,
@@ -437,10 +444,7 @@ Mesh::~Mesh()
 {
     // Unload submesh materials.
     for (uint32_t i = 0; i < m_sub_mesh_count; i++)
-    {
-        if (m_sub_meshes[i].mat)
-            Material::unload(m_sub_meshes[i].mat);
-    }
+        m_sub_meshes[i].mat.reset();
 
     m_ibo.reset();
     m_vbo.reset();

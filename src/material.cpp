@@ -7,7 +7,7 @@
 
 namespace dw
 {
-std::unordered_map<std::string, Material*> Material::m_cache;
+std::unordered_map<std::string, std::weak_ptr<Material>> Material::m_cache;
 
 #if defined(DWSF_VULKAN)
 std::unordered_map<std::string, std::weak_ptr<vk::Image>>     Material::m_image_cache;
@@ -20,29 +20,31 @@ vk::ImageView::Ptr                                            Material::m_defaul
 std::unordered_map<std::string, gl::Texture2D*> Material::m_texture_cache;
 #endif
 
+static uint32_t g_last_mat_idx = 0;
+
 #if defined(DWSF_VULKAN)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Material* Material::load(vk::Backend::Ptr backend, const std::string& name, const std::string* textures)
+Material::Ptr Material::load(vk::Backend::Ptr backend, const std::string& name, const std::string* textures)
 {
-    if (m_cache.find(name) == m_cache.end())
+    if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
     {
-        Material* mat = new Material(backend, name, textures);
+        Material::Ptr mat = std::shared_ptr<Material>(new Material(backend, name, textures));
         m_cache[name] = mat;
         return mat;
     }
     else
-        return m_cache[name];
+        return m_cache[name].lock();
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Material* Material::load(vk::Backend::Ptr backend, const std::string& name, int num_textures, vk::Image::Ptr* images, glm::vec4 albedo, float roughness, float metalness)
+Material::Ptr Material::load(vk::Backend::Ptr backend, const std::string& name, int num_textures, vk::Image::Ptr* images, glm::vec4 albedo, float roughness, float metalness)
 {
-    if (m_cache.find(name) == m_cache.end())
+    if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
     {
-        Material* mat = new Material();
+        Material::Ptr mat = std::shared_ptr<Material>(new Material());
 
         for (int i = 0; i < num_textures; i++)
         {
@@ -56,13 +58,15 @@ Material* Material::load(vk::Backend::Ptr backend, const std::string& name, int 
         return mat;
     }
     else
-        return m_cache[name];
+        return m_cache[name].lock();
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Material::Material()
 {
+    m_id = g_last_mat_idx++;
+
     for (uint32_t i = 0; i < 16; i++)
     {
         m_images[i]      = nullptr;
@@ -74,6 +78,8 @@ Material::Material()
 
 Material::Material(vk::Backend::Ptr backend, const std::string& name, const std::string* textures)
 {
+    m_id = g_last_mat_idx++;
+
     for (uint32_t i = 0; i < 16; i++)
     {
         m_images[i]      = nullptr;
@@ -293,23 +299,23 @@ vk::DescriptorSet::Ptr Material::create_pbr_descriptor_set(vk::Backend::Ptr back
 
 Material* Material::load(const std::string& name, const std::string* textures)
 {
-    if (m_cache.find(name) == m_cache.end())
+    if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
     {
-        Material* mat = new Material(name, textures);
+        Material::Ptr mat = std::shared_ptr<Material>(new Material(name, textures));
         m_cache[name] = mat;
         return mat;
     }
     else
-        return m_cache[name];
+        return m_cache[name].lock();
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Material* Material::load(const std::string& name, int num_textures, gl::Texture2D** textures, glm::vec4 albedo, float roughness, float metalness)
 {
-    if (m_cache.find(name) == m_cache.end())
+    if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
     {
-        Material* mat = new Material();
+        Material::Ptr mat = std::shared_ptr<Material>(new Material());
 
         for (int i = 0; i < num_textures; i++)
             mat->m_textures[i] = textures[i];
@@ -320,7 +326,7 @@ Material* Material::load(const std::string& name, int num_textures, gl::Texture2
         return mat;
     }
     else
-        return m_cache[name];
+        return m_cache[name].lock();
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -394,21 +400,6 @@ Material::~Material()
 bool Material::is_loaded(const std::string& name)
 {
     return m_cache.find(name) != m_cache.end();
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Material::unload(Material*& mat)
-{
-    for (auto itr : m_cache)
-    {
-        if (itr.second == mat)
-        {
-            m_cache.erase(itr.first);
-            DW_SAFE_DELETE(mat);
-            return;
-        }
-    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

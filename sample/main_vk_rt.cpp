@@ -51,14 +51,7 @@ protected:
 
     void update(double delta) override
     {
-        dw::vk::CommandBuffer::Ptr cmd_buf = m_vk_backend->allocate_graphics_command_buffer();
-
-        VkCommandBufferBeginInfo begin_info;
-        DW_ZERO_MEMORY(begin_info);
-
-        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-        vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
+        dw::vk::CommandBuffer::Ptr cmd_buf = m_vk_backend->allocate_graphics_command_buffer(true);
 
         {
             DW_SCOPED_SAMPLE("update", cmd_buf);
@@ -117,7 +110,7 @@ protected:
 
         settings.width       = 1280;
         settings.height      = 720;
-        settings.title       = "Hello dwSampleFramework (Vulkan)";
+        settings.title       = "Hello dwSampleFramework (Vulkan Ray-Tracing)";
         settings.ray_tracing = true;
 
         return settings;
@@ -319,7 +312,10 @@ private:
         m_mesh->initialize_for_ray_tracing(m_vk_backend);
 
         m_scene = dw::Scene::create();
-        m_scene->add_instance(m_mesh, glm::mat4(1.0f));
+
+        glm::mat4 transform = glm::mat4(1.0f);
+  
+        m_scene->add_instance(m_mesh, transform);
 
         m_scene->initialize_for_ray_tracing(m_vk_backend);
 

@@ -25,7 +25,7 @@ struct Vertex
 // SubMesh structure. Currently limited to one Material.
 struct SubMesh
 {
-    Material* mat;
+    std::shared_ptr<Material> mat;
     uint32_t  index_count;
     uint32_t  base_vertex;
     uint32_t  base_index;
@@ -81,10 +81,8 @@ public:
     }
 #endif
 
-    inline uint32_t sub_mesh_count()
-    {
-        return m_sub_mesh_count;
-    }
+    inline uint32_t id() { return m_id; }
+    inline uint32_t sub_mesh_count() { return m_sub_mesh_count; }
     inline SubMesh*  sub_meshes() { return m_sub_meshes; }
     inline uint32_t  vertex_count() { return m_vertex_count; }
     inline uint32_t  index_count() { return m_index_count; }
@@ -122,6 +120,7 @@ private:
     static std::unordered_map<std::string, std::weak_ptr<Mesh>> m_cache;
 
     // Mesh geometry.
+    uint32_t  m_id             = 0;
     uint32_t  m_vertex_count   = 0;
     uint32_t  m_index_count    = 0;
     uint32_t  m_sub_mesh_count = 0;

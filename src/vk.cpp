@@ -266,7 +266,7 @@ struct ThreadLocalCommandBuffers
         command_pool[frame_index]->reset();
     }
 
-    CommandBuffer::Ptr allocate(uint32_t frame_index)
+    CommandBuffer::Ptr allocate(uint32_t frame_index, bool begin)
     {
         if (allocated_buffers >= MAX_THREAD_LOCAL_COMMAND_BUFFERS)
         {
@@ -274,7 +274,19 @@ struct ThreadLocalCommandBuffers
             throw std::runtime_error("(Vulkan) Max thread local command buffer count reached!");
         }
 
-        return command_buffers[frame_index][allocated_buffers++];
+        auto cmd_buf = command_buffers[frame_index][allocated_buffers++];
+
+        if (begin)
+        {
+            VkCommandBufferBeginInfo begin_info;
+            DW_ZERO_MEMORY(begin_info);
+
+            begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+            vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
+        }
+
+        return cmd_buf;
     }
 };
 
@@ -3084,23 +3096,23 @@ std::shared_ptr<DescriptorSet> Backend::allocate_descriptor_set(std::shared_ptr<
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-std::shared_ptr<CommandBuffer> Backend::allocate_graphics_command_buffer()
+std::shared_ptr<CommandBuffer> Backend::allocate_graphics_command_buffer(bool begin)
 {
-    return g_graphics_command_buffers[g_thread_idx]->allocate(m_current_frame);
+    return g_graphics_command_buffers[g_thread_idx]->allocate(m_current_frame, begin);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-std::shared_ptr<CommandBuffer> Backend::allocate_compute_command_buffer()
+std::shared_ptr<CommandBuffer> Backend::allocate_compute_command_buffer(bool begin)
 {
-    return g_compute_command_buffers[g_thread_idx]->allocate(m_current_frame);
+    return g_compute_command_buffers[g_thread_idx]->allocate(m_current_frame, begin);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-std::shared_ptr<CommandBuffer> Backend::allocate_transfer_command_buffer()
+std::shared_ptr<CommandBuffer> Backend::allocate_transfer_command_buffer(bool begin)
 {
-    return g_transfer_command_buffers[g_thread_idx]->allocate(m_current_frame);
+    return g_transfer_command_buffers[g_thread_idx]->allocate(m_current_frame, begin);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

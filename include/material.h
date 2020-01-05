@@ -12,25 +12,30 @@ namespace dw
 class Material
 {
 public:
+    using Ptr = std::shared_ptr<Material>;
+
     static bool is_loaded(const std::string& name);
-    static void unload(Material*& mat);
+
+    inline uint32_t id() { return m_id;  }
 
     // Texture factory methods.
 #if defined(DWSF_VULKAN)
     // Material factory methods.
-    static Material* load(vk::Backend::Ptr backend, const std::string& name, const std::string* textures);
+    static Material::Ptr load(vk::Backend::Ptr backend, const std::string& name, const std::string* textures);
 
     // Custom factory method for creating a material from provided data.
-    static Material* load(vk::Backend::Ptr backend, const std::string& name, int num_textures, vk::Image::Ptr* images, glm::vec4 albedo = glm::vec4(1.0f), float roughness = 0.0f, float metalness = 0.0f);
+    static Material::Ptr load(vk::Backend::Ptr backend, const std::string& name, int num_textures, vk::Image::Ptr* images, glm::vec4 albedo = glm::vec4(1.0f), float roughness = 0.0f, float metalness = 0.0f);
     static void      initialize_common_resources(vk::Backend::Ptr backend);
     static void      shutdown_common_resources();
 
     // Rendering related getters.
-    inline vk::ImageView::Ptr                  image_view(const uint32_t& index) { return m_image_views[index]; }
-    inline vk::Image::Ptr                      image(const uint32_t& index) { return m_images[index]; }
+    inline vk::ImageView::Ptr                  image_view(const uint32_t& index) { return m_image_views[index] ? m_image_views[index] : m_default_image_view; }
+    inline vk::Image::Ptr                      image(const uint32_t& index) { return m_images[index] ? m_images[index] : m_default_image; }
     inline vk::DescriptorSet::Ptr              pbr_descriptor_set() { return m_descriptor_set; }
     static inline vk::Sampler::Ptr             common_sampler() { return m_common_sampler; }
     static inline vk::DescriptorSetLayout::Ptr pbr_descriptor_set_layout() { return m_common_ds_layout; }
+
+    ~Material();
 
 private:
     static vk::Image::Ptr     load_image(vk::Backend::Ptr backend, const std::string& path, bool srgb = false);
@@ -47,10 +52,10 @@ private:
 
 public:
     // Material factory methods.
-    static Material* load(const std::string& name, const std::string* textures);
+    static Material::Ptr load(const std::string& name, const std::string* textures);
 
     // Custom factory method for creating a material from provided data.
-    static Material*      load(const std::string& name, int num_textures, gl::Texture2D** textures, glm::vec4 albedo = glm::vec4(1.0f), float roughness = 0.0f, float metalness = 0.0f);
+    static Material::Ptr      load(const std::string& name, int num_textures, gl::Texture2D** textures, glm::vec4 albedo = glm::vec4(1.0f), float roughness = 0.0f, float metalness = 0.0f);
     static gl::Texture2D* load_texture(const std::string& path, bool srgb = false);
     static void           unload_texture(gl::Texture2D*& tex);
 
@@ -67,14 +72,15 @@ public:
 
 private:
     Material();
-    ~Material();
-
+    
 public:
     // Material cache.
-    static std::unordered_map<std::string, Material*> m_cache;
+    static std::unordered_map<std::string, std::weak_ptr<Material>> m_cache;
 
     // Albedo color.
     glm::vec4 m_albedo_val = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+
+    uint32_t m_id = 0;
 
     // Texture list. In the same order as the Assimp texture enums.
 #if defined(DWSF_VULKAN)
