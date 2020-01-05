@@ -56,7 +56,7 @@ private:
 
 #if defined(DWSF_VULKAN)
     void create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing);
-    void material_descriptor_set(vk::Backend::Ptr backend, bool ray_tracing);
+    void update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing);
     void build_acceleration_structure(vk::Backend::Ptr backend);
 #endif
 

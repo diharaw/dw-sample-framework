@@ -53,6 +53,7 @@ void Scene::initialize_for_ray_tracing(vk::Backend::Ptr backend)
 {
     gather_instance_data(backend, true);
     create_descriptor_sets(backend, true);
+    update_descriptor_sets(backend, true);
     build_acceleration_structure(backend);
 }
 
@@ -152,7 +153,7 @@ void Scene::create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Scene::material_descriptor_set(vk::Backend::Ptr backend, bool ray_tracing)
+void Scene::update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
 {
     std::vector<VkDescriptorBufferInfo> vbo_descriptors;
     std::vector<VkDescriptorBufferInfo> ibo_descriptors;
