@@ -3178,6 +3178,9 @@ void Backend::submit_transfer(const std::vector<std::shared_ptr<CommandBuffer>>&
 void Backend::flush_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
 {
     flush(m_vk_graphics_queue, cmd_bufs);
+    
+    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
+        g_graphics_command_buffers[i]->reset(m_current_frame);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3185,6 +3188,9 @@ void Backend::flush_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& 
 void Backend::flush_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
 {
     flush(m_vk_compute_queue, cmd_bufs);
+
+    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
+        g_compute_command_buffers[i]->reset(m_current_frame);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3192,6 +3198,9 @@ void Backend::flush_compute(const std::vector<std::shared_ptr<CommandBuffer>>& c
 void Backend::flush_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs)
 {
     flush(m_vk_transfer_queue, cmd_bufs);
+
+    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
+        g_transfer_command_buffers[i]->reset(m_current_frame);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
