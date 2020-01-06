@@ -283,7 +283,12 @@ void Mesh::load_from_disk(
         for (int k = 0; k < Scene->mMeshes[i]->mNumVertices; k++)
         {
             // Assign vertex values.
-            m_vertices[vertexIndex].position = glm::vec4(temp_mesh->mVertices[k].x, temp_mesh->mVertices[k].y, temp_mesh->mVertices[k].z, 0.0f);
+            uint32_t mat_id = 0;
+
+            if (mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex])
+                mat_id = mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex]->id();
+
+            m_vertices[vertexIndex].position = glm::vec4(temp_mesh->mVertices[k].x, temp_mesh->mVertices[k].y, temp_mesh->mVertices[k].z, float(mat_id));
             glm::vec3 n                      = glm::vec3(temp_mesh->mNormals[k].x, temp_mesh->mNormals[k].y, temp_mesh->mNormals[k].z);
             m_vertices[vertexIndex].normal   = glm::vec4(n, 0.0f);
 
