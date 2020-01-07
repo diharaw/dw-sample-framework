@@ -132,8 +132,8 @@ void Scene::create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
     {
         dw::vk::DescriptorSetLayout::Desc desc;
 
-        desc.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV);
-        desc.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_meshes.size(), VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV);
+        desc.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_meshes.size(), VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV);
+        desc.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV);
         desc.add_binding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_meshes.size(), VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV);
         desc.add_binding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_meshes.size(), VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV);
 
@@ -175,7 +175,7 @@ void Scene::update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
 
             ibo_info.buffer = current_mesh->index_buffer()->handle();
             ibo_info.offset = 0;
-            ibo_info.range  = current_mesh->index_buffer()->size();
+            ibo_info.range  = VK_WHOLE_SIZE;
 
             ibo_descriptors.push_back(ibo_info);
 
@@ -183,7 +183,7 @@ void Scene::update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
 
             vbo_info.buffer = current_mesh->vertex_buffer()->handle();
             vbo_info.offset = 0;
-            vbo_info.range  = current_mesh->vertex_buffer()->size();
+            vbo_info.range  = VK_WHOLE_SIZE;
 
             vbo_descriptors.push_back(vbo_info);
         }
@@ -244,7 +244,7 @@ void Scene::update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
 
             mat_id_info.buffer = m_material_id_buffers[i]->handle();
             mat_id_info.offset = 0;
-            mat_id_info.range  = m_material_id_buffers[i]->size();
+            mat_id_info.range  = VK_WHOLE_SIZE;
 
             mat_id_descriptors.push_back(mat_id_info);
         }
@@ -253,7 +253,7 @@ void Scene::update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
 
         indirection_buffer.buffer = m_indirection_buffer->handle();
         indirection_buffer.offset = 0;
-        indirection_buffer.range  = m_indirection_buffer->size();
+        indirection_buffer.range  = VK_WHOLE_SIZE;
 
         VkWriteDescriptorSet geometry_write_data[4];
 
@@ -290,7 +290,7 @@ void Scene::update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
         geometry_write_data[3].dstBinding      = 3;
         geometry_write_data[3].dstSet          = m_ray_tracing_geometry_ds->handle();
 
-        vkUpdateDescriptorSets(backend->device(), 3, geometry_write_data, 0, nullptr);
+        vkUpdateDescriptorSets(backend->device(), 4, geometry_write_data, 0, nullptr);
     }
 
     VkWriteDescriptorSet material_write_data[4];
@@ -401,13 +401,13 @@ void Scene::build_acceleration_structure(vk::Backend::Ptr backend)
     {
         auto mesh = m_meshes[i].lock();
 
-        const std::vector<VkGeometryNV>& geometry = mesh->ray_tracing_geometry();
+        VkGeometryNV geometry = mesh->ray_tracing_geometry();
 
         VkAccelerationStructureInfoNV& info = mesh->acceleration_structure()->info();
 
         info.instanceCount = 0;
-        info.geometryCount = geometry.size();
-        info.pGeometries   = geometry.data();
+        info.geometryCount = 1;
+        info.pGeometries   = &geometry;
 
         VkAccelerationStructureNV as = mesh->acceleration_structure()->handle();
 

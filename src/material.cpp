@@ -31,7 +31,7 @@ Material::Ptr Material::load(vk::Backend::Ptr backend, const std::string& name, 
     if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
     {
         Material::Ptr mat = std::shared_ptr<Material>(new Material(backend, name, textures));
-        m_cache[name] = mat;
+        m_cache[name]     = mat;
         return mat;
     }
     else
@@ -48,7 +48,7 @@ Material::Ptr Material::load(vk::Backend::Ptr backend, const std::string& name, 
 
         for (int i = 0; i < num_textures; i++)
         {
-            mat->m_images[i]      = images[i];
+            mat->m_images[i] = images[i];
 
             if (images[i])
                 mat->m_image_views[i] = load_image_view(backend, "image_view_" + std::to_string(i), mat->m_images[i]);
@@ -90,7 +90,7 @@ Material::Material(vk::Backend::Ptr backend, const std::string& name, const std:
         if (!textures[i].empty())
         {
             // First index must always be diffuse/albedo, so SRGB is set to true.
-            m_images[i]      = load_image(backend, textures[i], i == aiTextureType_DIFFUSE ? true : false);
+            m_images[i] = load_image(backend, textures[i], i == aiTextureType_DIFFUSE ? true : false);
 
             if (m_images[i])
                 m_image_views[i] = load_image_view(backend, textures[i], m_images[i]);
@@ -306,7 +306,7 @@ Material* Material::load(const std::string& name, const std::string* textures)
     if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
     {
         Material::Ptr mat = std::shared_ptr<Material>(new Material(name, textures));
-        m_cache[name] = mat;
+        m_cache[name]     = mat;
         return mat;
     }
     else

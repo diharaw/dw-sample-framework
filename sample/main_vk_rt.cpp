@@ -314,7 +314,7 @@ private:
         m_scene = dw::Scene::create();
 
         glm::mat4 transform = glm::mat4(1.0f);
-  
+
         m_scene->add_instance(m_mesh, transform);
 
         m_scene->initialize_for_ray_tracing(m_vk_backend);

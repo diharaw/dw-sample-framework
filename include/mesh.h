@@ -26,11 +26,11 @@ struct Vertex
 struct SubMesh
 {
     std::shared_ptr<Material> mat;
-    uint32_t  index_count;
-    uint32_t  base_vertex;
-    uint32_t  base_index;
-    glm::vec3 max_extents;
-    glm::vec3 min_extents;
+    uint32_t                  index_count;
+    uint32_t                  base_vertex;
+    uint32_t                  base_index;
+    glm::vec3                 max_extents;
+    glm::vec3                 min_extents;
 };
 
 class Mesh
@@ -70,10 +70,10 @@ public:
     {
         return m_vbo;
     }
-    inline vk::Buffer::Ptr                  index_buffer() { return m_ibo; }
-    inline const vk::VertexInputStateDesc&  vertex_input_state_desc() { return m_vertex_input_state_desc; }
-    inline const std::vector<VkGeometryNV>& ray_tracing_geometry() { return m_rt_geometries; }
-    inline vk::AccelerationStructure::Ptr   acceleration_structure() { return m_rt_as; }
+    inline vk::Buffer::Ptr                 index_buffer() { return m_ibo; }
+    inline const vk::VertexInputStateDesc& vertex_input_state_desc() { return m_vertex_input_state_desc; }
+    inline const VkGeometryNV              ray_tracing_geometry() { return m_rt_geometry; }
+    inline vk::AccelerationStructure::Ptr  acceleration_structure() { return m_rt_as; }
 #else
     inline gl::VertexArray* mesh_vertex_array()
     {
@@ -81,8 +81,11 @@ public:
     }
 #endif
 
-    inline uint32_t id() { return m_id; }
-    inline uint32_t sub_mesh_count() { return m_sub_mesh_count; }
+    inline uint32_t id()
+    {
+        return m_id;
+    }
+    inline uint32_t  sub_mesh_count() { return m_sub_mesh_count; }
     inline SubMesh*  sub_meshes() { return m_sub_meshes; }
     inline uint32_t  vertex_count() { return m_vertex_count; }
     inline uint32_t  index_count() { return m_index_count; }
@@ -132,7 +135,7 @@ private:
 
     // GPU resources.
 #if defined(DWSF_VULKAN)
-    std::vector<VkGeometryNV>      m_rt_geometries;
+    VkGeometryNV                   m_rt_geometry;
     vk::AccelerationStructure::Ptr m_rt_as;
     vk::Buffer::Ptr                m_vbo;
     vk::Buffer::Ptr                m_ibo;

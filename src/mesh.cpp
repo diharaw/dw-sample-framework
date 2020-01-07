@@ -114,40 +114,33 @@ Mesh::Ptr Mesh::load(
 
 void Mesh::initialize_for_ray_tracing(vk::Backend::Ptr backend)
 {
-    m_rt_geometries.resize(m_sub_mesh_count);
+    VkGeometryNV current = {};
 
-    for (int i = 0; i < m_sub_mesh_count; i++)
-    {
-        SubMesh& submesh = m_sub_meshes[i];
+    current.sType                              = VK_STRUCTURE_TYPE_GEOMETRY_NV;
+    current.pNext                              = nullptr;
+    current.geometryType                       = VK_GEOMETRY_TYPE_TRIANGLES_NV;
+    current.geometry.triangles.sType           = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
+    current.geometry.triangles.pNext           = nullptr;
+    current.geometry.triangles.vertexData      = m_vbo->handle();
+    current.geometry.triangles.vertexOffset    = 0;
+    current.geometry.triangles.vertexCount     = m_vertex_count;
+    current.geometry.triangles.vertexStride    = sizeof(Vertex);
+    current.geometry.triangles.vertexFormat    = VK_FORMAT_R32G32B32_SFLOAT;
+    current.geometry.triangles.indexData       = m_ibo->handle();
+    current.geometry.triangles.indexOffset     = 0;
+    current.geometry.triangles.indexCount      = m_index_count;
+    current.geometry.triangles.indexType       = VK_INDEX_TYPE_UINT32;
+    current.geometry.triangles.transformData   = VK_NULL_HANDLE;
+    current.geometry.triangles.transformOffset = 0;
+    current.geometry.aabbs                     = {};
+    current.geometry.aabbs.sType               = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
+    current.flags                              = VK_GEOMETRY_OPAQUE_BIT_NV;
 
-        VkGeometryNV current = {};
-
-        current.sType                              = VK_STRUCTURE_TYPE_GEOMETRY_NV;
-        current.pNext                              = nullptr;
-        current.geometryType                       = VK_GEOMETRY_TYPE_TRIANGLES_NV;
-        current.geometry.triangles.sType           = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
-        current.geometry.triangles.pNext           = nullptr;
-        current.geometry.triangles.vertexData      = m_vbo->handle();
-        current.geometry.triangles.vertexOffset    = submesh.base_vertex * sizeof(Vertex);
-        current.geometry.triangles.vertexCount     = submesh.index_count;
-        current.geometry.triangles.vertexStride    = sizeof(Vertex);
-        current.geometry.triangles.vertexFormat    = VK_FORMAT_R32G32B32_SFLOAT;
-        current.geometry.triangles.indexData       = m_ibo->handle();
-        current.geometry.triangles.indexOffset     = submesh.base_index * sizeof(uint32_t);
-        current.geometry.triangles.indexCount      = submesh.index_count;
-        current.geometry.triangles.indexType       = VK_INDEX_TYPE_UINT32;
-        current.geometry.triangles.transformData   = VK_NULL_HANDLE;
-        current.geometry.triangles.transformOffset = 0;
-        current.geometry.aabbs                     = {};
-        current.geometry.aabbs.sType               = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
-        current.flags                              = VK_GEOMETRY_OPAQUE_BIT_NV;
-
-        m_rt_geometries[i] = current;
-    }
+    m_rt_geometry = current;
 
     vk::AccelerationStructure::Desc desc;
 
-    desc.set_geometries(m_rt_geometries);
+    desc.set_geometries({ m_rt_geometry });
     desc.set_instance_count(0);
     desc.set_type(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV);
 
@@ -181,8 +174,8 @@ void Mesh::load_from_disk(
     m_sub_meshes     = new SubMesh[m_sub_mesh_count];
 
     // Temporary variables
-    aiMaterial*                                 temp_material;
-    std::vector<unsigned int>                   processed_mat_id;
+    aiMaterial*                                     temp_material;
+    std::vector<unsigned int>                       processed_mat_id;
     std::unordered_map<unsigned int, Material::Ptr> mat_id_mapping;
 
     // Iterate over submeshes and find materials
@@ -243,7 +236,7 @@ void Mesh::load_from_disk(
 #endif
                         current_mat_name,
                         &material_paths[0]);
-                        mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
+                    mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
                 }
                 else if (has_diifuse_val)
                 {
@@ -268,6 +261,8 @@ void Mesh::load_from_disk(
     m_vertices = new Vertex[m_vertex_count];
     m_indices  = new uint32_t[m_index_count];
 
+    std::vector<uint32_t> temp_indices(m_index_count);
+
     aiMesh* temp_mesh;
     int     idx         = 0;
     int     vertexIndex = 0;
@@ -279,15 +274,15 @@ void Mesh::load_from_disk(
         m_sub_meshes[i].max_extents = glm::vec3(temp_mesh->mVertices[0].x, temp_mesh->mVertices[0].y, temp_mesh->mVertices[0].z);
         m_sub_meshes[i].min_extents = glm::vec3(temp_mesh->mVertices[0].x, temp_mesh->mVertices[0].y, temp_mesh->mVertices[0].z);
 
+        uint32_t mat_id = 0;
+
+        if (mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex])
+            mat_id = mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex]->id();
+
         // Iterate over vertices in submesh...
         for (int k = 0; k < Scene->mMeshes[i]->mNumVertices; k++)
         {
             // Assign vertex values.
-            uint32_t mat_id = 0;
-
-            if (mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex])
-                mat_id = mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex]->id();
-
             m_vertices[vertexIndex].position = glm::vec4(temp_mesh->mVertices[k].x, temp_mesh->mVertices[k].y, temp_mesh->mVertices[k].z, float(mat_id));
             glm::vec3 n                      = glm::vec3(temp_mesh->mNormals[k].x, temp_mesh->mNormals[k].y, temp_mesh->mNormals[k].z);
             m_vertices[vertexIndex].normal   = glm::vec4(n, 0.0f);
@@ -301,7 +296,7 @@ void Mesh::load_from_disk(
                 if (glm::dot(glm::cross(n, t), b) < 0.0f)
                     t *= -1.0f; // Flip tangent
 
-                m_vertices[vertexIndex].tangent = glm::vec4(t, 0.0f);
+                m_vertices[vertexIndex].tangent   = glm::vec4(t, 0.0f);
                 m_vertices[vertexIndex].bitangent = glm::vec4(b, 0.0f);
             }
 
@@ -330,13 +325,25 @@ void Mesh::load_from_disk(
         // Assign indices.
         for (int j = 0; j < temp_mesh->mNumFaces; j++)
         {
-            m_indices[idx] = temp_mesh->mFaces[j].mIndices[0];
+            temp_indices[idx] = temp_mesh->mFaces[j].mIndices[0];
             idx++;
-            m_indices[idx] = temp_mesh->mFaces[j].mIndices[1];
+            temp_indices[idx] = temp_mesh->mFaces[j].mIndices[1];
             idx++;
-            m_indices[idx] = temp_mesh->mFaces[j].mIndices[2];
+            temp_indices[idx] = temp_mesh->mFaces[j].mIndices[2];
             idx++;
         }
+    }
+
+    int count = 0;
+
+    for (int i = 0; i < m_sub_mesh_count; i++)
+    {
+        SubMesh& submesh = m_sub_meshes[i];
+
+        for (int idx = submesh.base_index; idx < (submesh.base_index + submesh.index_count); idx++)
+            m_indices[count++] = submesh.base_vertex + temp_indices[idx];
+
+        submesh.base_vertex = 0;
     }
 
     m_max_extents = m_sub_meshes[0].max_extents;
@@ -412,7 +419,7 @@ void Mesh::create_gpu_objects(
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Mesh::Mesh() 
+Mesh::Mesh()
 {
     m_id = g_last_mesh_idx++;
 }
