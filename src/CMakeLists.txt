@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+if (ENABLE_IMGUI)
+	add_definitions(-DDWSF_IMGUI)
+endif()
+
 if (USE_VULKAN)
     add_definitions(-DDWSF_VULKAN)
-	add_definitions(-DDWSF_IMGUI)
 	add_definitions(-DDWSF_VULKAN_RAY_TRACING)
 endif()
 

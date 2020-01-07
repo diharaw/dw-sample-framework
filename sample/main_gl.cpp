@@ -9,11 +9,11 @@
 // Embedded vertex shader source.
 const char* g_sample_vs_src = R"(
 
-layout (location = 0) in vec3 VS_IN_Position;
-layout (location = 1) in vec2 VS_IN_TexCoord;
-layout (location = 2) in vec3 VS_IN_Normal;
-layout (location = 3) in vec3 VS_IN_Tangent;
-layout (location = 4) in vec3 VS_IN_Bitangent;
+layout (location = 0) in vec4 VS_IN_Position;
+layout (location = 1) in vec4 VS_IN_TexCoord;
+layout (location = 2) in vec4 VS_IN_Normal;
+layout (location = 3) in vec4 VS_IN_Tangent;
+layout (location = 4) in vec4 VS_IN_Bitangent;
 
 layout (std140) uniform Transforms //#binding 0
 { 
@@ -28,10 +28,10 @@ out vec2 PS_IN_TexCoord;
 
 void main()
 {
-    vec4 position = model * vec4(VS_IN_Position, 1.0);
+    vec4 position = model * vec4(VS_IN_Position.xyz, 1.0);
 	PS_IN_FragPos = position.xyz;
-	PS_IN_Normal = mat3(model) * VS_IN_Normal;
-	PS_IN_TexCoord = VS_IN_TexCoord;
+	PS_IN_Normal = mat3(model) * VS_IN_Normal.xyz;
+	PS_IN_TexCoord = VS_IN_TexCoord.xy;
     gl_Position = projection * view * position;
 }
 
@@ -131,7 +131,7 @@ protected:
     void shutdown() override
     {
         // Unload assets.
-        dw::Mesh::unload(m_mesh);
+        m_mesh.reset();
     }
 
     // -----------------------------------------------------------------------------------------------------------------------------------
@@ -255,7 +255,8 @@ private:
             dw::SubMesh& submesh = m_mesh->sub_meshes()[i];
 
             // Bind texture.
-            submesh.mat->texture(aiTextureType_DIFFUSE)->bind(0);
+            if (submesh.mat->texture(aiTextureType_DIFFUSE))
+                submesh.mat->texture(aiTextureType_DIFFUSE)->bind(0);
 
             // Issue draw call.
             glDrawElementsBaseVertex(
@@ -294,7 +295,7 @@ private:
     std::unique_ptr<dw::Camera> m_main_camera;
 
     // Assets.
-    dw::Mesh* m_mesh;
+    dw::Mesh::Ptr m_mesh;
 
     // Uniforms.
     Transforms m_transforms;

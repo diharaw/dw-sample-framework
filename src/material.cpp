@@ -170,7 +170,7 @@ vk::Image::Ptr Material::load_image(vk::Backend::Ptr backend, const std::string&
 {
     if (m_image_cache.find(path) == m_image_cache.end() || m_image_cache[path].expired())
     {
-        vk::Image::Ptr tex  = vk::Image::create_from_file(backend, path, true, srgb);
+        vk::Image::Ptr tex  = vk::Image::create_from_file(backend, path, false, srgb);
         m_image_cache[path] = tex;
         return tex;
     }
@@ -301,7 +301,7 @@ vk::DescriptorSet::Ptr Material::create_pbr_descriptor_set(vk::Backend::Ptr back
 
 #else
 
-Material* Material::load(const std::string& name, const std::string* textures)
+Material::Ptr Material::load(const std::string& name, const std::string* textures)
 {
     if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
     {
@@ -315,7 +315,7 @@ Material* Material::load(const std::string& name, const std::string* textures)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Material* Material::load(const std::string& name, int num_textures, gl::Texture2D** textures, glm::vec4 albedo, float roughness, float metalness)
+Material::Ptr Material::load(const std::string& name, int num_textures, gl::Texture2D** textures, glm::vec4 albedo, float roughness, float metalness)
 {
     if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
     {
@@ -339,7 +339,7 @@ gl::Texture2D* Material::load_texture(const std::string& path, bool srgb)
 {
     if (m_texture_cache.find(path) == m_texture_cache.end())
     {
-        gl::Texture2D* tex    = gl::Texture2D::create_from_files(path, srgb);
+        gl::Texture2D* tex    = gl::Texture2D::create_from_files(path, false, srgb);
         m_texture_cache[path] = tex;
         return tex;
     }

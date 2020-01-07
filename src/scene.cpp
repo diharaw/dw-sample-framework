@@ -24,6 +24,7 @@ Scene::Scene()
 
 Scene::~Scene()
 {
+#if defined(DWSF_VULKAN)
     for (int i = 0; i < m_material_id_buffers.size(); i++)
         m_material_id_buffers[i].reset();
 
@@ -35,6 +36,7 @@ Scene::~Scene()
     m_ray_tracing_geometry_ds.reset();
     m_indirect_draw_geometry_ds.reset();
     m_vk_top_level_as.reset();
+#endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -45,6 +47,8 @@ void Scene::add_instance(dw::Mesh::Ptr mesh, glm::mat4 transform)
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
+
+#if defined(DWSF_VULKAN)
 
 void Scene::initialize_for_indirect_draw(vk::Backend::Ptr backend)
 {
@@ -123,8 +127,6 @@ void Scene::gather_instance_data(vk::Backend::Ptr backend, bool ray_tracing)
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
-
-#if defined(DWSF_VULKAN)
 
 void Scene::create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
 {

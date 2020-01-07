@@ -52,9 +52,9 @@ public:
 
 private:
     Scene();
-    void gather_instance_data(vk::Backend::Ptr backend, bool ray_tracing);
-
+    
 #if defined(DWSF_VULKAN)
+    void gather_instance_data(vk::Backend::Ptr backend, bool ray_tracing);
     void create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing);
     void update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing);
     void build_acceleration_structure(vk::Backend::Ptr backend);
@@ -73,10 +73,11 @@ private:
     std::vector<vk::Buffer::Ptr>           m_material_id_buffers;
     std::vector<IndirectionInfo>           m_indirection_info;
     std::vector<RTGeometryInstance>        m_rt_instances;
-    std::vector<Instance>                  m_instances;
     std::vector<std::weak_ptr<Mesh>>       m_meshes;
     std::vector<std::weak_ptr<Material>>   m_materials;
     vk::AccelerationStructure::Ptr         m_vk_top_level_as;
 #endif
+
+    std::vector<Instance> m_instances;
 };
 } // namespace dw
