@@ -25,7 +25,9 @@ struct Vertex
 // SubMesh structure. Currently limited to one Material.
 struct SubMesh
 {
+    // @TODO: Deprecate material and keep mat_idx.
     std::shared_ptr<Material> mat;
+    uint32_t                  mat_idx;
     uint32_t                  index_count;
     uint32_t                  base_vertex;
     uint32_t                  base_index;
@@ -85,6 +87,8 @@ public:
     {
         return m_id;
     }
+    inline const std::vector<std::shared_ptr<Material>>& materials() { return m_materials; }
+    inline uint32_t                          material_count() { return m_materials.size(); }
     inline uint32_t  sub_mesh_count() { return m_sub_mesh_count; }
     inline SubMesh*  sub_meshes() { return m_sub_meshes; }
     inline uint32_t  vertex_count() { return m_vertex_count; }
@@ -127,6 +131,7 @@ private:
     uint32_t  m_vertex_count   = 0;
     uint32_t  m_index_count    = 0;
     uint32_t  m_sub_mesh_count = 0;
+    std::vector<std::shared_ptr<Material>> m_materials;
     SubMesh*  m_sub_meshes     = nullptr;
     Vertex*   m_vertices       = nullptr;
     uint32_t* m_indices        = nullptr;

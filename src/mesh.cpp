@@ -174,9 +174,10 @@ void Mesh::load_from_disk(
     m_sub_meshes     = new SubMesh[m_sub_mesh_count];
 
     // Temporary variables
-    aiMaterial*                                     temp_material;
-    std::vector<unsigned int>                       processed_mat_id;
-    std::unordered_map<unsigned int, Material::Ptr> mat_id_mapping;
+    aiMaterial*                                 temp_material;
+    std::vector<uint32_t>                       processed_mat_id;
+    std::unordered_map<uint32_t, Material::Ptr> mat_id_mapping;
+    std::unordered_map<uint32_t, uint32_t>      local_mat_idx_mapping;
 
     // Iterate over submeshes and find materials
     for (int i = 0; i < m_sub_mesh_count; i++)
@@ -230,17 +231,24 @@ void Mesh::load_from_disk(
 
                 if (has_least_one_texture)
                 {
-                    m_sub_meshes[i].mat = Material::load(
+                    Material::Ptr mat = Material::load(
 #if defined(DWSF_VULKAN)
                         backend,
 #endif
                         current_mat_name,
                         &material_paths[0]);
+                    m_sub_meshes[i].mat = mat;
+
                     mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
+                    local_mat_idx_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_materials.size();
+
+                    m_sub_meshes[i].mat_idx = m_materials.size();
+
+                    m_materials.push_back(mat);
                 }
                 else if (has_diifuse_val)
                 {
-                    m_sub_meshes[i].mat = Material::load(
+                    Material::Ptr mat = Material::load(
 #if defined(DWSF_VULKAN)
                         backend,
 #endif
@@ -248,13 +256,23 @@ void Mesh::load_from_disk(
                         0,
                         nullptr,
                         glm::vec4(diffuse.r, diffuse.g, diffuse.b, 1.0f));
+                    m_sub_meshes[i].mat = mat;
+
                     mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
+                    local_mat_idx_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_materials.size();
+
+                    m_sub_meshes[i].mat_idx = m_materials.size();
+
+                    m_materials.push_back(mat);
                 }
                 else
                     m_sub_meshes[i].mat = nullptr;
             }
             else // if already exists, find the pointer.
+            {
                 m_sub_meshes[i].mat = mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex];
+                m_sub_meshes[i].mat_idx = local_mat_idx_mapping[Scene->mMeshes[i]->mMaterialIndex];
+            }
         }
     }
 
@@ -278,6 +296,7 @@ void Mesh::load_from_disk(
 
         if (mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex])
             mat_id = mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex]->id();
+        mat_id = m_sub_meshes[i].mat_idx;
 
         // Iterate over vertices in submesh...
         for (int k = 0; k < Scene->mMeshes[i]->mNumVertices; k++)

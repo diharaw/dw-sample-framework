@@ -54,7 +54,6 @@ private:
 #if defined(DWSF_VULKAN)
     void gather_instance_data(vk::Backend::Ptr backend, bool ray_tracing);
     void create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing);
-    void update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing);
     void build_acceleration_structure(vk::Backend::Ptr backend);
 #endif
 
@@ -69,11 +68,9 @@ private:
     vk::DescriptorSet::Ptr                 m_metallic_ds;
     vk::DescriptorSet::Ptr                 m_ray_tracing_geometry_ds;
     vk::DescriptorSet::Ptr                 m_indirect_draw_geometry_ds;
-    std::unordered_map<uint32_t, uint32_t> m_material_map;
     std::vector<vk::Buffer::Ptr>           m_material_buffers;
     std::vector<RTGeometryInstance>        m_rt_instances;
     std::vector<std::weak_ptr<Mesh>>       m_meshes;
-    std::vector<std::weak_ptr<Material>>   m_materials;
     vk::AccelerationStructure::Ptr         m_vk_top_level_as;
 #endif
 

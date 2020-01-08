@@ -62,7 +62,6 @@ void Scene::initialize_for_ray_tracing(vk::Backend::Ptr backend)
 {
     gather_instance_data(backend, true);
     create_descriptor_sets(backend, true);
-    update_descriptor_sets(backend, true);
     build_acceleration_structure(backend);
 }
 
@@ -86,17 +85,6 @@ void Scene::gather_instance_data(vk::Backend::Ptr backend, bool ray_tracing)
             m_meshes.push_back(instance.mesh);
         }
 
-        for (int i = 0; i < mesh->sub_mesh_count(); i++)
-        {
-            uint32_t mat_id = submeshes[i].mat->id();
-
-            if (m_material_map.find(mat_id) == m_material_map.end())
-            {
-                m_material_map[mat_id] = m_materials.size();
-                m_materials.push_back(submeshes[i].mat);
-            }
-        }
-
         if (ray_tracing)
         {
             RTGeometryInstance rt_instance;
@@ -117,6 +105,87 @@ void Scene::gather_instance_data(vk::Backend::Ptr backend, bool ray_tracing)
 
 void Scene::create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
 {
+    std::vector<VkDescriptorBufferInfo> vbo_descriptors;
+    std::vector<VkDescriptorBufferInfo> ibo_descriptors;
+    std::vector<VkDescriptorImageInfo>  albedo_image_descriptors;
+    std::vector<VkDescriptorImageInfo>  metallic_image_descriptors;
+    std::vector<VkDescriptorImageInfo>  normal_image_descriptors;
+    std::vector<VkDescriptorImageInfo>  roughness_image_descriptors;
+    std::vector<VkDescriptorBufferInfo> mat_id_descriptors;
+
+    m_material_buffers.resize(m_meshes.size());
+
+    for (int i = 0; i < m_meshes.size(); i++)
+    {
+        auto mesh = m_meshes[i].lock();
+
+        if (ray_tracing)
+        {
+            VkDescriptorBufferInfo ibo_info;
+
+            ibo_info.buffer = mesh->index_buffer()->handle();
+            ibo_info.offset = 0;
+            ibo_info.range  = VK_WHOLE_SIZE;
+
+            ibo_descriptors.push_back(ibo_info);
+
+            VkDescriptorBufferInfo vbo_info;
+
+            vbo_info.buffer = mesh->vertex_buffer()->handle();
+            vbo_info.offset = 0;
+            vbo_info.range  = VK_WHOLE_SIZE;
+
+            vbo_descriptors.push_back(vbo_info);
+        }
+
+        const auto&           materials = mesh->materials();
+        std::vector<uint32_t> material_idx(mesh->material_count());
+        uint32_t              mat_id_offset = albedo_image_descriptors.size();
+
+        for (int j = 0; j < mesh->material_count(); j++)
+        {
+            material_idx[j] = mat_id_offset + j;
+
+            VkDescriptorImageInfo image_info[4];
+
+            image_info[0].sampler     = Material::common_sampler()->handle();
+            image_info[0].imageView   = materials[j]->image_view(aiTextureType_DIFFUSE)->handle();
+            image_info[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+            albedo_image_descriptors.push_back(image_info[0]);
+
+            image_info[1].sampler     = Material::common_sampler()->handle();
+            image_info[1].imageView   = materials[j]->image_view(aiTextureType_DISPLACEMENT)->handle();
+            image_info[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+            normal_image_descriptors.push_back(image_info[1]);
+
+            image_info[2].sampler     = Material::common_sampler()->handle();
+            image_info[2].imageView   = materials[j]->image_view(aiTextureType_SPECULAR)->handle();
+            image_info[2].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+            roughness_image_descriptors.push_back(image_info[2]);
+
+            image_info[3].sampler     = Material::common_sampler()->handle();
+            image_info[3].imageView   = materials[j]->image_view(aiTextureType_SPECULAR)->handle();
+            image_info[3].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+            metallic_image_descriptors.push_back(image_info[3]);
+        }
+
+        m_material_buffers[i] = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(uint32_t) * material_idx.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, material_idx.data());
+    
+        VkDescriptorBufferInfo mat_info;
+
+        mat_info.buffer = m_material_buffers[i]->handle();
+        mat_info.offset = 0;
+        mat_info.range  = VK_WHOLE_SIZE;
+
+        mat_id_descriptors.push_back(mat_info);
+    }
+
+    // Create descriptor set layouts
+
     if (ray_tracing)
     {
         dw::vk::DescriptorSetLayout::Desc desc;
@@ -133,7 +202,7 @@ void Scene::create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
 
     dw::vk::DescriptorSetLayout::Desc desc;
 
-    desc.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_materials.size(), VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV);
+    desc.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, albedo_image_descriptors.size(), VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV);
 
     std::vector<VkDescriptorBindingFlagsEXT> descriptor_binding_flags = {
         VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT
@@ -150,108 +219,15 @@ void Scene::create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
 
     m_material_ds_layout = dw::vk::DescriptorSetLayout::create(backend, desc);
 
-    m_albedo_ds = backend->allocate_descriptor_set(m_material_ds_layout);
-    m_normal_ds = backend->allocate_descriptor_set(m_material_ds_layout);
+    // Create descriptor sets
+
+    m_albedo_ds    = backend->allocate_descriptor_set(m_material_ds_layout);
+    m_normal_ds    = backend->allocate_descriptor_set(m_material_ds_layout);
     m_roughness_ds = backend->allocate_descriptor_set(m_material_ds_layout);
-    m_metallic_ds = backend->allocate_descriptor_set(m_material_ds_layout);
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Scene::update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
-{
-    std::vector<VkDescriptorBufferInfo> vbo_descriptors;
-    std::vector<VkDescriptorBufferInfo> ibo_descriptors;
-    std::vector<VkDescriptorImageInfo>  albedo_image_descriptors;
-    std::vector<VkDescriptorImageInfo>  metallic_image_descriptors;
-    std::vector<VkDescriptorImageInfo>  normal_image_descriptors;
-    std::vector<VkDescriptorImageInfo>  roughness_image_descriptors;
-
-    for (auto& mesh : m_meshes)
-    {
-        auto& current_mesh = mesh.lock();
-
-        if (ray_tracing)
-        {
-            VkDescriptorBufferInfo ibo_info;
-
-            ibo_info.buffer = current_mesh->index_buffer()->handle();
-            ibo_info.offset = 0;
-            ibo_info.range  = VK_WHOLE_SIZE;
-
-            ibo_descriptors.push_back(ibo_info);
-
-            VkDescriptorBufferInfo vbo_info;
-
-            vbo_info.buffer = current_mesh->vertex_buffer()->handle();
-            vbo_info.offset = 0;
-            vbo_info.range  = VK_WHOLE_SIZE;
-
-            vbo_descriptors.push_back(vbo_info);
-        }
-    }
-
-    for (int i = 0; i < m_materials.size(); i++)
-    {
-        auto mat = m_materials[i].lock();
-
-        VkDescriptorImageInfo image_info[4];
-
-        image_info[0].sampler     = Material::common_sampler()->handle();
-        image_info[0].imageView   = mat->image_view(aiTextureType_DIFFUSE)->handle();
-        image_info[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-        albedo_image_descriptors.push_back(image_info[0]);
-
-        image_info[1].sampler     = Material::common_sampler()->handle();
-        image_info[1].imageView   = mat->image_view(aiTextureType_DISPLACEMENT)->handle();
-        image_info[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-        normal_image_descriptors.push_back(image_info[1]);
-
-        image_info[2].sampler     = Material::common_sampler()->handle();
-        image_info[2].imageView   = mat->image_view(aiTextureType_SPECULAR)->handle();
-        image_info[2].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-        roughness_image_descriptors.push_back(image_info[2]);
-
-        image_info[3].sampler     = Material::common_sampler()->handle();
-        image_info[3].imageView   = mat->image_view(aiTextureType_SPECULAR)->handle();
-        image_info[3].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-        metallic_image_descriptors.push_back(image_info[3]);
-    }
+    m_metallic_ds  = backend->allocate_descriptor_set(m_material_ds_layout);
 
     if (ray_tracing)
     {
-        std::vector<VkDescriptorBufferInfo> mat_id_descriptors;
-
-        m_material_buffers.resize(m_meshes.size());
-
-        for (int i = 0; i < m_meshes.size(); i++)
-        {
-            auto     mesh      = m_meshes[i].lock();
-            SubMesh* submeshes = mesh->sub_meshes();
-
-            std::vector<uint32_t> material_id(mesh->index_count() / 3);
-
-            for (int j = 0; j < mesh->sub_mesh_count(); j++)
-            {
-                for (int idx = 0; idx < (submeshes[j].index_count / 3); idx++)
-                    material_id.push_back(m_material_map[submeshes[j].mat->id()]);
-            }
-
-            m_material_buffers[i] = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(uint32_t) * material_id.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, material_id.data());
-
-            VkDescriptorBufferInfo mat_id_info;
-
-            mat_id_info.buffer = m_material_buffers[i]->handle();
-            mat_id_info.offset = 0;
-            mat_id_info.range  = VK_WHOLE_SIZE;
-
-            mat_id_descriptors.push_back(mat_id_info);
-        }
-
         VkWriteDescriptorSet geometry_write_data[3];
 
         DW_ZERO_MEMORY(geometry_write_data[0]);
@@ -290,28 +266,28 @@ void Scene::update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
     DW_ZERO_MEMORY(material_write_data[3]);
 
     material_write_data[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    material_write_data[0].descriptorCount = m_materials.size();
+    material_write_data[0].descriptorCount = albedo_image_descriptors.size();
     material_write_data[0].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     material_write_data[0].pImageInfo      = albedo_image_descriptors.data();
     material_write_data[0].dstBinding      = 0;
     material_write_data[0].dstSet          = m_albedo_ds->handle();
 
-     material_write_data[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    material_write_data[1].descriptorCount = m_materials.size();
+    material_write_data[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    material_write_data[1].descriptorCount = normal_image_descriptors.size();
     material_write_data[1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     material_write_data[1].pImageInfo      = normal_image_descriptors.data();
     material_write_data[1].dstBinding      = 0;
     material_write_data[1].dstSet          = m_normal_ds->handle();
 
     material_write_data[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    material_write_data[2].descriptorCount = m_materials.size();
+    material_write_data[2].descriptorCount = roughness_image_descriptors.size();
     material_write_data[2].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     material_write_data[2].pImageInfo      = roughness_image_descriptors.data();
     material_write_data[2].dstBinding      = 0;
     material_write_data[2].dstSet          = m_roughness_ds->handle();
 
     material_write_data[3].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    material_write_data[3].descriptorCount = m_materials.size();
+    material_write_data[3].descriptorCount = metallic_image_descriptors.size();
     material_write_data[3].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     material_write_data[3].pImageInfo      = metallic_image_descriptors.data();
     material_write_data[3].dstBinding      = 0;

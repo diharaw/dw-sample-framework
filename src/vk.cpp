@@ -2966,6 +2966,7 @@ Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require
         m_indexing_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
         m_indexing_features.runtimeDescriptorArray                    = VK_TRUE;
         m_indexing_features.descriptorBindingVariableDescriptorCount  = VK_TRUE;
+        m_indexing_features.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE;
     }
 
     for (auto ext : additional_device_extensions)
