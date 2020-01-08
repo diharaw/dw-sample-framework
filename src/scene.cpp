@@ -28,7 +28,6 @@ Scene::~Scene()
     for (int i = 0; i < m_material_buffers.size(); i++)
         m_material_buffers[i].reset();
 
-    m_indirection_buffer.reset();
     m_material_ds_layout.reset();
     m_ray_tracing_geometry_ds_layout.reset();
     m_indirect_draw_geometry_ds_layout.reset();
@@ -77,7 +76,6 @@ void Scene::gather_instance_data(vk::Backend::Ptr backend, bool ray_tracing)
         SubMesh* submeshes = mesh->sub_meshes();
 
         uint32_t mesh_id    = mesh->id();
-        uint32_t attrib_idx = 0;
 
         if (attrib_map.find(mesh_id) == attrib_map.end())
         {
@@ -85,27 +83,15 @@ void Scene::gather_instance_data(vk::Backend::Ptr backend, bool ray_tracing)
             m_meshes.push_back(instance.mesh);
         }
 
-        attrib_idx = attrib_map[mesh_id];
-
         for (int i = 0; i < mesh->sub_mesh_count(); i++)
         {
             uint32_t mat_id  = submeshes[i].mat->id();
-            uint32_t mat_idx = 0;
 
             if (m_material_map.find(mat_id) == m_material_map.end())
             {
                 m_material_map[mat_id] = m_materials.size();
                 m_materials.push_back(submeshes[i].mat);
             }
-
-            mat_idx = m_material_map[mat_id];
-
-            IndirectionInfo info;
-
-            info.idx.x = attrib_idx;
-            info.idx.y = mat_idx;
-
-            m_indirection_info.push_back(info);
         }
 
         if (ray_tracing)
@@ -122,8 +108,6 @@ void Scene::gather_instance_data(vk::Backend::Ptr backend, bool ray_tracing)
             m_rt_instances.push_back(rt_instance);
         }
     }
-
-    m_indirection_buffer = vk::Buffer::create(backend, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(IndirectionInfo) * m_indirection_info.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, m_indirection_info.data());
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -233,12 +217,12 @@ void Scene::update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
             auto     mesh      = m_meshes[i].lock();
             SubMesh* submeshes = mesh->sub_meshes();
 
-            std::vector<uint32_t> material_id(mesh->index_count());
+            std::vector<uint32_t> material_id(mesh->index_count()/3);
 
             for (int j = 0; j < mesh->sub_mesh_count(); j++)
             {
-                for (int idx = 0; idx < submeshes[j].index_count; idx++)
-                    material_id.push_back(submeshes[j].mat->id());
+                for (int idx = 0; idx < (submeshes[j].index_count/3); idx++)
+                    material_id.push_back(m_material_map[submeshes[j].mat->id()]);
             }
 
             m_material_buffers[i] = vk::Buffer::create(backend, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(uint32_t) * material_id.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, material_id.data());
@@ -252,18 +236,11 @@ void Scene::update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
             mat_id_descriptors.push_back(mat_id_info);
         }
 
-        VkDescriptorBufferInfo indirection_buffer;
-
-        indirection_buffer.buffer = m_indirection_buffer->handle();
-        indirection_buffer.offset = 0;
-        indirection_buffer.range  = VK_WHOLE_SIZE;
-
-        VkWriteDescriptorSet geometry_write_data[4];
+        VkWriteDescriptorSet geometry_write_data[3];
 
         DW_ZERO_MEMORY(geometry_write_data[0]);
         DW_ZERO_MEMORY(geometry_write_data[1]);
         DW_ZERO_MEMORY(geometry_write_data[2]);
-        DW_ZERO_MEMORY(geometry_write_data[3]);
 
         geometry_write_data[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         geometry_write_data[0].descriptorCount = mat_id_descriptors.size();
@@ -273,27 +250,20 @@ void Scene::update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
         geometry_write_data[0].dstSet          = m_ray_tracing_geometry_ds->handle();
 
         geometry_write_data[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        geometry_write_data[1].descriptorCount = 1;
+        geometry_write_data[1].descriptorCount = m_meshes.size();
         geometry_write_data[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        geometry_write_data[1].pBufferInfo     = &indirection_buffer;
-        geometry_write_data[1].dstBinding      = 1;
+        geometry_write_data[1].pBufferInfo     = vbo_descriptors.data();
+        geometry_write_data[1].dstBinding      = 2;
         geometry_write_data[1].dstSet          = m_ray_tracing_geometry_ds->handle();
 
         geometry_write_data[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         geometry_write_data[2].descriptorCount = m_meshes.size();
         geometry_write_data[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        geometry_write_data[2].pBufferInfo     = vbo_descriptors.data();
-        geometry_write_data[2].dstBinding      = 2;
+        geometry_write_data[2].pBufferInfo     = ibo_descriptors.data();
+        geometry_write_data[2].dstBinding      = 3;
         geometry_write_data[2].dstSet          = m_ray_tracing_geometry_ds->handle();
 
-        geometry_write_data[3].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        geometry_write_data[3].descriptorCount = m_meshes.size();
-        geometry_write_data[3].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        geometry_write_data[3].pBufferInfo     = ibo_descriptors.data();
-        geometry_write_data[3].dstBinding      = 3;
-        geometry_write_data[3].dstSet          = m_ray_tracing_geometry_ds->handle();
-
-        vkUpdateDescriptorSets(backend->device(), 4, geometry_write_data, 0, nullptr);
+        vkUpdateDescriptorSets(backend->device(), 3, geometry_write_data, 0, nullptr);
     }
 
     VkWriteDescriptorSet material_write_data[4];

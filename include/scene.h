@@ -21,11 +21,6 @@ struct Instance
     std::weak_ptr<Mesh> mesh;
 };
 
-struct IndirectionInfo
-{
-    glm::ivec2 idx;
-};
-
 class Scene
 {
 public:
@@ -62,7 +57,6 @@ private:
 
 private:
 #if defined(DWSF_VULKAN)
-    vk::Buffer::Ptr                        m_indirection_buffer;
     vk::DescriptorSetLayout::Ptr           m_material_ds_layout;
     vk::DescriptorSetLayout::Ptr           m_ray_tracing_geometry_ds_layout;
     vk::DescriptorSetLayout::Ptr           m_indirect_draw_geometry_ds_layout;
@@ -71,7 +65,6 @@ private:
     vk::DescriptorSet::Ptr                 m_indirect_draw_geometry_ds;
     std::unordered_map<uint32_t, uint32_t> m_material_map;
     std::vector<vk::Buffer::Ptr>           m_material_buffers;
-    std::vector<IndirectionInfo>           m_indirection_info;
     std::vector<RTGeometryInstance>        m_rt_instances;
     std::vector<std::weak_ptr<Mesh>>       m_meshes;
     std::vector<std::weak_ptr<Material>>   m_materials;
