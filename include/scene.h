@@ -41,7 +41,10 @@ public:
     inline vk::DescriptorSetLayout::Ptr   material_descriptor_set_layout() { return m_material_ds_layout; }
     inline vk::DescriptorSet::Ptr         ray_tracing_geometry_descriptor_set() { return m_ray_tracing_geometry_ds; }
     inline vk::DescriptorSet::Ptr         indirect_draw_geometry_descriptor_set() { return m_indirect_draw_geometry_ds; }
-    inline vk::DescriptorSet::Ptr         material_descriptor_set() { return m_material_ds; }
+    inline vk::DescriptorSet::Ptr         albedo_descriptor_set() { return m_albedo_ds; }
+    inline vk::DescriptorSet::Ptr         normal_descriptor_set() { return m_normal_ds; }
+    inline vk::DescriptorSet::Ptr         roughness_descriptor_set() { return m_roughness_ds; }
+    inline vk::DescriptorSet::Ptr         metallic_descriptor_set() { return m_metallic_ds; }
     inline vk::AccelerationStructure::Ptr acceleration_structure() { return m_vk_top_level_as; }
 #endif
 
@@ -60,7 +63,10 @@ private:
     vk::DescriptorSetLayout::Ptr           m_material_ds_layout;
     vk::DescriptorSetLayout::Ptr           m_ray_tracing_geometry_ds_layout;
     vk::DescriptorSetLayout::Ptr           m_indirect_draw_geometry_ds_layout;
-    vk::DescriptorSet::Ptr                 m_material_ds;
+    vk::DescriptorSet::Ptr                 m_albedo_ds;
+    vk::DescriptorSet::Ptr                 m_normal_ds;
+    vk::DescriptorSet::Ptr                 m_roughness_ds;
+    vk::DescriptorSet::Ptr                 m_metallic_ds;
     vk::DescriptorSet::Ptr                 m_ray_tracing_geometry_ds;
     vk::DescriptorSet::Ptr                 m_indirect_draw_geometry_ds;
     std::unordered_map<uint32_t, uint32_t> m_material_map;

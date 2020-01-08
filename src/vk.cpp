@@ -2492,6 +2492,12 @@ Sampler::~Sampler()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+DescriptorSetLayout::Desc& DescriptorSetLayout::Desc::set_next_ptr(void* pnext)
+{
+    pnext_ptr = pnext;
+    return *this;
+}
+
 DescriptorSetLayout::Desc& DescriptorSetLayout::Desc::add_binding(uint32_t binding, VkDescriptorType descriptor_type, uint32_t descriptor_count, VkShaderStageFlags stage_flags)
 {
     bindings.push_back({ binding, descriptor_type, descriptor_count, stage_flags, nullptr });
@@ -2524,6 +2530,7 @@ DescriptorSetLayout::DescriptorSetLayout(Backend::Ptr backend, Desc desc) :
     VkDescriptorSetLayoutCreateInfo layout_info;
     DW_ZERO_MEMORY(layout_info);
 
+    layout_info.pNext        = desc.pnext_ptr;
     layout_info.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layout_info.bindingCount = desc.bindings.size();
     layout_info.pBindings    = desc.bindings.data();
@@ -2871,9 +2878,9 @@ QueryPool::QueryPool(Backend::Ptr backend, VkQueryType query_type, uint32_t quer
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Backend::Ptr Backend::create(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions)
+Backend::Ptr Backend::create(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions, void* pnext)
 {
-    std::shared_ptr<Backend> backend = std::shared_ptr<Backend>(new Backend(window, enable_validation_layers, require_ray_tracing, additional_device_extensions));
+    std::shared_ptr<Backend> backend = std::shared_ptr<Backend>(new Backend(window, enable_validation_layers, require_ray_tracing, additional_device_extensions, pnext));
     backend->initialize();
 
     return backend;
@@ -2881,9 +2888,11 @@ Backend::Ptr Backend::create(GLFWwindow* window, bool enable_validation_layers, 
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions) :
+Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions, void* pnext) :
     m_window(window)
 {
+    m_ray_tracing_enabled = require_ray_tracing;
+
     VkApplicationInfo appInfo;
     DW_ZERO_MEMORY(appInfo);
 
@@ -2950,6 +2959,13 @@ Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require
         device_extensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
         device_extensions.push_back(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
         device_extensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+
+        DW_ZERO_MEMORY(m_indexing_features);
+
+        m_indexing_features.sType                                     = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
+        m_indexing_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+        m_indexing_features.runtimeDescriptorArray                    = VK_TRUE;
+        m_indexing_features.descriptorBindingVariableDescriptorCount  = VK_TRUE;
     }
 
     for (auto ext : additional_device_extensions)
@@ -2961,7 +2977,7 @@ Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require
         throw std::runtime_error("(Vulkan) Failed to find a suitable GPU.");
     }
 
-    if (!create_logical_device(device_extensions))
+    if (!create_logical_device(device_extensions, pnext))
     {
         DW_LOG_FATAL("(Vulkan) Failed to create logical device.");
         throw std::runtime_error("(Vulkan) Failed to create logical device.");
@@ -3925,20 +3941,10 @@ bool Backend::is_queue_compatible(VkQueueFlags current_queue_flags, int32_t grap
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool Backend::create_logical_device(std::vector<const char*> extensions)
+bool Backend::create_logical_device(std::vector<const char*> extensions, void* pnext)
 {
-    VkPhysicalDeviceDescriptorIndexingFeaturesEXT desc_index_features;
-    DW_ZERO_MEMORY(desc_index_features);
-
-    desc_index_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
-
-    VkPhysicalDeviceFeatures2 supported_features;
+    VkPhysicalDeviceFeatures supported_features;
     DW_ZERO_MEMORY(supported_features);
-
-    supported_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    supported_features.pNext = &desc_index_features;
-
-    vkGetPhysicalDeviceFeatures2(m_vk_physical_device, &supported_features);
 
     VkDeviceCreateInfo device_info;
     DW_ZERO_MEMORY(device_info);
@@ -3948,8 +3954,30 @@ bool Backend::create_logical_device(std::vector<const char*> extensions)
     device_info.queueCreateInfoCount    = static_cast<uint32_t>(m_selected_queues.queue_count);
     device_info.enabledExtensionCount   = extensions.size();
     device_info.ppEnabledExtensionNames = extensions.data();
-    device_info.pEnabledFeatures        = &(supported_features.features);
-    device_info.pNext                   = &desc_index_features;
+    device_info.pEnabledFeatures        = &supported_features;
+    device_info.pNext                   = nullptr;
+
+    VkPhysicalDeviceFeatures2 physical_device_features_2;
+    DW_ZERO_MEMORY(physical_device_features_2);
+
+    if (pnext)
+    {
+        physical_device_features_2.sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        physical_device_features_2.features = supported_features;
+        physical_device_features_2.pNext    = pnext;
+        device_info.pEnabledFeatures        = nullptr;
+        device_info.pNext                   = &physical_device_features_2;
+    }
+    else if (m_ray_tracing_enabled)
+    {
+        pnext = &m_indexing_features;
+
+        physical_device_features_2.sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        physical_device_features_2.features = supported_features;
+        physical_device_features_2.pNext    = pnext;
+        device_info.pEnabledFeatures        = nullptr;
+        device_info.pNext                   = &physical_device_features_2;
+    }
 
     if (m_vk_debug_messenger)
     {

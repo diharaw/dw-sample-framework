@@ -177,7 +177,8 @@ bool Application::init_base(int argc, const char* argv[])
 #    endif
                                        ,
                                        settings.ray_tracing,
-                                       settings.device_extensions);
+                                       settings.device_extensions,
+                                       settings.device_pnext);
 
     m_image_available_semaphores.resize(vk::Backend::kMaxFramesInFlight);
     m_render_finished_semaphores.resize(vk::Backend::kMaxFramesInFlight);

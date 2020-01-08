@@ -41,6 +41,7 @@ struct AppSettings
     std::string title        = "dwSampleFramwork";
 
 #if defined(DWSF_VULKAN)
+    void*                    device_pnext = nullptr;
     std::vector<const char*> device_extensions;
     bool ray_tracing = false;
 #endif

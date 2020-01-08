@@ -65,7 +65,7 @@ public:
 
     using Ptr = std::shared_ptr<Backend>;
 
-    static Backend::Ptr create(GLFWwindow* window, bool enable_validation_layers = false, bool require_ray_tracing = false, std::vector<const char*> additional_device_extensions = std::vector<const char*>());
+    static Backend::Ptr create(GLFWwindow* window, bool enable_validation_layers = false, bool require_ray_tracing = false, std::vector<const char*> additional_device_extensions = std::vector<const char*>(), void* pnext = nullptr);
 
     ~Backend();
 
@@ -120,7 +120,7 @@ public:
     inline const QueueInfos&                      queue_infos() { return m_selected_queues; }
 
 private:
-    Backend(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions);
+    Backend(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions, void* pnext);
     void                     initialize();
     void                     load_ray_tracing_funcs();
     VkFormat                 find_depth_format();
@@ -135,7 +135,7 @@ private:
     bool                     is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType type, QueueInfos& infos, SwapChainSupportDetails& details, std::vector<const char*> extensions);
     bool                     find_queues(VkPhysicalDevice device, QueueInfos& infos);
     bool                     is_queue_compatible(VkQueueFlags current_queue_flags, int32_t graphics, int32_t compute, int32_t transfer);
-    bool                     create_logical_device(std::vector<const char*> extensions);
+    bool                     create_logical_device(std::vector<const char*> extensions, void* pnext);
     bool                     create_swapchain();
     void                     create_render_pass();
     VkSurfaceFormatKHR       choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats);
@@ -167,6 +167,7 @@ private:
     VkFormat                                  m_swap_chain_depth_format;
     VkExtent2D                                m_swap_chain_extent;
     VkPhysicalDeviceRayTracingPropertiesNV    m_ray_tracing_properties;
+    VkPhysicalDeviceDescriptorIndexingFeaturesEXT m_indexing_features;
     std::shared_ptr<RenderPass>               m_swap_chain_render_pass;
     std::vector<std::shared_ptr<Image>>       m_swap_chain_images;
     std::vector<std::shared_ptr<ImageView>>   m_swap_chain_image_views;
@@ -177,6 +178,7 @@ private:
     std::shared_ptr<Image>                    m_swap_chain_depth      = nullptr;
     std::shared_ptr<ImageView>                m_swap_chain_depth_view = nullptr;
     VkPhysicalDeviceProperties                m_device_properties;
+    bool                                      m_ray_tracing_enabled = false;
 };
 
 class Object
@@ -763,7 +765,9 @@ public:
     {
         std::vector<VkDescriptorSetLayoutBinding> bindings;
         VkSampler                                 binding_samplers[32][8];
+        void*                                     pnext_ptr = nullptr;
 
+        Desc& set_next_ptr(void* pnext);
         Desc& add_binding(uint32_t binding, VkDescriptorType descriptor_type, uint32_t descriptor_count, VkShaderStageFlags stage_flags);
         Desc& add_binding(uint32_t binding, VkDescriptorType descriptor_type, uint32_t descriptor_count, VkShaderStageFlags stage_flags, Sampler::Ptr samplers[]);
     };
