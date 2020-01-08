@@ -253,14 +253,14 @@ void Scene::update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
         geometry_write_data[1].descriptorCount = m_meshes.size();
         geometry_write_data[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         geometry_write_data[1].pBufferInfo     = vbo_descriptors.data();
-        geometry_write_data[1].dstBinding      = 2;
+        geometry_write_data[1].dstBinding      = 1;
         geometry_write_data[1].dstSet          = m_ray_tracing_geometry_ds->handle();
 
         geometry_write_data[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         geometry_write_data[2].descriptorCount = m_meshes.size();
         geometry_write_data[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         geometry_write_data[2].pBufferInfo     = ibo_descriptors.data();
-        geometry_write_data[2].dstBinding      = 3;
+        geometry_write_data[2].dstBinding      = 2;
         geometry_write_data[2].dstSet          = m_ray_tracing_geometry_ds->handle();
 
         vkUpdateDescriptorSets(backend->device(), 3, geometry_write_data, 0, nullptr);
