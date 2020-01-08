@@ -2871,9 +2871,9 @@ QueryPool::QueryPool(Backend::Ptr backend, VkQueryType query_type, uint32_t quer
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Backend::Ptr Backend::create(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing)
+Backend::Ptr Backend::create(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions)
 {
-    std::shared_ptr<Backend> backend = std::shared_ptr<Backend>(new Backend(window, enable_validation_layers, require_ray_tracing));
+    std::shared_ptr<Backend> backend = std::shared_ptr<Backend>(new Backend(window, enable_validation_layers, require_ray_tracing, additional_device_extensions));
     backend->initialize();
 
     return backend;
@@ -2881,7 +2881,7 @@ Backend::Ptr Backend::create(GLFWwindow* window, bool enable_validation_layers, 
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing) :
+Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions) :
     m_window(window)
 {
     VkApplicationInfo appInfo;
@@ -2948,7 +2948,12 @@ Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require
     {
         device_extensions.push_back(VK_NV_RAY_TRACING_EXTENSION_NAME);
         device_extensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+        device_extensions.push_back(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
+        device_extensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
     }
+
+    for (auto ext : additional_device_extensions)
+        device_extensions.push_back(ext);
 
     if (!find_physical_device(device_extensions))
     {

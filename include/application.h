@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <array>
 #include <string>
+#include <vector>
 #ifdef __EMSCRIPTEN__
 #    define GLFW_INCLUDE_ES3
 #    include <GLFW/glfw3.h>
@@ -40,6 +41,7 @@ struct AppSettings
     std::string title        = "dwSampleFramwork";
 
 #if defined(DWSF_VULKAN)
+    std::vector<const char*> device_extensions;
     bool ray_tracing = false;
 #endif
 };

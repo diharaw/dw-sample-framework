@@ -65,7 +65,7 @@ public:
 
     using Ptr = std::shared_ptr<Backend>;
 
-    static Backend::Ptr create(GLFWwindow* window, bool enable_validation_layers = false, bool require_ray_tracing = false);
+    static Backend::Ptr create(GLFWwindow* window, bool enable_validation_layers = false, bool require_ray_tracing = false, std::vector<const char*> additional_device_extensions = std::vector<const char*>());
 
     ~Backend();
 
@@ -120,7 +120,7 @@ public:
     inline const QueueInfos&                      queue_infos() { return m_selected_queues; }
 
 private:
-    Backend(GLFWwindow* window, bool enable_validation_layers = false, bool require_ray_tracing = false);
+    Backend(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions);
     void                     initialize();
     void                     load_ray_tracing_funcs();
     VkFormat                 find_depth_format();
