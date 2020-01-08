@@ -25,8 +25,8 @@ Scene::Scene()
 Scene::~Scene()
 {
 #if defined(DWSF_VULKAN)
-    for (int i = 0; i < m_material_id_buffers.size(); i++)
-        m_material_id_buffers[i].reset();
+    for (int i = 0; i < m_material_buffers.size(); i++)
+        m_material_buffers[i].reset();
 
     m_indirection_buffer.reset();
     m_material_ds_layout.reset();
@@ -226,25 +226,26 @@ void Scene::update_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
     {
         std::vector<VkDescriptorBufferInfo> mat_id_descriptors;
 
-        m_material_id_buffers.resize(m_meshes.size());
+        m_material_buffers.resize(m_meshes.size());
 
         for (int i = 0; i < m_meshes.size(); i++)
         {
             auto     mesh      = m_meshes[i].lock();
             SubMesh* submeshes = mesh->sub_meshes();
 
-            std::vector<uint32_t> material_id;
-
-            material_id.resize(mesh->sub_mesh_count());
+            std::vector<uint32_t> material_id(mesh->index_count());
 
             for (int j = 0; j < mesh->sub_mesh_count(); j++)
-                material_id[submeshes[j].mat->id()] = m_material_map[submeshes[j].mat->id()];
+            {
+                for (int idx = 0; idx < submeshes[j].index_count; idx++)
+                    material_id.push_back(submeshes[j].mat->id());
+            }
 
-            m_material_id_buffers[i] = vk::Buffer::create(backend, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(uint32_t) * material_id.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, material_id.data());
+            m_material_buffers[i] = vk::Buffer::create(backend, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(uint32_t) * material_id.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, material_id.data());
 
             VkDescriptorBufferInfo mat_id_info;
 
-            mat_id_info.buffer = m_material_id_buffers[i]->handle();
+            mat_id_info.buffer = m_material_buffers[i]->handle();
             mat_id_info.offset = 0;
             mat_id_info.range  = VK_WHOLE_SIZE;
 

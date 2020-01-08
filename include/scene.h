@@ -70,7 +70,7 @@ private:
     vk::DescriptorSet::Ptr                 m_ray_tracing_geometry_ds;
     vk::DescriptorSet::Ptr                 m_indirect_draw_geometry_ds;
     std::unordered_map<uint32_t, uint32_t> m_material_map;
-    std::vector<vk::Buffer::Ptr>           m_material_id_buffers;
+    std::vector<vk::Buffer::Ptr>           m_material_buffers;
     std::vector<IndirectionInfo>           m_indirection_info;
     std::vector<RTGeometryInstance>        m_rt_instances;
     std::vector<std::weak_ptr<Mesh>>       m_meshes;
