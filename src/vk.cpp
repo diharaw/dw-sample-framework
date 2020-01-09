@@ -1962,6 +1962,10 @@ ComputePipeline::~ComputePipeline()
 ShaderBindingTable::Desc::Desc()
 {
     entry_point_names.reserve(32);
+    ray_gen_stages.reserve(32);
+    hit_stages.reserve(32);
+    miss_stages.reserve(32);
+    hit_groups.reserve(32);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
