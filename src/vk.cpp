@@ -2375,7 +2375,7 @@ AccelerationStructure::~AccelerationStructure()
     auto backend = m_vk_backend.lock();
 
     vkDestroyAccelerationStructureNV(backend->device(), m_vk_acceleration_structure, nullptr);
-    vkFreeMemory(backend->device(), m_memory, nullptr);
+    vmaFreeMemory(backend->allocator(), m_vma_allocation);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2402,27 +2402,21 @@ AccelerationStructure::AccelerationStructure(Backend::Ptr backend, Desc desc) :
     VkMemoryRequirements2 memory_requirements;
     vkGetAccelerationStructureMemoryRequirementsNV(backend->device(), &memory_requirements_info, &memory_requirements);
 
-    /*VmaAllocationInfo       alloc_info;
+    VmaAllocationInfo       alloc_info;
     VmaAllocationCreateInfo alloc_create_info;
     DW_ZERO_MEMORY(alloc_create_info);
 
     alloc_create_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     alloc_create_info.flags = 0;
 
-    vmaAllocateMemory(backend->allocator(), &memory_requirements.memoryRequirements, &alloc_create_info, &m_vma_allocation, &alloc_info);*/
-
-    VkMemoryAllocateInfo mem_alloc_info {};
-    mem_alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    mem_alloc_info.allocationSize  = memory_requirements.memoryRequirements.size;
-    mem_alloc_info.memoryTypeIndex = utilities::get_memory_type(backend->physical_device(), memory_requirements.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    vkAllocateMemory(backend->device(), &mem_alloc_info, nullptr, &m_memory);
+    vmaAllocateMemory(backend->allocator(), &memory_requirements.memoryRequirements, &alloc_create_info, &m_vma_allocation, &alloc_info);
 
     VkBindAccelerationStructureMemoryInfoNV bind_info;
     bind_info.sType                 = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
     bind_info.pNext                 = nullptr;
     bind_info.accelerationStructure = m_vk_acceleration_structure;
-    bind_info.memory                = m_memory;
-    bind_info.memoryOffset          = 0;
+    bind_info.memory                = alloc_info.deviceMemory;
+    bind_info.memoryOffset          = alloc_info.offset;
     bind_info.deviceIndexCount      = 0;
     bind_info.pDeviceIndices        = nullptr;
 

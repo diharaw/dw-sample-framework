@@ -712,7 +712,7 @@ private:
     AccelerationStructure(Backend::Ptr backend, Desc desc);
 
 private:
-    VkDeviceMemory                m_memory = nullptr;
+    VmaAllocation_T*              m_vma_allocation = nullptr;
     uint64_t                      m_handle = 0;
     VkAccelerationStructureInfoNV m_vk_acceleration_structure_info;
     VkAccelerationStructureNV     m_vk_acceleration_structure = nullptr;
