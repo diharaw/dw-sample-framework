@@ -155,19 +155,19 @@ void Scene::create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
             albedo_image_descriptors.push_back(image_info[0]);
 
             image_info[1].sampler     = Material::common_sampler()->handle();
-            image_info[1].imageView   = materials[j]->image_view(aiTextureType_DISPLACEMENT)->handle();
+            image_info[1].imageView   = materials[j]->image_view(aiTextureType_HEIGHT)->handle();
             image_info[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
             normal_image_descriptors.push_back(image_info[1]);
 
             image_info[2].sampler     = Material::common_sampler()->handle();
-            image_info[2].imageView   = materials[j]->image_view(aiTextureType_SPECULAR)->handle();
+            image_info[2].imageView   = materials[j]->image_view(aiTextureType_SHININESS)->handle();
             image_info[2].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
             roughness_image_descriptors.push_back(image_info[2]);
 
             image_info[3].sampler     = Material::common_sampler()->handle();
-            image_info[3].imageView   = materials[j]->image_view(aiTextureType_SPECULAR)->handle();
+            image_info[3].imageView   = materials[j]->image_view(aiTextureType_AMBIENT)->handle();
             image_info[3].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
             metallic_image_descriptors.push_back(image_info[3]);
