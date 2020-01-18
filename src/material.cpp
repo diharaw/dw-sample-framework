@@ -142,7 +142,7 @@ void Material::initialize_common_resources(vk::Backend::Ptr backend)
     sampler_desc.compare_enable    = false;
     sampler_desc.compare_op        = VK_COMPARE_OP_NEVER;
     sampler_desc.min_lod           = 0.0f;
-    sampler_desc.max_lod           = 1.0f;
+    sampler_desc.max_lod           = 12.0f;
     sampler_desc.border_color      = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
     sampler_desc.unnormalized_coordinates;
 
