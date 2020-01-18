@@ -25,8 +25,7 @@ struct Vertex
 // SubMesh structure. Currently limited to one Material.
 struct SubMesh
 {
-    // @TODO: Deprecate material and keep mat_idx.
-    std::shared_ptr<Material> mat;
+    std::string               name;
     uint32_t                  mat_idx;
     uint32_t                  index_count;
     uint32_t                  base_vertex;
@@ -64,6 +63,10 @@ public:
         glm::vec3          max_extents,
         glm::vec3          min_extents);
 
+    bool set_submesh_material(std::string name, std::shared_ptr<Material> material);
+    bool set_submesh_material(uint32_t mesh_idx, std::shared_ptr<Material> material);
+    void set_global_material(std::shared_ptr<Material> material);
+
 #if defined(DWSF_VULKAN)
     void initialize_for_ray_tracing(vk::Backend::Ptr backend);
 
@@ -95,6 +98,7 @@ public:
     inline uint32_t  index_count() { return m_index_count; }
     inline uint32_t* indices() { return m_indices; }
     inline Vertex*   vertices() { return m_vertices; }
+    inline std::shared_ptr<Material> material(uint32_t idx) { return m_materials[idx]; }
 
     ~Mesh();
 

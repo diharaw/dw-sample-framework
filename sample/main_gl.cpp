@@ -252,11 +252,12 @@ private:
 
         for (uint32_t i = 0; i < m_mesh->sub_mesh_count(); i++)
         {
-            dw::SubMesh& submesh = m_mesh->sub_meshes()[i];
+            auto& submesh = m_mesh->sub_meshes()[i];
+            auto& mat     = m_mesh->material(submesh.mat_idx);
 
             // Bind texture.
-            if (submesh.mat->texture(aiTextureType_DIFFUSE))
-                submesh.mat->texture(aiTextureType_DIFFUSE)->bind(0);
+            if (mat->texture(aiTextureType_DIFFUSE))
+                mat->texture(aiTextureType_DIFFUSE)->bind(0);
 
             // Issue draw call.
             glDrawElementsBaseVertex(

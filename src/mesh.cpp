@@ -184,6 +184,7 @@ void Mesh::load_from_disk(
     {
         bool has_least_one_texture = false;
 
+        m_sub_meshes[i].name        = std::string(Scene->mMeshes[i]->mName.C_Str());
         m_sub_meshes[i].index_count = Scene->mMeshes[i]->mNumFaces * 3;
         m_sub_meshes[i].base_index  = m_index_count;
         m_sub_meshes[i].base_vertex = m_vertex_count;
@@ -237,9 +238,8 @@ void Mesh::load_from_disk(
 #endif
                         current_mat_name,
                         &material_paths[0]);
-                    m_sub_meshes[i].mat = mat;
 
-                    mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
+                    mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex]        = mat;
                     local_mat_idx_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_materials.size();
 
                     m_sub_meshes[i].mat_idx = m_materials.size();
@@ -256,9 +256,8 @@ void Mesh::load_from_disk(
                         0,
                         nullptr,
                         glm::vec4(diffuse.r, diffuse.g, diffuse.b, 1.0f));
-                    m_sub_meshes[i].mat = mat;
 
-                    mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_sub_meshes[i].mat;
+                    mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex]        = mat;
                     local_mat_idx_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_materials.size();
 
                     m_sub_meshes[i].mat_idx = m_materials.size();
@@ -266,13 +265,10 @@ void Mesh::load_from_disk(
                     m_materials.push_back(mat);
                 }
                 else
-                    m_sub_meshes[i].mat = nullptr;
+                    m_sub_meshes[i].mat_idx = UINT32_MAX;
             }
             else // if already exists, find the pointer.
-            {
-                m_sub_meshes[i].mat = mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex];
                 m_sub_meshes[i].mat_idx = local_mat_idx_mapping[Scene->mMeshes[i]->mMaterialIndex];
-            }
         }
     }
 
@@ -472,8 +468,8 @@ Mesh::Mesh(
 Mesh::~Mesh()
 {
     // Unload submesh materials.
-    for (uint32_t i = 0; i < m_sub_mesh_count; i++)
-        m_sub_meshes[i].mat.reset();
+    for (uint32_t i = 0; i < m_materials.size(); i++)
+        m_materials[i].reset();
 
     m_ibo.reset();
     m_vbo.reset();
@@ -482,6 +478,47 @@ Mesh::~Mesh()
     DW_SAFE_DELETE_ARRAY(m_sub_meshes);
     DW_SAFE_DELETE_ARRAY(m_vertices);
     DW_SAFE_DELETE_ARRAY(m_indices);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+bool Mesh::set_submesh_material(std::string name, std::shared_ptr<Material> material)
+{
+    for (int i = 0; i < m_sub_mesh_count; i++)
+    {
+        if (name == m_sub_meshes[i].name)
+        {
+            m_sub_meshes[i].mat_idx = m_materials.size();
+            m_materials.push_back(material);
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+bool Mesh::set_submesh_material(uint32_t mesh_idx, std::shared_ptr<Material> material)
+{
+    if (mesh_idx >= m_sub_mesh_count)
+        return false;
+
+    m_sub_meshes[mesh_idx].mat_idx = m_materials.size();
+    m_materials.push_back(material);
+
+    return true;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Mesh::set_global_material(std::shared_ptr<Material> material)
+{
+    for (int i = 0; i < m_sub_mesh_count; i++)
+        m_sub_meshes[i].mat_idx = m_materials.size();
+
+    m_materials.push_back(material);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
