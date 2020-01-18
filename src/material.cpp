@@ -203,7 +203,7 @@ vk::ImageView::Ptr Material::load_image_view(vk::Backend::Ptr backend, const std
 {
     if (m_image_view_cache.find(path) == m_image_view_cache.end() || m_image_view_cache[path].expired())
     {
-        vk::ImageView::Ptr image_view = vk::ImageView::create(backend, image, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT);
+        vk::ImageView::Ptr image_view = vk::ImageView::create(backend, image, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, 0, image->mip_levels());
         m_image_view_cache[path]      = image_view;
         return image_view;
     }
