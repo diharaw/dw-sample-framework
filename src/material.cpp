@@ -132,7 +132,7 @@ void Material::initialize_common_resources(vk::Backend::Ptr backend)
 
     sampler_desc.mag_filter        = VK_FILTER_LINEAR;
     sampler_desc.min_filter        = VK_FILTER_LINEAR;
-    sampler_desc.mipmap_mode       = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    sampler_desc.mipmap_mode       = VK_SAMPLER_MIPMAP_MODE_LINEAR;
     sampler_desc.address_mode_u    = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     sampler_desc.address_mode_v    = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     sampler_desc.address_mode_w    = VK_SAMPLER_ADDRESS_MODE_REPEAT;

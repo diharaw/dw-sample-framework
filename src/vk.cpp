@@ -356,7 +356,7 @@ Image::Ptr Image::create_from_file(Backend::Ptr backend, std::string path, bool 
         if (!data)
             return nullptr;
 
-        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 1, 1, VK_FORMAT_R32G32B32_SFLOAT, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, x * y * sizeof(float) * 3, data));
+        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 0, 1, VK_FORMAT_R32G32B32_SFLOAT, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, x * y * sizeof(float) * 3, data));
 
         stbi_image_free(data);
 
@@ -388,7 +388,7 @@ Image::Ptr Image::create_from_file(Backend::Ptr backend, std::string path, bool 
                 format = VK_FORMAT_R8G8B8A8_UNORM;
         }
 
-        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 1, 1, format, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, x * y * n, data));
+        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 0, 1, format, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, x * y * n, data));
 
         stbi_image_free(data);
 
@@ -399,25 +399,28 @@ Image::Ptr Image::create_from_file(Backend::Ptr backend, std::string path, bool 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Image::Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t height, uint32_t depth, uint32_t mip_levels, uint32_t array_size, VkFormat format, VmaMemoryUsage memory_usage, VkImageUsageFlags usage, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, size_t size, void* data) :
-    Object(backend), m_type(type), m_width(width), m_height(height), m_depth(depth), m_mip_levels(mip_levels), m_array_size(array_size), m_format(format), m_memory_usage(memory_usage), m_sample_count(sample_count)
+    Object(backend), m_type(type), m_width(width), m_height(height), m_depth(depth), m_mip_levels(mip_levels), m_array_size(array_size), m_format(format), m_memory_usage(memory_usage), m_sample_count(sample_count), m_usage(usage)
 {
     m_vma_allocator = backend->allocator();
+
+    if (mip_levels == 0)
+        m_mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(m_width, m_height)))) + 1;
 
     VkImageCreateInfo image_info;
     DW_ZERO_MEMORY(image_info);
 
     image_info.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    image_info.imageType     = type;
-    image_info.extent.width  = width;
-    image_info.extent.height = height;
-    image_info.extent.depth  = 1;
-    image_info.mipLevels     = mip_levels;
-    image_info.arrayLayers   = array_size;
-    image_info.format        = format;
+    image_info.imageType     = m_type;
+    image_info.extent.width  = m_width;
+    image_info.extent.height = m_height;
+    image_info.extent.depth  = m_depth;
+    image_info.mipLevels     = m_mip_levels;
+    image_info.arrayLayers   = m_array_size;
+    image_info.format        = m_format;
     image_info.tiling        = VK_IMAGE_TILING_OPTIMAL;
     image_info.initialLayout = initial_layout;
-    image_info.usage         = usage;
-    image_info.samples       = sample_count;
+    image_info.usage         = m_usage;
+    image_info.samples       = m_sample_count;
     image_info.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
 
     VmaAllocationInfo       alloc_info;
@@ -436,7 +439,35 @@ Image::Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t he
     m_vk_device_memory = alloc_info.deviceMemory;
 
     if (data)
-        upload_data(0, 0, data, size);
+    {
+        CommandBuffer::Ptr cmd_buf = backend->allocate_graphics_command_buffer(true);
+
+        VkImageSubresourceRange subresource_range;
+        DW_ZERO_MEMORY(subresource_range);
+
+        subresource_range.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        subresource_range.baseMipLevel   = 0;
+        subresource_range.levelCount     = m_mip_levels;
+        subresource_range.layerCount     = m_array_size;
+        subresource_range.baseArrayLayer = 0;
+
+        // Image barrier for optimal image (target)
+        // Optimal image will be used as destination for the copy
+        utilities::set_image_layout(cmd_buf->handle(),
+                                    m_vk_image,
+                                    VK_IMAGE_LAYOUT_UNDEFINED,
+                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                    subresource_range);
+
+        vkEndCommandBuffer(cmd_buf->handle());
+
+        backend->flush_graphics({ cmd_buf });
+
+        upload_data(0, 0, data, size, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        if (m_mip_levels > 1)
+            generate_mipmaps();
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -462,7 +493,7 @@ Image::~Image()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Image::upload_data(int array_index, int mip_level, void* data, size_t size)
+void Image::upload_data(int array_index, int mip_level, void* data, size_t size, VkImageLayout src_layout, VkImageLayout dst_layout)
 {
     auto backend = m_vk_backend.lock();
 
@@ -489,22 +520,18 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size)
     subresource_range.layerCount     = 1;
     subresource_range.baseArrayLayer = array_index;
 
-    CommandBuffer::Ptr cmd_buf = backend->allocate_graphics_command_buffer();
+    CommandBuffer::Ptr cmd_buf = backend->allocate_graphics_command_buffer(true);
 
-    VkCommandBufferBeginInfo begin_info;
-    DW_ZERO_MEMORY(begin_info);
-
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-    vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
-
-    // Image barrier for optimal image (target)
-    // Optimal image will be used as destination for the copy
-    utilities::set_image_layout(cmd_buf->handle(),
-                                m_vk_image,
-                                VK_IMAGE_LAYOUT_UNDEFINED,
-                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                subresource_range);
+    if (src_layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    {
+        // Image barrier for optimal image (target)
+        // Optimal image will be used as destination for the copy
+        utilities::set_image_layout(cmd_buf->handle(),
+                                    m_vk_image,
+                                    src_layout,
+                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                    subresource_range);
+    }
 
     // Copy mip levels from staging buffer
     vkCmdCopyBufferToImage(cmd_buf->handle(),
@@ -514,12 +541,98 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size)
                            1,
                            &buffer_copy_region);
 
-    // Change texture image layout to shader read after all mip levels have been copied
-    utilities::set_image_layout(cmd_buf->handle(),
-                                m_vk_image,
-                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                subresource_range);
+    if (dst_layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    {
+        // Change texture image layout to shader read after all mip levels have been copied
+        utilities::set_image_layout(cmd_buf->handle(),
+                                    m_vk_image,
+                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                    dst_layout,
+                                    subresource_range);
+    }
+
+    vkEndCommandBuffer(cmd_buf->handle());
+
+    backend->flush_graphics({ cmd_buf });
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Image::generate_mipmaps(VkImageLayout src_layout, VkImageLayout dst_layout)
+{
+    auto backend = m_vk_backend.lock();
+
+    CommandBuffer::Ptr cmd_buf = backend->allocate_graphics_command_buffer(true);
+
+    VkImageSubresourceRange subresource_range;
+    DW_ZERO_MEMORY(subresource_range);
+
+    subresource_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresource_range.levelCount = 1;
+    subresource_range.layerCount = 1;
+
+    int32_t mip_width  = m_width;
+    int32_t mip_height = m_height;
+
+    for (int arr_idx = 0; arr_idx < m_array_size; arr_idx++)
+    {
+        for (int mip_idx = 1; mip_idx < m_mip_levels; mip_idx++)
+        {
+            subresource_range.baseMipLevel   = mip_idx - 1;
+            subresource_range.baseArrayLayer = arr_idx;
+
+            VkImageLayout layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+            if (mip_idx == 1)
+                layout = src_layout;
+
+            utilities::set_image_layout(cmd_buf->handle(),
+                                        m_vk_image,
+                                        layout,
+                                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                        subresource_range);
+
+            VkImageBlit blit                   = {};
+            blit.srcOffsets[0]                 = { 0, 0, 0 };
+            blit.srcOffsets[1]                 = { mip_width, mip_height, 1 };
+            blit.srcSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.srcSubresource.mipLevel       = mip_idx - 1;
+            blit.srcSubresource.baseArrayLayer = arr_idx;
+            blit.srcSubresource.layerCount     = 1;
+            blit.dstOffsets[0]                 = { 0, 0, 0 };
+            blit.dstOffsets[1]                 = { mip_width > 1 ? mip_width / 2 : 1, mip_height > 1 ? mip_height / 2 : 1, 1 };
+            blit.dstSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.dstSubresource.mipLevel       = mip_idx;
+            blit.dstSubresource.baseArrayLayer = arr_idx;
+            blit.dstSubresource.layerCount     = 1;
+
+            vkCmdBlitImage(cmd_buf->handle(),
+                           m_vk_image,
+                           VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                           m_vk_image,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                           1,
+                           &blit,
+                           VK_FILTER_LINEAR);
+
+            utilities::set_image_layout(cmd_buf->handle(),
+                                        m_vk_image,
+                                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                        dst_layout,
+                                        subresource_range);
+
+            if (mip_width > 1) mip_width /= 2;
+            if (mip_height > 1) mip_height /= 2;
+        }
+
+        subresource_range.baseMipLevel = m_mip_levels - 1;
+
+        utilities::set_image_layout(cmd_buf->handle(),
+                                    m_vk_image,
+                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                    dst_layout,
+                                    subresource_range);
+    }
 
     vkEndCommandBuffer(cmd_buf->handle());
 
@@ -2960,10 +3073,10 @@ Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require
 
         DW_ZERO_MEMORY(m_indexing_features);
 
-        m_indexing_features.sType                                     = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
-        m_indexing_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-        m_indexing_features.runtimeDescriptorArray                    = VK_TRUE;
-        m_indexing_features.descriptorBindingVariableDescriptorCount  = VK_TRUE;
+        m_indexing_features.sType                                      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
+        m_indexing_features.shaderSampledImageArrayNonUniformIndexing  = VK_TRUE;
+        m_indexing_features.runtimeDescriptorArray                     = VK_TRUE;
+        m_indexing_features.descriptorBindingVariableDescriptorCount   = VK_TRUE;
         m_indexing_features.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE;
     }
 

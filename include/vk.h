@@ -201,7 +201,8 @@ public:
 
     ~Image();
 
-    void upload_data(int array_index, int mip_level, void* data, size_t size);
+    void upload_data(int array_index, int mip_level, void* data, size_t size, VkImageLayout src_layout = VK_IMAGE_LAYOUT_UNDEFINED, VkImageLayout dst_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    void generate_mipmaps(VkImageLayout src_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VkImageLayout dst_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     inline VkImageType        type() { return m_type; }
     inline const VkImage&     handle() { return m_vk_image; }

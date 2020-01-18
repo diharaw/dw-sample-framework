@@ -380,9 +380,10 @@ private:
 
         for (uint32_t i = 0; i < m_mesh->sub_mesh_count(); i++)
         {
-            dw::SubMesh& submesh = m_mesh->sub_meshes()[i];
+            auto& submesh = m_mesh->sub_meshes()[i];
+            auto& mat     = m_mesh->material(submesh.mat_idx);
 
-            vkCmdBindDescriptorSets(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline_layout->handle(), 1, 1, &submesh.mat->pbr_descriptor_set()->handle(), 0, nullptr);
+            vkCmdBindDescriptorSets(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline_layout->handle(), 1, 1, &mat->pbr_descriptor_set()->handle(), 0, nullptr);
 
             // Issue draw call.
             vkCmdDrawIndexed(cmd_buf->handle(), submesh.index_count, 1, submesh.base_index, submesh.base_vertex, 0);
