@@ -44,6 +44,7 @@ struct Camera
     void set_rotatation_delta(glm::vec3 angles);
     void set_position(glm::vec3 position);
     void update();
+    void update_from_frame(glm::vec3 position, glm::vec3 forward, glm::vec3 right);
     void update_projection(float fov, float near, float far, float aspect_ratio);
     bool aabb_inside_frustum(glm::vec3 max_v, glm::vec3 min_v);
     bool aabb_inside_plane(Plane plane, glm::vec3 max_v, glm::vec3 min_v);
