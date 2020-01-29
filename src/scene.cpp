@@ -174,7 +174,7 @@ void Scene::create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
         }
 
         m_material_buffers[i] = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(uint32_t) * material_idx.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, material_idx.data());
-    
+
         VkDescriptorBufferInfo mat_info;
 
         mat_info.buffer = m_material_buffers[i]->handle();

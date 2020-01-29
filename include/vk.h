@@ -149,36 +149,36 @@ private:
     void                     flush(VkQueue queue, const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
 
 private:
-    GLFWwindow*                               m_window                = nullptr;
-    VkInstance                                m_vk_instance           = nullptr;
-    VkDevice                                  m_vk_device             = nullptr;
-    VkQueue                                   m_vk_graphics_queue     = nullptr;
-    VkQueue                                   m_vk_compute_queue      = nullptr;
-    VkQueue                                   m_vk_transfer_queue     = nullptr;
-    VkQueue                                   m_vk_presentation_queue = nullptr;
-    VkPhysicalDevice                          m_vk_physical_device    = nullptr;
-    VkSurfaceKHR                              m_vk_surface            = nullptr;
-    VkSwapchainKHR                            m_vk_swap_chain         = nullptr;
-    VkDebugUtilsMessengerEXT                  m_vk_debug_messenger    = nullptr;
-    VmaAllocator_T*                           m_vma_allocator         = nullptr;
-    SwapChainSupportDetails                   m_swapchain_details;
-    QueueInfos                                m_selected_queues;
-    VkFormat                                  m_swap_chain_image_format;
-    VkFormat                                  m_swap_chain_depth_format;
-    VkExtent2D                                m_swap_chain_extent;
-    VkPhysicalDeviceRayTracingPropertiesNV    m_ray_tracing_properties;
+    GLFWwindow*                                   m_window                = nullptr;
+    VkInstance                                    m_vk_instance           = nullptr;
+    VkDevice                                      m_vk_device             = nullptr;
+    VkQueue                                       m_vk_graphics_queue     = nullptr;
+    VkQueue                                       m_vk_compute_queue      = nullptr;
+    VkQueue                                       m_vk_transfer_queue     = nullptr;
+    VkQueue                                       m_vk_presentation_queue = nullptr;
+    VkPhysicalDevice                              m_vk_physical_device    = nullptr;
+    VkSurfaceKHR                                  m_vk_surface            = nullptr;
+    VkSwapchainKHR                                m_vk_swap_chain         = nullptr;
+    VkDebugUtilsMessengerEXT                      m_vk_debug_messenger    = nullptr;
+    VmaAllocator_T*                               m_vma_allocator         = nullptr;
+    SwapChainSupportDetails                       m_swapchain_details;
+    QueueInfos                                    m_selected_queues;
+    VkFormat                                      m_swap_chain_image_format;
+    VkFormat                                      m_swap_chain_depth_format;
+    VkExtent2D                                    m_swap_chain_extent;
+    VkPhysicalDeviceRayTracingPropertiesNV        m_ray_tracing_properties;
     VkPhysicalDeviceDescriptorIndexingFeaturesEXT m_indexing_features;
-    std::shared_ptr<RenderPass>               m_swap_chain_render_pass;
-    std::vector<std::shared_ptr<Image>>       m_swap_chain_images;
-    std::vector<std::shared_ptr<ImageView>>   m_swap_chain_image_views;
-    std::vector<std::shared_ptr<Framebuffer>> m_swap_chain_framebuffers;
-    uint32_t                                  m_image_index   = 0;
-    uint32_t                                  m_current_frame = 0;
-    std::vector<std::shared_ptr<Fence>>       m_in_flight_fences;
-    std::shared_ptr<Image>                    m_swap_chain_depth      = nullptr;
-    std::shared_ptr<ImageView>                m_swap_chain_depth_view = nullptr;
-    VkPhysicalDeviceProperties                m_device_properties;
-    bool                                      m_ray_tracing_enabled = false;
+    std::shared_ptr<RenderPass>                   m_swap_chain_render_pass;
+    std::vector<std::shared_ptr<Image>>           m_swap_chain_images;
+    std::vector<std::shared_ptr<ImageView>>       m_swap_chain_image_views;
+    std::vector<std::shared_ptr<Framebuffer>>     m_swap_chain_framebuffers;
+    uint32_t                                      m_image_index   = 0;
+    uint32_t                                      m_current_frame = 0;
+    std::vector<std::shared_ptr<Fence>>           m_in_flight_fences;
+    std::shared_ptr<Image>                        m_swap_chain_depth      = nullptr;
+    std::shared_ptr<ImageView>                    m_swap_chain_depth_view = nullptr;
+    VkPhysicalDeviceProperties                    m_device_properties;
+    bool                                          m_ray_tracing_enabled = false;
 };
 
 class Object
@@ -714,7 +714,7 @@ private:
 
 private:
     VmaAllocation_T*              m_vma_allocation = nullptr;
-    uint64_t                      m_handle = 0;
+    uint64_t                      m_handle         = 0;
     VkAccelerationStructureInfoNV m_vk_acceleration_structure_info;
     VkAccelerationStructureNV     m_vk_acceleration_structure = nullptr;
 };

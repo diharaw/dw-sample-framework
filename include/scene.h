@@ -50,7 +50,7 @@ public:
 
 private:
     Scene();
-    
+
 #if defined(DWSF_VULKAN)
     void gather_instance_data(vk::Backend::Ptr backend, bool ray_tracing);
     void create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing);
@@ -59,19 +59,19 @@ private:
 
 private:
 #if defined(DWSF_VULKAN)
-    vk::DescriptorSetLayout::Ptr           m_material_ds_layout;
-    vk::DescriptorSetLayout::Ptr           m_ray_tracing_geometry_ds_layout;
-    vk::DescriptorSetLayout::Ptr           m_indirect_draw_geometry_ds_layout;
-    vk::DescriptorSet::Ptr                 m_albedo_ds;
-    vk::DescriptorSet::Ptr                 m_normal_ds;
-    vk::DescriptorSet::Ptr                 m_roughness_ds;
-    vk::DescriptorSet::Ptr                 m_metallic_ds;
-    vk::DescriptorSet::Ptr                 m_ray_tracing_geometry_ds;
-    vk::DescriptorSet::Ptr                 m_indirect_draw_geometry_ds;
-    std::vector<vk::Buffer::Ptr>           m_material_buffers;
-    std::vector<RTGeometryInstance>        m_rt_instances;
-    std::vector<std::weak_ptr<Mesh>>       m_meshes;
-    vk::AccelerationStructure::Ptr         m_vk_top_level_as;
+    vk::DescriptorSetLayout::Ptr     m_material_ds_layout;
+    vk::DescriptorSetLayout::Ptr     m_ray_tracing_geometry_ds_layout;
+    vk::DescriptorSetLayout::Ptr     m_indirect_draw_geometry_ds_layout;
+    vk::DescriptorSet::Ptr           m_albedo_ds;
+    vk::DescriptorSet::Ptr           m_normal_ds;
+    vk::DescriptorSet::Ptr           m_roughness_ds;
+    vk::DescriptorSet::Ptr           m_metallic_ds;
+    vk::DescriptorSet::Ptr           m_ray_tracing_geometry_ds;
+    vk::DescriptorSet::Ptr           m_indirect_draw_geometry_ds;
+    std::vector<vk::Buffer::Ptr>     m_material_buffers;
+    std::vector<RTGeometryInstance>  m_rt_instances;
+    std::vector<std::weak_ptr<Mesh>> m_meshes;
+    vk::AccelerationStructure::Ptr   m_vk_top_level_as;
 #endif
 
     std::vector<Instance> m_instances;

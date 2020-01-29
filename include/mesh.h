@@ -25,13 +25,13 @@ struct Vertex
 // SubMesh structure. Currently limited to one Material.
 struct SubMesh
 {
-    std::string               name;
-    uint32_t                  mat_idx;
-    uint32_t                  index_count;
-    uint32_t                  base_vertex;
-    uint32_t                  base_index;
-    glm::vec3                 max_extents;
-    glm::vec3                 min_extents;
+    std::string name;
+    uint32_t    mat_idx;
+    uint32_t    index_count;
+    uint32_t    base_vertex;
+    uint32_t    base_index;
+    glm::vec3   max_extents;
+    glm::vec3   min_extents;
 };
 
 class Mesh
@@ -91,14 +91,14 @@ public:
         return m_id;
     }
     inline const std::vector<std::shared_ptr<Material>>& materials() { return m_materials; }
-    inline uint32_t                          material_count() { return m_materials.size(); }
-    inline uint32_t  sub_mesh_count() { return m_sub_mesh_count; }
-    inline SubMesh*  sub_meshes() { return m_sub_meshes; }
-    inline uint32_t  vertex_count() { return m_vertex_count; }
-    inline uint32_t  index_count() { return m_index_count; }
-    inline uint32_t* indices() { return m_indices; }
-    inline Vertex*   vertices() { return m_vertices; }
-    inline std::shared_ptr<Material> material(uint32_t idx) { return m_materials[idx]; }
+    inline uint32_t                                      material_count() { return m_materials.size(); }
+    inline uint32_t                                      sub_mesh_count() { return m_sub_mesh_count; }
+    inline SubMesh*                                      sub_meshes() { return m_sub_meshes; }
+    inline uint32_t                                      vertex_count() { return m_vertex_count; }
+    inline uint32_t                                      index_count() { return m_index_count; }
+    inline uint32_t*                                     indices() { return m_indices; }
+    inline Vertex*                                       vertices() { return m_vertices; }
+    inline std::shared_ptr<Material>                     material(uint32_t idx) { return m_materials[idx]; }
 
     ~Mesh();
 
@@ -131,16 +131,16 @@ private:
     static std::unordered_map<std::string, std::weak_ptr<Mesh>> m_cache;
 
     // Mesh geometry.
-    uint32_t  m_id             = 0;
-    uint32_t  m_vertex_count   = 0;
-    uint32_t  m_index_count    = 0;
-    uint32_t  m_sub_mesh_count = 0;
+    uint32_t                               m_id             = 0;
+    uint32_t                               m_vertex_count   = 0;
+    uint32_t                               m_index_count    = 0;
+    uint32_t                               m_sub_mesh_count = 0;
     std::vector<std::shared_ptr<Material>> m_materials;
-    SubMesh*  m_sub_meshes     = nullptr;
-    Vertex*   m_vertices       = nullptr;
-    uint32_t* m_indices        = nullptr;
-    glm::vec3 m_max_extents;
-    glm::vec3 m_min_extents;
+    SubMesh*                               m_sub_meshes = nullptr;
+    Vertex*                                m_vertices   = nullptr;
+    uint32_t*                              m_indices    = nullptr;
+    glm::vec3                              m_max_extents;
+    glm::vec3                              m_min_extents;
 
     // GPU resources.
 #if defined(DWSF_VULKAN)

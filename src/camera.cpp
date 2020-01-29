@@ -84,7 +84,7 @@ void Camera::update()
     m_forward = glm::conjugate(m_orientation) * glm::vec3(0.0f, 0.0f, -1.0f);
 
     m_right = glm::normalize(glm::cross(m_forward, m_world_up));
-    
+
     m_up = glm::normalize(glm::cross(m_right, m_forward));
 
     m_translate            = glm::translate(glm::mat4(1.0f), -m_position);
@@ -98,7 +98,7 @@ void Camera::update()
 void Camera::update_from_frame(glm::vec3 position, glm::vec3 forward, glm::vec3 right)
 {
     m_position = position;
-    m_forward = forward;
+    m_forward  = forward;
     m_right    = right;
 
     m_up = glm::normalize(glm::cross(m_right, m_forward));
