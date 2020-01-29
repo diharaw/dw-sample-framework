@@ -1,5 +1,6 @@
 #include <demo_player.h>
 #include <imgui.h>
+#include <fstream>
 
 namespace dw
 {
@@ -261,6 +262,62 @@ DemoPlayer::~DemoPlayer()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+bool DemoPlayer::load_from_file()
+{
+    std::fstream f("camera_path.bin", std::ios::in | std::ios::binary);
+
+    if (!f.is_open())
+        return false;
+
+    long offset = 0;
+    f.seekp(offset);
+
+    size_t size = sizeof(uint32_t);
+
+    uint32_t count = 0;
+
+    f.read((char*)&count, size);
+    offset += size;
+    f.seekg(offset);
+
+    size = sizeof(glm::vec3) * count;
+
+    std::vector<glm::vec3> buffer(count);
+
+    f.read((char*)buffer.data(), size);
+    offset += size;
+    f.seekg(offset);
+
+    for (int i = 0; i < count; i++)
+        m_position_spline.add_point(buffer[i]);
+
+    f.read((char*)buffer.data(), size);
+    offset += size;
+    f.seekg(offset);
+
+    for (int i = 0; i < count; i++)
+        m_forward_spline.add_point(buffer[i]);
+
+    f.read((char*)buffer.data(), size);
+    offset += size;
+    f.seekg(offset);
+
+    for (int i = 0; i < count; i++)
+        m_right_spline.add_point(buffer[i]);
+
+    f.close();
+
+    if (m_position_spline.m_points.size() > 4)
+    {
+        m_position_spline.initialize();
+        initialize_debug();
+    }
+
+    return true;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 void DemoPlayer::edit_ui(Camera* camera)
 {
     if (ImGui::Button("Add Frame"))
@@ -272,17 +329,14 @@ void DemoPlayer::edit_ui(Camera* camera)
         if (m_position_spline.m_points.size() > 4)
         {
             m_position_spline.initialize();
-
-            float total_length = m_position_spline.total_length();
-
-            m_debug_spline_segments.resize((m_position_spline.m_points.size() + 1) * SEGMENTS_PER_POINT);
-
-            for (int k = 0; k < m_debug_spline_segments.size(); k++)
-                m_debug_spline_segments[k] = m_position_spline.const_velocity_spline_at_time(total_length * k / m_debug_spline_segments.size() / m_speed, m_speed);
+            initialize_debug();
         }
     }
 
-    ImGui::SliderFloat("Speed", &m_speed, 0.1f, 20.0f);
+    ImGui::SliderFloat("Camera Speed", &m_speed, 0.1f, 20.0f);
+
+    ImGui::Checkbox("Debug Visualization", &m_debug_visualization);
+
     if (ImGui::Checkbox("Is Playing", &m_is_playing))
     {
         if (m_is_playing)
@@ -290,26 +344,61 @@ void DemoPlayer::edit_ui(Camera* camera)
         else
             stop();
     }
+
+    if (ImGui::Button("Save"))
+    {
+        std::fstream f("camera_path.bin", std::ios::out | std::ios::binary);
+
+        long offset = 0;
+        f.seekp(offset);
+
+        size_t size = sizeof(uint32_t);
+
+        uint32_t count = m_position_spline.m_points.size();
+
+        f.write((char*)&count, size);
+        offset += size;
+        f.seekg(offset);
+
+        size = sizeof(glm::vec3) * m_position_spline.m_points.size();
+
+        f.write((char*)m_position_spline.m_points.data(), size);
+        offset += size;
+        f.seekg(offset);
+
+        f.write((char*)m_forward_spline.m_points.data(), size);
+        offset += size;
+        f.seekg(offset);
+
+        f.write((char*)m_right_spline.m_points.data(), size);
+        offset += size;
+        f.seekg(offset);
+
+        f.close();
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void DemoPlayer::debug_visualization(DebugDraw& debug_draw)
 {
-    if (m_position_spline.m_points.size() > 0)
+    if (m_debug_visualization)
     {
-        for (int i = 0; i < m_position_spline.m_points.size(); i++)
-            debug_draw.sphere(1.0f, m_position_spline.m_points[i], glm::vec3(0.0f, 0.0f, 1.0f));
-    }
-
-    if (m_position_spline.m_points.size() > 4)
-    {
-        for (int k = 0; k < m_debug_spline_segments.size() - 1; k++)
+        if (m_position_spline.m_points.size() > 0)
         {
-            glm::vec3 p0 = m_debug_spline_segments[k];
-            glm::vec3 p1 = m_debug_spline_segments[k + 1];
+            for (int i = 0; i < m_position_spline.m_points.size(); i++)
+                debug_draw.sphere(1.0f, m_position_spline.m_points[i], glm::vec3(0.0f, 0.0f, 1.0f));
+        }
 
-            debug_draw.line(p0, p1, glm::vec3(1.0f, 0.0f, 0.0f));
+        if (m_position_spline.m_points.size() > 4)
+        {
+            for (int k = 0; k < m_debug_spline_segments.size() - 1; k++)
+            {
+                glm::vec3 p0 = m_debug_spline_segments[k];
+                glm::vec3 p1 = m_debug_spline_segments[k + 1];
+
+                debug_draw.line(p0, p1, glm::vec3(1.0f, 0.0f, 0.0f));
+            }
         }
     }
 }
@@ -380,6 +469,18 @@ glm::vec3 DemoPlayer::forward()
 glm::vec3 DemoPlayer::right()
 {
     return m_current_right;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void DemoPlayer::initialize_debug()
+{
+    float total_length = m_position_spline.total_length();
+
+    m_debug_spline_segments.resize((m_position_spline.m_points.size() + 1) * SEGMENTS_PER_POINT);
+
+    for (int k = 0; k < m_debug_spline_segments.size(); k++)
+        m_debug_spline_segments[k] = m_position_spline.const_velocity_spline_at_time(total_length * k / m_debug_spline_segments.size() / m_speed, m_speed);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

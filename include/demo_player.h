@@ -33,9 +33,9 @@ struct CubicSpline
 
 class LerpSpline
 {
+public:
     std::vector<glm::vec3> m_points;
 
-public:
     void      add_point(glm::vec3 p);
     glm::vec3 value_at_time(float t);
 };
@@ -43,9 +43,10 @@ public:
 class DemoPlayer
 {
 private:
-    float                  m_time       = 0.0f;
-    bool                   m_is_playing = false;
-    float                  m_speed      = 10.0f;
+    float                  m_time                = 0.0f;
+    bool                   m_is_playing          = false;
+    bool                   m_debug_visualization = false;
+    float                  m_speed               = 10.0f;
     CubicSpline            m_position_spline;
     LerpSpline             m_forward_spline;
     LerpSpline             m_right_spline;
@@ -58,6 +59,7 @@ private:
 public:
     DemoPlayer();
     ~DemoPlayer();
+    bool      load_from_file();
     void      edit_ui(Camera* camera);
     void      debug_visualization(DebugDraw& debug_draw);
     float     speed();
@@ -68,5 +70,6 @@ public:
     glm::vec3 position();
     glm::vec3 forward();
     glm::vec3 right();
+    void      initialize_debug();
 };
 } // namespace dw
