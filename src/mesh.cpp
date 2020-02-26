@@ -7,7 +7,9 @@
 #include <mesh.h>
 #include <stdio.h>
 #include <ogl.h>
+#if defined(DWSF_VULKAN)
 #include <vk_mem_alloc.h>
+#endif
 
 namespace dw
 {

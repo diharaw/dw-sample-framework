@@ -1,6 +1,8 @@
 #include <scene.h>
 #include <macros.h>
+#if defined(DWSF_VULKAN)
 #include <vk_mem_alloc.h>
+#endif
 #include <unordered_map>
 #include <material.h>
 #include <assimp/scene.h>
