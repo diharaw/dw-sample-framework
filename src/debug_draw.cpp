@@ -1,9 +1,526 @@
 #include <debug_draw.h>
 #include <logger.h>
 #include <utility.h>
+#include <vk_mem_alloc.h>
 
 namespace dw
 {
+#if defined(DWSF_VULKAN)
+
+static const unsigned int kDebugDrawVertSPV_size           = 1444;
+static const unsigned int kDebugDrawVertSPV_data[1444 / 4] = {
+    0x07230203,
+    0x00010000,
+    0x000d0008,
+    0x0000002a,
+    0x00000000,
+    0x00020011,
+    0x00000001,
+    0x0006000b,
+    0x00000001,
+    0x4c534c47,
+    0x6474732e,
+    0x3035342e,
+    0x00000000,
+    0x0003000e,
+    0x00000000,
+    0x00000001,
+    0x000a000f,
+    0x00000000,
+    0x00000004,
+    0x6e69616d,
+    0x00000000,
+    0x00000009,
+    0x0000000b,
+    0x00000013,
+    0x0000001d,
+    0x00000029,
+    0x00030003,
+    0x00000002,
+    0x000001c2,
+    0x000a0004,
+    0x475f4c47,
+    0x4c474f4f,
+    0x70635f45,
+    0x74735f70,
+    0x5f656c79,
+    0x656e696c,
+    0x7269645f,
+    0x69746365,
+    0x00006576,
+    0x00080004,
+    0x475f4c47,
+    0x4c474f4f,
+    0x6e695f45,
+    0x64756c63,
+    0x69645f65,
+    0x74636572,
+    0x00657669,
+    0x00040005,
+    0x00000004,
+    0x6e69616d,
+    0x00000000,
+    0x00050005,
+    0x00000009,
+    0x495f5346,
+    0x6f435f4e,
+    0x00726f6c,
+    0x00050005,
+    0x0000000b,
+    0x495f5356,
+    0x6f435f4e,
+    0x00726f6c,
+    0x00060005,
+    0x00000011,
+    0x505f6c67,
+    0x65567265,
+    0x78657472,
+    0x00000000,
+    0x00060006,
+    0x00000011,
+    0x00000000,
+    0x505f6c67,
+    0x7469736f,
+    0x006e6f69,
+    0x00070006,
+    0x00000011,
+    0x00000001,
+    0x505f6c67,
+    0x746e696f,
+    0x657a6953,
+    0x00000000,
+    0x00070006,
+    0x00000011,
+    0x00000002,
+    0x435f6c67,
+    0x4470696c,
+    0x61747369,
+    0x0065636e,
+    0x00070006,
+    0x00000011,
+    0x00000003,
+    0x435f6c67,
+    0x446c6c75,
+    0x61747369,
+    0x0065636e,
+    0x00030005,
+    0x00000013,
+    0x00000000,
+    0x00060005,
+    0x00000017,
+    0x656d6143,
+    0x6e556172,
+    0x726f6669,
+    0x0000736d,
+    0x00060006,
+    0x00000017,
+    0x00000000,
+    0x77656976,
+    0x6a6f7250,
+    0x00000000,
+    0x00030005,
+    0x00000019,
+    0x00000000,
+    0x00060005,
+    0x0000001d,
+    0x495f5356,
+    0x6f505f4e,
+    0x69746973,
+    0x00006e6f,
+    0x00060005,
+    0x00000029,
+    0x495f5356,
+    0x65545f4e,
+    0x6f6f4378,
+    0x00006472,
+    0x00040047,
+    0x00000009,
+    0x0000001e,
+    0x00000000,
+    0x00040047,
+    0x0000000b,
+    0x0000001e,
+    0x00000002,
+    0x00050048,
+    0x00000011,
+    0x00000000,
+    0x0000000b,
+    0x00000000,
+    0x00050048,
+    0x00000011,
+    0x00000001,
+    0x0000000b,
+    0x00000001,
+    0x00050048,
+    0x00000011,
+    0x00000002,
+    0x0000000b,
+    0x00000003,
+    0x00050048,
+    0x00000011,
+    0x00000003,
+    0x0000000b,
+    0x00000004,
+    0x00030047,
+    0x00000011,
+    0x00000002,
+    0x00040048,
+    0x00000017,
+    0x00000000,
+    0x00000005,
+    0x00050048,
+    0x00000017,
+    0x00000000,
+    0x00000023,
+    0x00000000,
+    0x00050048,
+    0x00000017,
+    0x00000000,
+    0x00000007,
+    0x00000010,
+    0x00030047,
+    0x00000017,
+    0x00000002,
+    0x00040047,
+    0x00000019,
+    0x00000022,
+    0x00000000,
+    0x00040047,
+    0x00000019,
+    0x00000021,
+    0x00000000,
+    0x00040047,
+    0x0000001d,
+    0x0000001e,
+    0x00000000,
+    0x00040047,
+    0x00000029,
+    0x0000001e,
+    0x00000001,
+    0x00020013,
+    0x00000002,
+    0x00030021,
+    0x00000003,
+    0x00000002,
+    0x00030016,
+    0x00000006,
+    0x00000020,
+    0x00040017,
+    0x00000007,
+    0x00000006,
+    0x00000003,
+    0x00040020,
+    0x00000008,
+    0x00000003,
+    0x00000007,
+    0x0004003b,
+    0x00000008,
+    0x00000009,
+    0x00000003,
+    0x00040020,
+    0x0000000a,
+    0x00000001,
+    0x00000007,
+    0x0004003b,
+    0x0000000a,
+    0x0000000b,
+    0x00000001,
+    0x00040017,
+    0x0000000d,
+    0x00000006,
+    0x00000004,
+    0x00040015,
+    0x0000000e,
+    0x00000020,
+    0x00000000,
+    0x0004002b,
+    0x0000000e,
+    0x0000000f,
+    0x00000001,
+    0x0004001c,
+    0x00000010,
+    0x00000006,
+    0x0000000f,
+    0x0006001e,
+    0x00000011,
+    0x0000000d,
+    0x00000006,
+    0x00000010,
+    0x00000010,
+    0x00040020,
+    0x00000012,
+    0x00000003,
+    0x00000011,
+    0x0004003b,
+    0x00000012,
+    0x00000013,
+    0x00000003,
+    0x00040015,
+    0x00000014,
+    0x00000020,
+    0x00000001,
+    0x0004002b,
+    0x00000014,
+    0x00000015,
+    0x00000000,
+    0x00040018,
+    0x00000016,
+    0x0000000d,
+    0x00000004,
+    0x0003001e,
+    0x00000017,
+    0x00000016,
+    0x00040020,
+    0x00000018,
+    0x00000002,
+    0x00000017,
+    0x0004003b,
+    0x00000018,
+    0x00000019,
+    0x00000002,
+    0x00040020,
+    0x0000001a,
+    0x00000002,
+    0x00000016,
+    0x0004003b,
+    0x0000000a,
+    0x0000001d,
+    0x00000001,
+    0x0004002b,
+    0x00000006,
+    0x0000001f,
+    0x3f800000,
+    0x00040020,
+    0x00000025,
+    0x00000003,
+    0x0000000d,
+    0x00040017,
+    0x00000027,
+    0x00000006,
+    0x00000002,
+    0x00040020,
+    0x00000028,
+    0x00000001,
+    0x00000027,
+    0x0004003b,
+    0x00000028,
+    0x00000029,
+    0x00000001,
+    0x00050036,
+    0x00000002,
+    0x00000004,
+    0x00000000,
+    0x00000003,
+    0x000200f8,
+    0x00000005,
+    0x0004003d,
+    0x00000007,
+    0x0000000c,
+    0x0000000b,
+    0x0003003e,
+    0x00000009,
+    0x0000000c,
+    0x00050041,
+    0x0000001a,
+    0x0000001b,
+    0x00000019,
+    0x00000015,
+    0x0004003d,
+    0x00000016,
+    0x0000001c,
+    0x0000001b,
+    0x0004003d,
+    0x00000007,
+    0x0000001e,
+    0x0000001d,
+    0x00050051,
+    0x00000006,
+    0x00000020,
+    0x0000001e,
+    0x00000000,
+    0x00050051,
+    0x00000006,
+    0x00000021,
+    0x0000001e,
+    0x00000001,
+    0x00050051,
+    0x00000006,
+    0x00000022,
+    0x0000001e,
+    0x00000002,
+    0x00070050,
+    0x0000000d,
+    0x00000023,
+    0x00000020,
+    0x00000021,
+    0x00000022,
+    0x0000001f,
+    0x00050091,
+    0x0000000d,
+    0x00000024,
+    0x0000001c,
+    0x00000023,
+    0x00050041,
+    0x00000025,
+    0x00000026,
+    0x00000013,
+    0x00000015,
+    0x0003003e,
+    0x00000026,
+    0x00000024,
+    0x000100fd,
+    0x00010038,
+};
+
+static const unsigned int kDebugDrawFragSPV_size          = 576;
+static const unsigned int kDebugDrawFragSPV_data[576 / 4] = {
+    0x07230203,
+    0x00010000,
+    0x000d0008,
+    0x00000013,
+    0x00000000,
+    0x00020011,
+    0x00000001,
+    0x0006000b,
+    0x00000001,
+    0x4c534c47,
+    0x6474732e,
+    0x3035342e,
+    0x00000000,
+    0x0003000e,
+    0x00000000,
+    0x00000001,
+    0x0007000f,
+    0x00000004,
+    0x00000004,
+    0x6e69616d,
+    0x00000000,
+    0x00000009,
+    0x0000000c,
+    0x00030010,
+    0x00000004,
+    0x00000007,
+    0x00030003,
+    0x00000002,
+    0x000001c2,
+    0x000a0004,
+    0x475f4c47,
+    0x4c474f4f,
+    0x70635f45,
+    0x74735f70,
+    0x5f656c79,
+    0x656e696c,
+    0x7269645f,
+    0x69746365,
+    0x00006576,
+    0x00080004,
+    0x475f4c47,
+    0x4c474f4f,
+    0x6e695f45,
+    0x64756c63,
+    0x69645f65,
+    0x74636572,
+    0x00657669,
+    0x00040005,
+    0x00000004,
+    0x6e69616d,
+    0x00000000,
+    0x00060005,
+    0x00000009,
+    0x4f5f5346,
+    0x435f5455,
+    0x726f6c6f,
+    0x00000000,
+    0x00050005,
+    0x0000000c,
+    0x495f5346,
+    0x6f435f4e,
+    0x00726f6c,
+    0x00040047,
+    0x00000009,
+    0x0000001e,
+    0x00000000,
+    0x00040047,
+    0x0000000c,
+    0x0000001e,
+    0x00000000,
+    0x00020013,
+    0x00000002,
+    0x00030021,
+    0x00000003,
+    0x00000002,
+    0x00030016,
+    0x00000006,
+    0x00000020,
+    0x00040017,
+    0x00000007,
+    0x00000006,
+    0x00000004,
+    0x00040020,
+    0x00000008,
+    0x00000003,
+    0x00000007,
+    0x0004003b,
+    0x00000008,
+    0x00000009,
+    0x00000003,
+    0x00040017,
+    0x0000000a,
+    0x00000006,
+    0x00000003,
+    0x00040020,
+    0x0000000b,
+    0x00000001,
+    0x0000000a,
+    0x0004003b,
+    0x0000000b,
+    0x0000000c,
+    0x00000001,
+    0x0004002b,
+    0x00000006,
+    0x0000000e,
+    0x3f800000,
+    0x00050036,
+    0x00000002,
+    0x00000004,
+    0x00000000,
+    0x00000003,
+    0x000200f8,
+    0x00000005,
+    0x0004003d,
+    0x0000000a,
+    0x0000000d,
+    0x0000000c,
+    0x00050051,
+    0x00000006,
+    0x0000000f,
+    0x0000000d,
+    0x00000000,
+    0x00050051,
+    0x00000006,
+    0x00000010,
+    0x0000000d,
+    0x00000001,
+    0x00050051,
+    0x00000006,
+    0x00000011,
+    0x0000000d,
+    0x00000002,
+    0x00070050,
+    0x00000007,
+    0x00000012,
+    0x0000000f,
+    0x00000010,
+    0x00000011,
+    0x0000000e,
+    0x0003003e,
+    0x00000009,
+    0x00000012,
+    0x000100fd,
+    0x00010038,
+};
+
+#else
 const char* g_vs_src = R"(
 
 	layout (location = 0) in vec3 VS_IN_Position;
@@ -39,6 +556,7 @@ const char* g_fs_src = R"(
 	}
 
 	)";
+#endif
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -53,9 +571,20 @@ DebugDraw::DebugDraw()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool DebugDraw::init()
+bool DebugDraw::init(
+#if defined(DWSF_VULKAN)
+    vk::Backend::Ptr    backend,
+    vk::RenderPass::Ptr render_pass
+#endif
+)
 {
 #if defined(DWSF_VULKAN)
+    create_uniform_buffer(backend);
+    create_vertex_buffer(backend);
+    create_descriptor_set_layout(backend);
+    create_descriptor_set(backend);
+    create_pipeline_states(backend, render_pass);
+
     return true;
 #else
     // Create shaders
@@ -102,7 +631,18 @@ bool DebugDraw::init()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void DebugDraw::shutdown() {}
+void DebugDraw::shutdown()
+{
+    m_line_strip_depth_pipeline.reset();
+    m_line_strip_no_depth_pipeline.reset();
+    m_line_depth_pipeline.reset();
+    m_line_no_depth_pipeline.reset();
+    m_pipeline_layout.reset();
+    m_ds.reset();
+    m_ds_layout.reset();
+    m_line_vbo.reset();
+    m_ubo.reset();
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -270,7 +810,7 @@ void DebugDraw::line(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& 
         DrawCommand cmd;
 
 #if defined(DWSF_VULKAN)
-
+        cmd.type = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
 #else
         cmd.type = GL_LINES;
 #endif
@@ -296,7 +836,7 @@ void DebugDraw::line_strip(glm::vec3* v, const int& count, const glm::vec3& c)
     DrawCommand cmd;
 
 #if defined(DWSF_VULKAN)
-
+    cmd.type = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
 #else
     cmd.type = GL_LINE_STRIP;
 #endif
@@ -443,7 +983,58 @@ void DebugDraw::transform(const glm::mat4& trans, const float& axis_length)
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 #if defined(DWSF_VULKAN)
+void DebugDraw::render(vk::Backend::Ptr backend, vk::CommandBuffer::Ptr cmd_buffer, int width, int height, const glm::mat4& view_proj)
+{
+    if (m_world_vertices.size() > 0)
+    {
+        m_uniforms.view_proj = view_proj;
 
+        uint8_t* ptr = (uint8_t*)m_ubo->mapped_ptr();
+        memcpy(ptr + m_ubo_size * backend->current_frame_idx(), &m_uniforms, sizeof(CameraUniforms));
+
+        ptr = (uint8_t*)m_line_vbo->mapped_ptr();
+
+        if (m_world_vertices.size() > MAX_VERTICES)
+            DW_LOG_ERROR("Vertex count above allowed limit!");
+        else
+            memcpy(ptr + m_vbo_size * backend->current_frame_idx(), &m_world_vertices[0], sizeof(VertexWorld) * m_world_vertices.size());
+
+        const uint32_t dynamic_offset = m_ubo_size * backend->current_frame_idx();
+
+        vkCmdBindDescriptorSets(cmd_buffer->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline_layout->handle(), 0, 1, &m_ds->handle(), 1, &dynamic_offset);
+
+        const VkDeviceSize vbo_offset = m_vbo_size * backend->current_frame_idx();
+        vkCmdBindVertexBuffers(cmd_buffer->handle(), 0, 1, &m_line_vbo->handle(), &vbo_offset);
+
+        int v = 0;
+
+        for (int i = 0; i < m_draw_commands.size(); i++)
+        {
+            DrawCommand& cmd = m_draw_commands[i];
+
+            if (cmd.type == VK_PRIMITIVE_TOPOLOGY_LINE_LIST)
+            {
+                if (m_depth_test)
+                    vkCmdBindPipeline(cmd_buffer->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_line_depth_pipeline->handle());
+                else
+                    vkCmdBindPipeline(cmd_buffer->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_line_no_depth_pipeline->handle());
+            }
+            else
+            {
+                if (m_depth_test)
+                    vkCmdBindPipeline(cmd_buffer->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_line_strip_depth_pipeline->handle());
+                else
+                    vkCmdBindPipeline(cmd_buffer->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_line_strip_no_depth_pipeline->handle());
+            }
+
+            vkCmdDraw(cmd_buffer->handle(), cmd.vertices, 1, v, 0);
+            v += cmd.vertices;
+        }
+
+        m_draw_commands.clear();
+        m_world_vertices.clear();
+    }
+}
 #else
 void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::mat4& view_proj)
 {
@@ -452,7 +1043,7 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
         m_uniforms.view_proj = view_proj;
 
 #    if defined(__EMSCRIPTEN__)
-        void* ptr = m_line_vbo->map(0);
+        void* ptr            = m_line_vbo->map(0);
 #    else
         void* ptr = m_line_vbo->map(GL_WRITE_ONLY);
 #    endif
@@ -474,11 +1065,15 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
         m_ubo->unmap();
 
         // Get previous state
-        GLboolean last_enable_cull_face = glIsEnabled(GL_CULL_FACE);
+        GLboolean last_enable_cull_face  = glIsEnabled(GL_CULL_FACE);
         GLboolean last_enable_depth_test = glIsEnabled(GL_DEPTH_TEST);
 
         // Set initial state
-        glDisable(GL_DEPTH_TEST);
+        if (m_depth_test)
+            glDisable(GL_DEPTH_TEST);
+        else
+            glEnable(GL_DEPTH_TEST);
+
         glDisable(GL_CULL_FACE);
 
         if (fbo)
@@ -510,6 +1105,241 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
         if (last_enable_depth_test)
             glEnable(GL_DEPTH_TEST);
     }
+}
+#endif
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+#if defined(DWSF_VULKAN)
+void DebugDraw::create_descriptor_set_layout(vk::Backend::Ptr backend)
+{
+    dw::vk::DescriptorSetLayout::Desc desc;
+
+    desc.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_VERTEX_BIT);
+
+    m_ds_layout = dw::vk::DescriptorSetLayout::create(backend, desc);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void DebugDraw::create_descriptor_set(vk::Backend::Ptr backend)
+{
+    m_ds = backend->allocate_descriptor_set(m_ds_layout);
+
+    VkDescriptorBufferInfo buffer_info;
+
+    buffer_info.buffer = m_ubo->handle();
+    buffer_info.offset = 0;
+    buffer_info.range  = sizeof(glm::mat4);
+
+    VkWriteDescriptorSet write_data;
+    DW_ZERO_MEMORY(write_data);
+
+    write_data.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_data.descriptorCount = 1;
+    write_data.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    write_data.pBufferInfo     = &buffer_info;
+    write_data.dstBinding      = 0;
+    write_data.dstSet          = m_ds->handle();
+
+    vkUpdateDescriptorSets(backend->device(), 1, &write_data, 0, nullptr);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void DebugDraw::create_uniform_buffer(vk::Backend::Ptr backend)
+{
+    m_ubo_size = backend->aligned_dynamic_ubo_size(sizeof(CameraUniforms));
+    m_ubo      = dw::vk::Buffer::create(backend, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_ubo_size * dw::vk::Backend::kMaxFramesInFlight, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void DebugDraw::create_vertex_buffer(vk::Backend::Ptr backend)
+{
+    m_vbo_size = sizeof(VertexWorld) * MAX_VERTICES;
+    m_line_vbo = vk::Buffer::create(backend, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, m_vbo_size * dw::vk::Backend::kMaxFramesInFlight, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void DebugDraw::create_pipeline_states(vk::Backend::Ptr backend, vk::RenderPass::Ptr render_pass)
+{
+    // ---------------------------------------------------------------------------
+    // Create shader modules
+    // ---------------------------------------------------------------------------
+
+    std::vector<char> spirv;
+
+    spirv.resize(kDebugDrawVertSPV_size);
+    memcpy(&spirv[0], &kDebugDrawVertSPV_data[0], kDebugDrawVertSPV_size);
+
+    dw::vk::ShaderModule::Ptr vs = dw::vk::ShaderModule::create(backend, spirv);
+
+    spirv.resize(kDebugDrawFragSPV_size);
+    memcpy(&spirv[0], &kDebugDrawFragSPV_data[0], kDebugDrawFragSPV_size);
+
+    dw::vk::ShaderModule::Ptr fs = dw::vk::ShaderModule::create(backend, spirv);
+
+    dw::vk::GraphicsPipeline::Desc pso_desc;
+
+    pso_desc.add_shader_stage(VK_SHADER_STAGE_VERTEX_BIT, vs, "main")
+        .add_shader_stage(VK_SHADER_STAGE_FRAGMENT_BIT, fs, "main");
+
+    // ---------------------------------------------------------------------------
+    // Create vertex input state
+    // ---------------------------------------------------------------------------
+
+    vk::VertexInputStateDesc vertex_input_state_desc;
+
+    vertex_input_state_desc.add_binding_desc(0, sizeof(VertexWorld), VK_VERTEX_INPUT_RATE_VERTEX);
+
+    vertex_input_state_desc.add_attribute_desc(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0);
+    vertex_input_state_desc.add_attribute_desc(1, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(VertexWorld, uv));
+    vertex_input_state_desc.add_attribute_desc(2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexWorld, color));
+
+    pso_desc.set_vertex_input_state(vertex_input_state_desc);
+
+    // ---------------------------------------------------------------------------
+    // Create pipeline input assembly state
+    // ---------------------------------------------------------------------------
+
+    dw::vk::InputAssemblyStateDesc input_assembly_state_desc;
+
+    input_assembly_state_desc.set_primitive_restart_enable(false);
+
+    // ---------------------------------------------------------------------------
+    // Create viewport state
+    // ---------------------------------------------------------------------------
+
+    dw::vk::ViewportStateDesc vp_desc;
+
+    vp_desc.add_viewport(0.0f, 0.0f, 1024, 1024, 0.0f, 1.0f)
+        .add_scissor(0, 0, 1024, 1024);
+
+    pso_desc.set_viewport_state(vp_desc);
+
+    // ---------------------------------------------------------------------------
+    // Create rasterization state
+    // ---------------------------------------------------------------------------
+
+    dw::vk::RasterizationStateDesc rs_state;
+
+    rs_state.set_depth_clamp(VK_FALSE)
+        .set_rasterizer_discard_enable(VK_FALSE)
+        .set_polygon_mode(VK_POLYGON_MODE_FILL)
+        .set_line_width(1.0f)
+        .set_cull_mode(VK_CULL_MODE_NONE)
+        .set_front_face(VK_FRONT_FACE_COUNTER_CLOCKWISE)
+        .set_depth_bias(VK_FALSE);
+
+    pso_desc.set_rasterization_state(rs_state);
+
+    // ---------------------------------------------------------------------------
+    // Create multisample state
+    // ---------------------------------------------------------------------------
+
+    dw::vk::MultisampleStateDesc ms_state;
+
+    ms_state.set_sample_shading_enable(VK_FALSE)
+        .set_rasterization_samples(VK_SAMPLE_COUNT_1_BIT);
+
+    pso_desc.set_multisample_state(ms_state);
+
+    // ---------------------------------------------------------------------------
+    // Create depth stencil state
+    // ---------------------------------------------------------------------------
+
+    dw::vk::DepthStencilStateDesc ds_state;
+
+    ds_state.set_depth_test_enable(VK_TRUE)
+        .set_depth_write_enable(VK_TRUE)
+        .set_depth_compare_op(VK_COMPARE_OP_LESS)
+        .set_depth_bounds_test_enable(VK_FALSE)
+        .set_stencil_test_enable(VK_FALSE);
+
+    pso_desc.set_depth_stencil_state(ds_state);
+
+    // ---------------------------------------------------------------------------
+    // Create color blend state
+    // ---------------------------------------------------------------------------
+
+    dw::vk::ColorBlendAttachmentStateDesc blend_att_desc;
+
+    blend_att_desc.set_color_write_mask(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT)
+        .set_blend_enable(VK_FALSE);
+
+    dw::vk::ColorBlendStateDesc blend_state;
+
+    blend_state.set_logic_op_enable(VK_FALSE)
+        .set_logic_op(VK_LOGIC_OP_COPY)
+        .set_blend_constants(0.0f, 0.0f, 0.0f, 0.0f)
+        .add_attachment(blend_att_desc);
+
+    pso_desc.set_color_blend_state(blend_state);
+
+    // ---------------------------------------------------------------------------
+    // Create pipeline layout
+    // ---------------------------------------------------------------------------
+
+    dw::vk::PipelineLayout::Desc pl_desc;
+
+    pl_desc.add_descriptor_set_layout(m_ds_layout);
+
+    m_pipeline_layout = dw::vk::PipelineLayout::create(backend, pl_desc);
+
+    pso_desc.set_pipeline_layout(m_pipeline_layout);
+
+    // ---------------------------------------------------------------------------
+    // Create dynamic state
+    // ---------------------------------------------------------------------------
+
+    pso_desc.add_dynamic_state(VK_DYNAMIC_STATE_VIEWPORT)
+        .add_dynamic_state(VK_DYNAMIC_STATE_SCISSOR);
+
+    pso_desc.set_render_pass(render_pass);
+
+    // ---------------------------------------------------------------------------
+    // Create line list depth test enable pipeline
+    // ---------------------------------------------------------------------------
+
+    input_assembly_state_desc.set_topology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+
+    pso_desc.set_input_assembly_state(input_assembly_state_desc);
+
+    m_line_depth_pipeline = dw::vk::GraphicsPipeline::create(backend, pso_desc);
+
+    // ---------------------------------------------------------------------------
+    // Create depth  list test disabled pipeline
+    // ---------------------------------------------------------------------------
+
+    ds_state.set_depth_test_enable(VK_FALSE)
+        .set_depth_write_enable(VK_FALSE);
+
+    pso_desc.set_depth_stencil_state(ds_state);
+
+    m_line_no_depth_pipeline = dw::vk::GraphicsPipeline::create(backend, pso_desc);
+
+    // ---------------------------------------------------------------------------
+    // Create line strip depth test enable pipeline
+    // ---------------------------------------------------------------------------
+
+    input_assembly_state_desc.set_topology(VK_PRIMITIVE_TOPOLOGY_LINE_STRIP);
+
+    pso_desc.set_input_assembly_state(input_assembly_state_desc);
+
+    m_line_strip_depth_pipeline = dw::vk::GraphicsPipeline::create(backend, pso_desc);
+
+    // ---------------------------------------------------------------------------
+    // Create depth  list test disabled pipeline
+    // ---------------------------------------------------------------------------
+
+    ds_state.set_depth_test_enable(VK_FALSE)
+        .set_depth_write_enable(VK_FALSE);
+
+    pso_desc.set_depth_stencil_state(ds_state);
+
+    m_line_strip_no_depth_pipeline = dw::vk::GraphicsPipeline::create(backend, pso_desc);
 }
 #endif
 

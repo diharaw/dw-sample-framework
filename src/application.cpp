@@ -262,7 +262,11 @@ bool Application::init_base(int argc, const char* argv[])
     m_width  = display_w;
     m_height = display_h;
 
-    if (!m_debug_draw.init())
+    if (!m_debug_draw.init(
+#if defined(DWSF_VULKAN)
+            m_vk_backend, m_vk_backend->swapchain_render_pass()
+#endif
+                ))
         return false;
 
     profiler::initialize(

@@ -6,6 +6,7 @@
 #include <vector>
 #include <memory>
 #include <ogl.h>
+#include <vk.h>
 
 // Hard-limit of vertices. Used to reserve space in vertex and draw command vectors.
 #define MAX_VERTICES 100000
@@ -48,8 +49,16 @@ public:
     DebugDraw();
 
     // Initialization and shutdown.
-    bool init();
+    bool init(
+#if defined(DWSF_VULKAN)
+        vk::Backend::Ptr    backend,
+        vk::RenderPass::Ptr render_pass
+#endif
+    );
     void shutdown();
+
+    inline void set_depth_test(const bool& depth_test) { m_depth_test = depth_test; }
+    inline bool depth_test() { return m_depth_test; }
 
     // Debug shape drawing.
     void capsule(const float& _height, const float& _radius, const glm::vec3& _pos, const glm::vec3& _c);
@@ -68,9 +77,18 @@ public:
 
     // Render method. Pass in target Framebuffer, viewport size and view-projection matrix.
 #if defined(DWSF_VULKAN)
-
+    void render(vk::Backend::Ptr backend, vk::CommandBuffer::Ptr cmd_buffer, int width, int height, const glm::mat4& view_proj);
 #else
     void                               render(gl::Framebuffer* fbo, int width, int height, const glm::mat4& view_proj);
+#endif
+
+#if defined(DWSF_VULKAN)
+private:
+    void create_descriptor_set_layout(vk::Backend::Ptr backend);
+    void create_descriptor_set(vk::Backend::Ptr backend);
+    void create_uniform_buffer(vk::Backend::Ptr backend);
+    void create_vertex_buffer(vk::Backend::Ptr backend);
+    void create_pipeline_states(vk::Backend::Ptr backend, vk::RenderPass::Ptr render_pass);
 #endif
 
 private:
@@ -83,9 +101,22 @@ private:
     // Camera matrix.
     CameraUniforms m_uniforms;
 
+    // Depth state
+    bool m_depth_test = false;
+
     // GPU resources.
 #if defined(DWSF_VULKAN)
-
+    size_t                       m_ubo_size;
+    size_t                       m_vbo_size;
+    vk::Buffer::Ptr              m_line_vbo;
+    vk::Buffer::Ptr              m_ubo;
+    vk::PipelineLayout::Ptr      m_pipeline_layout;
+    vk::DescriptorSetLayout::Ptr m_ds_layout;
+    vk::DescriptorSet::Ptr       m_ds;
+    vk::GraphicsPipeline::Ptr    m_line_depth_pipeline;
+    vk::GraphicsPipeline::Ptr    m_line_no_depth_pipeline;
+    vk::GraphicsPipeline::Ptr    m_line_strip_depth_pipeline;
+    vk::GraphicsPipeline::Ptr    m_line_strip_no_depth_pipeline;
 #else
     std::unique_ptr<gl::VertexArray>   m_line_vao;
     std::unique_ptr<gl::VertexBuffer>  m_line_vbo;

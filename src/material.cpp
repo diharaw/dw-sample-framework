@@ -4,7 +4,7 @@
 #include <utility.h>
 #include <assimp/scene.h>
 #if defined(DWSF_VULKAN)
-#include <vk_mem_alloc.h>
+#    include <vk_mem_alloc.h>
 #endif
 
 namespace dw

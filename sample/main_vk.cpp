@@ -389,6 +389,10 @@ private:
             vkCmdDrawIndexed(cmd_buf->handle(), submesh.index_count, 1, submesh.base_index, submesh.base_vertex, 0);
         }
 
+        m_debug_draw.sphere(10.0f, glm::vec3(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+        m_debug_draw.render(m_vk_backend, cmd_buf, m_width, m_height, m_main_camera->m_view_projection);
+
         render_gui(cmd_buf);
 
         vkCmdEndRenderPass(cmd_buf->handle());
