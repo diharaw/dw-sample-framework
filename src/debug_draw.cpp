@@ -1324,6 +1324,11 @@ void DebugDraw::create_pipeline_states(vk::Backend::Ptr backend, vk::RenderPass:
     // Create line strip depth test enable pipeline
     // ---------------------------------------------------------------------------
 
+    ds_state.set_depth_test_enable(VK_TRUE)
+        .set_depth_write_enable(VK_TRUE);
+
+    pso_desc.set_depth_stencil_state(ds_state);
+
     input_assembly_state_desc.set_topology(VK_PRIMITIVE_TOPOLOGY_LINE_STRIP);
 
     pso_desc.set_input_assembly_state(input_assembly_state_desc);
