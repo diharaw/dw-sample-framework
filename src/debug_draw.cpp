@@ -7,12 +7,12 @@ namespace dw
 {
 #if defined(DWSF_VULKAN)
 
-static const unsigned int kDebugDrawVertSPV_size           = 1444;
-static const unsigned int kDebugDrawVertSPV_data[1444 / 4] = {
+static const unsigned int kDebugDrawVertSPV_size           = 1532;
+static const unsigned int kDebugDrawVertSPV_data[1532 / 4] = {
     0x07230203,
     0x00010000,
     0x000d0008,
-    0x0000002a,
+    0x0000002c,
     0x00000000,
     0x00020011,
     0x00000001,
@@ -25,16 +25,17 @@ static const unsigned int kDebugDrawVertSPV_data[1444 / 4] = {
     0x0003000e,
     0x00000000,
     0x00000001,
-    0x000a000f,
+    0x000b000f,
     0x00000000,
     0x00000004,
     0x6e69616d,
     0x00000000,
     0x00000009,
     0x0000000b,
-    0x00000013,
-    0x0000001d,
-    0x00000029,
+    0x0000000d,
+    0x0000000e,
+    0x00000016,
+    0x0000002b,
     0x00030003,
     0x00000002,
     0x000001c2,
@@ -71,64 +72,70 @@ static const unsigned int kDebugDrawVertSPV_data[1444 / 4] = {
     0x6f435f4e,
     0x00726f6c,
     0x00060005,
-    0x00000011,
+    0x0000000d,
+    0x495f5346,
+    0x72465f4e,
+    0x6f506761,
+    0x00000073,
+    0x00060005,
+    0x0000000e,
+    0x495f5356,
+    0x6f505f4e,
+    0x69746973,
+    0x00006e6f,
+    0x00060005,
+    0x00000014,
     0x505f6c67,
     0x65567265,
     0x78657472,
     0x00000000,
     0x00060006,
-    0x00000011,
+    0x00000014,
     0x00000000,
     0x505f6c67,
     0x7469736f,
     0x006e6f69,
     0x00070006,
-    0x00000011,
+    0x00000014,
     0x00000001,
     0x505f6c67,
     0x746e696f,
     0x657a6953,
     0x00000000,
     0x00070006,
-    0x00000011,
+    0x00000014,
     0x00000002,
     0x435f6c67,
     0x4470696c,
     0x61747369,
     0x0065636e,
     0x00070006,
-    0x00000011,
+    0x00000014,
     0x00000003,
     0x435f6c67,
     0x446c6c75,
     0x61747369,
     0x0065636e,
     0x00030005,
-    0x00000013,
+    0x00000016,
     0x00000000,
     0x00060005,
-    0x00000017,
+    0x0000001a,
     0x656d6143,
     0x6e556172,
     0x726f6669,
     0x0000736d,
     0x00060006,
-    0x00000017,
+    0x0000001a,
     0x00000000,
     0x77656976,
     0x6a6f7250,
     0x00000000,
     0x00030005,
-    0x00000019,
+    0x0000001c,
     0x00000000,
     0x00060005,
-    0x0000001d,
-    0x495f5356,
-    0x6f505f4e,
-    0x69746973,
-    0x00006e6f,
-    0x00060005,
-    0x00000029,
+    0x0000002b,
     0x495f5356,
     0x65545f4e,
     0x6f6f4378,
@@ -141,60 +148,64 @@ static const unsigned int kDebugDrawVertSPV_data[1444 / 4] = {
     0x0000000b,
     0x0000001e,
     0x00000002,
+    0x00040047,
+    0x0000000d,
+    0x0000001e,
+    0x00000001,
+    0x00040047,
+    0x0000000e,
+    0x0000001e,
+    0x00000000,
     0x00050048,
-    0x00000011,
+    0x00000014,
     0x00000000,
     0x0000000b,
     0x00000000,
     0x00050048,
-    0x00000011,
+    0x00000014,
     0x00000001,
     0x0000000b,
     0x00000001,
     0x00050048,
-    0x00000011,
+    0x00000014,
     0x00000002,
     0x0000000b,
     0x00000003,
     0x00050048,
-    0x00000011,
+    0x00000014,
     0x00000003,
     0x0000000b,
     0x00000004,
     0x00030047,
-    0x00000011,
+    0x00000014,
     0x00000002,
     0x00040048,
-    0x00000017,
+    0x0000001a,
     0x00000000,
     0x00000005,
     0x00050048,
-    0x00000017,
+    0x0000001a,
     0x00000000,
     0x00000023,
     0x00000000,
     0x00050048,
-    0x00000017,
+    0x0000001a,
     0x00000000,
     0x00000007,
     0x00000010,
     0x00030047,
-    0x00000017,
+    0x0000001a,
     0x00000002,
     0x00040047,
-    0x00000019,
+    0x0000001c,
     0x00000022,
     0x00000000,
     0x00040047,
-    0x00000019,
+    0x0000001c,
     0x00000021,
     0x00000000,
     0x00040047,
-    0x0000001d,
-    0x0000001e,
-    0x00000000,
-    0x00040047,
-    0x00000029,
+    0x0000002b,
     0x0000001e,
     0x00000001,
     0x00020013,
@@ -225,86 +236,90 @@ static const unsigned int kDebugDrawVertSPV_data[1444 / 4] = {
     0x0000000a,
     0x0000000b,
     0x00000001,
-    0x00040017,
-    0x0000000d,
-    0x00000006,
-    0x00000004,
-    0x00040015,
-    0x0000000e,
-    0x00000020,
-    0x00000000,
-    0x0004002b,
-    0x0000000e,
-    0x0000000f,
-    0x00000001,
-    0x0004001c,
-    0x00000010,
-    0x00000006,
-    0x0000000f,
-    0x0006001e,
-    0x00000011,
-    0x0000000d,
-    0x00000006,
-    0x00000010,
-    0x00000010,
-    0x00040020,
-    0x00000012,
-    0x00000003,
-    0x00000011,
     0x0004003b,
-    0x00000012,
-    0x00000013,
-    0x00000003,
-    0x00040015,
-    0x00000014,
-    0x00000020,
-    0x00000001,
-    0x0004002b,
-    0x00000014,
-    0x00000015,
-    0x00000000,
-    0x00040018,
-    0x00000016,
+    0x00000008,
     0x0000000d,
-    0x00000004,
-    0x0003001e,
-    0x00000017,
-    0x00000016,
-    0x00040020,
-    0x00000018,
-    0x00000002,
-    0x00000017,
-    0x0004003b,
-    0x00000018,
-    0x00000019,
-    0x00000002,
-    0x00040020,
-    0x0000001a,
-    0x00000002,
-    0x00000016,
+    0x00000003,
     0x0004003b,
     0x0000000a,
-    0x0000001d,
+    0x0000000e,
+    0x00000001,
+    0x00040017,
+    0x00000010,
+    0x00000006,
+    0x00000004,
+    0x00040015,
+    0x00000011,
+    0x00000020,
+    0x00000000,
+    0x0004002b,
+    0x00000011,
+    0x00000012,
+    0x00000001,
+    0x0004001c,
+    0x00000013,
+    0x00000006,
+    0x00000012,
+    0x0006001e,
+    0x00000014,
+    0x00000010,
+    0x00000006,
+    0x00000013,
+    0x00000013,
+    0x00040020,
+    0x00000015,
+    0x00000003,
+    0x00000014,
+    0x0004003b,
+    0x00000015,
+    0x00000016,
+    0x00000003,
+    0x00040015,
+    0x00000017,
+    0x00000020,
     0x00000001,
     0x0004002b,
+    0x00000017,
+    0x00000018,
+    0x00000000,
+    0x00040018,
+    0x00000019,
+    0x00000010,
+    0x00000004,
+    0x0003001e,
+    0x0000001a,
+    0x00000019,
+    0x00040020,
+    0x0000001b,
+    0x00000002,
+    0x0000001a,
+    0x0004003b,
+    0x0000001b,
+    0x0000001c,
+    0x00000002,
+    0x00040020,
+    0x0000001d,
+    0x00000002,
+    0x00000019,
+    0x0004002b,
     0x00000006,
-    0x0000001f,
+    0x00000021,
     0x3f800000,
     0x00040020,
-    0x00000025,
-    0x00000003,
-    0x0000000d,
-    0x00040017,
     0x00000027,
+    0x00000003,
+    0x00000010,
+    0x00040017,
+    0x00000029,
     0x00000006,
     0x00000002,
     0x00040020,
-    0x00000028,
+    0x0000002a,
     0x00000001,
-    0x00000027,
-    0x0004003b,
-    0x00000028,
     0x00000029,
+    0x0004003b,
+    0x0000002a,
+    0x0000002b,
     0x00000001,
     0x00050036,
     0x00000002,
@@ -320,64 +335,71 @@ static const unsigned int kDebugDrawVertSPV_data[1444 / 4] = {
     0x0003003e,
     0x00000009,
     0x0000000c,
-    0x00050041,
-    0x0000001a,
-    0x0000001b,
-    0x00000019,
-    0x00000015,
-    0x0004003d,
-    0x00000016,
-    0x0000001c,
-    0x0000001b,
     0x0004003d,
     0x00000007,
-    0x0000001e,
+    0x0000000f,
+    0x0000000e,
+    0x0003003e,
+    0x0000000d,
+    0x0000000f,
+    0x00050041,
     0x0000001d,
+    0x0000001e,
+    0x0000001c,
+    0x00000018,
+    0x0004003d,
+    0x00000019,
+    0x0000001f,
+    0x0000001e,
+    0x0004003d,
+    0x00000007,
+    0x00000020,
+    0x0000000e,
     0x00050051,
     0x00000006,
+    0x00000022,
     0x00000020,
-    0x0000001e,
     0x00000000,
     0x00050051,
     0x00000006,
-    0x00000021,
-    0x0000001e,
+    0x00000023,
+    0x00000020,
     0x00000001,
     0x00050051,
     0x00000006,
-    0x00000022,
-    0x0000001e,
+    0x00000024,
+    0x00000020,
     0x00000002,
     0x00070050,
-    0x0000000d,
-    0x00000023,
-    0x00000020,
-    0x00000021,
-    0x00000022,
-    0x0000001f,
-    0x00050091,
-    0x0000000d,
-    0x00000024,
-    0x0000001c,
-    0x00000023,
-    0x00050041,
+    0x00000010,
     0x00000025,
-    0x00000026,
-    0x00000013,
-    0x00000015,
-    0x0003003e,
-    0x00000026,
+    0x00000022,
+    0x00000023,
     0x00000024,
+    0x00000021,
+    0x00050091,
+    0x00000010,
+    0x00000026,
+    0x0000001f,
+    0x00000025,
+    0x00050041,
+    0x00000027,
+    0x00000028,
+    0x00000016,
+    0x00000018,
+    0x0003003e,
+    0x00000028,
+    0x00000026,
     0x000100fd,
     0x00010038,
 };
 
-static const unsigned int kDebugDrawFragSPV_size          = 576;
-static const unsigned int kDebugDrawFragSPV_data[576 / 4] = {
+static const unsigned int kDebugDrawFragSPV_size           = 1904;
+static const unsigned int kDebugDrawFragSPV_data[1904 / 4] = {
     0x07230203,
     0x00010000,
     0x000d0008,
-    0x00000013,
+    0x00000047,
     0x00000000,
     0x00020011,
     0x00000001,
@@ -390,13 +412,14 @@ static const unsigned int kDebugDrawFragSPV_data[576 / 4] = {
     0x0003000e,
     0x00000000,
     0x00000001,
-    0x0007000f,
+    0x0008000f,
     0x00000004,
     0x00000004,
     0x6e69616d,
     0x00000000,
-    0x00000009,
-    0x0000000c,
+    0x0000001f,
+    0x00000022,
+    0x0000002b,
     0x00030010,
     0x00000004,
     0x00000007,
@@ -425,25 +448,97 @@ static const unsigned int kDebugDrawFragSPV_data[576 / 4] = {
     0x00000004,
     0x6e69616d,
     0x00000000,
+    0x00050005,
+    0x00000008,
+    0x65646166,
+    0x6174735f,
+    0x00007472,
     0x00060005,
-    0x00000009,
+    0x0000000a,
+    0x68737550,
+    0x736e6f43,
+    0x746e6174,
+    0x00000073,
+    0x00060006,
+    0x0000000a,
+    0x00000000,
+    0x656d6163,
+    0x705f6172,
+    0x0000736f,
+    0x00060006,
+    0x0000000a,
+    0x00000001,
+    0x65646166,
+    0x7261705f,
+    0x00736d61,
+    0x00050005,
+    0x0000000c,
+    0x68737570,
+    0x6e6f635f,
+    0x00737473,
+    0x00050005,
+    0x00000014,
+    0x65646166,
+    0x646e655f,
+    0x00000000,
+    0x00060005,
+    0x0000001f,
     0x4f5f5346,
     0x435f5455,
     0x726f6c6f,
     0x00000000,
     0x00050005,
-    0x0000000c,
+    0x00000022,
     0x495f5346,
     0x6f435f4e,
     0x00726f6c,
+    0x00050005,
+    0x0000002a,
+    0x74736964,
+    0x65636e61,
+    0x00000000,
+    0x00060005,
+    0x0000002b,
+    0x495f5346,
+    0x72465f4e,
+    0x6f506761,
+    0x00000073,
+    0x00070005,
+    0x00000034,
+    0x65746661,
+    0x61665f72,
+    0x735f6564,
+    0x74726174,
+    0x00000000,
+    0x00040005,
+    0x00000039,
+    0x6361706f,
+    0x00797469,
+    0x00050048,
+    0x0000000a,
+    0x00000000,
+    0x00000023,
+    0x00000000,
+    0x00050048,
+    0x0000000a,
+    0x00000001,
+    0x00000023,
+    0x00000010,
+    0x00030047,
+    0x0000000a,
+    0x00000002,
     0x00040047,
-    0x00000009,
+    0x0000001f,
     0x0000001e,
     0x00000000,
     0x00040047,
-    0x0000000c,
+    0x00000022,
     0x0000001e,
     0x00000000,
+    0x00040047,
+    0x0000002b,
+    0x0000001e,
+    0x00000001,
     0x00020013,
     0x00000002,
     0x00030021,
@@ -452,34 +547,92 @@ static const unsigned int kDebugDrawFragSPV_data[576 / 4] = {
     0x00030016,
     0x00000006,
     0x00000020,
-    0x00040017,
+    0x00040020,
     0x00000007,
+    0x00000007,
+    0x00000006,
+    0x00040017,
+    0x00000009,
     0x00000006,
     0x00000004,
-    0x00040020,
-    0x00000008,
-    0x00000003,
-    0x00000007,
-    0x0004003b,
-    0x00000008,
-    0x00000009,
-    0x00000003,
-    0x00040017,
+    0x0004001e,
     0x0000000a,
-    0x00000006,
-    0x00000003,
+    0x00000009,
+    0x00000009,
     0x00040020,
     0x0000000b,
-    0x00000001,
+    0x00000009,
     0x0000000a,
     0x0004003b,
     0x0000000b,
     0x0000000c,
+    0x00000009,
+    0x00040015,
+    0x0000000d,
+    0x00000020,
+    0x00000001,
+    0x0004002b,
+    0x0000000d,
+    0x0000000e,
+    0x00000001,
+    0x00040015,
+    0x0000000f,
+    0x00000020,
+    0x00000000,
+    0x0004002b,
+    0x0000000f,
+    0x00000010,
+    0x00000000,
+    0x00040020,
+    0x00000011,
+    0x00000009,
+    0x00000006,
+    0x0004002b,
+    0x0000000f,
+    0x00000015,
     0x00000001,
     0x0004002b,
     0x00000006,
-    0x0000000e,
+    0x00000019,
+    0x00000000,
+    0x00020014,
+    0x0000001a,
+    0x00040020,
+    0x0000001e,
+    0x00000003,
+    0x00000009,
+    0x0004003b,
+    0x0000001e,
+    0x0000001f,
+    0x00000003,
+    0x00040017,
+    0x00000020,
+    0x00000006,
+    0x00000003,
+    0x00040020,
+    0x00000021,
+    0x00000001,
+    0x00000020,
+    0x0004003b,
+    0x00000021,
+    0x00000022,
+    0x00000001,
+    0x0004002b,
+    0x00000006,
+    0x00000024,
     0x3f800000,
+    0x0004003b,
+    0x00000021,
+    0x0000002b,
+    0x00000001,
+    0x0004002b,
+    0x0000000d,
+    0x0000002d,
+    0x00000000,
+    0x00040020,
+    0x0000002e,
+    0x00000009,
+    0x00000009,
     0x00050036,
     0x00000002,
     0x00000004,
@@ -487,35 +640,236 @@ static const unsigned int kDebugDrawFragSPV_data[576 / 4] = {
     0x00000003,
     0x000200f8,
     0x00000005,
-    0x0004003d,
-    0x0000000a,
-    0x0000000d,
+    0x0004003b,
+    0x00000007,
+    0x00000008,
+    0x00000007,
+    0x0004003b,
+    0x00000007,
+    0x00000014,
+    0x00000007,
+    0x0004003b,
+    0x00000007,
+    0x0000002a,
+    0x00000007,
+    0x0004003b,
+    0x00000007,
+    0x00000034,
+    0x00000007,
+    0x0004003b,
+    0x00000007,
+    0x00000039,
+    0x00000007,
+    0x00060041,
+    0x00000011,
+    0x00000012,
     0x0000000c,
+    0x0000000e,
+    0x00000010,
+    0x0004003d,
+    0x00000006,
+    0x00000013,
+    0x00000012,
+    0x0003003e,
+    0x00000008,
+    0x00000013,
+    0x00060041,
+    0x00000011,
+    0x00000016,
+    0x0000000c,
+    0x0000000e,
+    0x00000015,
+    0x0004003d,
+    0x00000006,
+    0x00000017,
+    0x00000016,
+    0x0003003e,
+    0x00000014,
+    0x00000017,
+    0x0004003d,
+    0x00000006,
+    0x00000018,
+    0x00000008,
+    0x000500b8,
+    0x0000001a,
+    0x0000001b,
+    0x00000018,
+    0x00000019,
+    0x000300f7,
+    0x0000001d,
+    0x00000000,
+    0x000400fa,
+    0x0000001b,
+    0x0000001c,
+    0x00000029,
+    0x000200f8,
+    0x0000001c,
+    0x0004003d,
+    0x00000020,
+    0x00000023,
+    0x00000022,
     0x00050051,
     0x00000006,
-    0x0000000f,
-    0x0000000d,
+    0x00000025,
+    0x00000023,
     0x00000000,
     0x00050051,
     0x00000006,
-    0x00000010,
-    0x0000000d,
+    0x00000026,
+    0x00000023,
     0x00000001,
     0x00050051,
     0x00000006,
-    0x00000011,
-    0x0000000d,
+    0x00000027,
+    0x00000023,
     0x00000002,
     0x00070050,
-    0x00000007,
-    0x00000012,
-    0x0000000f,
-    0x00000010,
-    0x00000011,
-    0x0000000e,
-    0x0003003e,
     0x00000009,
-    0x00000012,
+    0x00000028,
+    0x00000025,
+    0x00000026,
+    0x00000027,
+    0x00000024,
+    0x0003003e,
+    0x0000001f,
+    0x00000028,
+    0x000200f9,
+    0x0000001d,
+    0x000200f8,
+    0x00000029,
+    0x0004003d,
+    0x00000020,
+    0x0000002c,
+    0x0000002b,
+    0x00050041,
+    0x0000002e,
+    0x0000002f,
+    0x0000000c,
+    0x0000002d,
+    0x0004003d,
+    0x00000009,
+    0x00000030,
+    0x0000002f,
+    0x0008004f,
+    0x00000020,
+    0x00000031,
+    0x00000030,
+    0x00000030,
+    0x00000000,
+    0x00000001,
+    0x00000002,
+    0x00050083,
+    0x00000020,
+    0x00000032,
+    0x0000002c,
+    0x00000031,
+    0x0006000c,
+    0x00000006,
+    0x00000033,
+    0x00000001,
+    0x00000042,
+    0x00000032,
+    0x0003003e,
+    0x0000002a,
+    0x00000033,
+    0x0004003d,
+    0x00000006,
+    0x00000035,
+    0x0000002a,
+    0x0004003d,
+    0x00000006,
+    0x00000036,
+    0x00000008,
+    0x00050083,
+    0x00000006,
+    0x00000037,
+    0x00000035,
+    0x00000036,
+    0x0007000c,
+    0x00000006,
+    0x00000038,
+    0x00000001,
+    0x00000028,
+    0x00000037,
+    0x00000019,
+    0x0003003e,
+    0x00000034,
+    0x00000038,
+    0x0004003d,
+    0x00000006,
+    0x0000003a,
+    0x00000034,
+    0x0004003d,
+    0x00000006,
+    0x0000003b,
+    0x00000014,
+    0x0004003d,
+    0x00000006,
+    0x0000003c,
+    0x00000008,
+    0x00050083,
+    0x00000006,
+    0x0000003d,
+    0x0000003b,
+    0x0000003c,
+    0x00050088,
+    0x00000006,
+    0x0000003e,
+    0x0000003a,
+    0x0000003d,
+    0x00050083,
+    0x00000006,
+    0x0000003f,
+    0x00000024,
+    0x0000003e,
+    0x0008000c,
+    0x00000006,
+    0x00000040,
+    0x00000001,
+    0x0000002b,
+    0x0000003f,
+    0x00000019,
+    0x00000024,
+    0x0003003e,
+    0x00000039,
+    0x00000040,
+    0x0004003d,
+    0x00000020,
+    0x00000041,
+    0x00000022,
+    0x0004003d,
+    0x00000006,
+    0x00000042,
+    0x00000039,
+    0x00050051,
+    0x00000006,
+    0x00000043,
+    0x00000041,
+    0x00000000,
+    0x00050051,
+    0x00000006,
+    0x00000044,
+    0x00000041,
+    0x00000001,
+    0x00050051,
+    0x00000006,
+    0x00000045,
+    0x00000041,
+    0x00000002,
+    0x00070050,
+    0x00000009,
+    0x00000046,
+    0x00000043,
+    0x00000044,
+    0x00000045,
+    0x00000042,
+    0x0003003e,
+    0x0000001f,
+    0x00000046,
+    0x000200f9,
+    0x0000001d,
+    0x000200f8,
+    0x0000001d,
     0x000100fd,
     0x00010038,
 };
@@ -532,11 +886,13 @@ const char* g_vs_src = R"(
 		mat4 viewProj;
 	};
 	
-	out vec3 PS_IN_Color;
+	out vec3 FS_IN_Color;
+    out vec3 FS_IN_FragPos;
 	
 	void main()
 	{
-	    PS_IN_Color = VS_IN_Color;
+	    FS_IN_Color = VS_IN_Color;
+        FS_IN_FragPos = VS_IN_Position;
 	    gl_Position = viewProj * vec4(VS_IN_Position, 1.0);
 	}
 
@@ -546,13 +902,29 @@ const char* g_fs_src = R"(
 
     precision mediump float;
     
-	out vec4 PS_OUT_Color;
+	out vec4 FS_OUT_Color;
 
-	in vec3 PS_IN_Color;
+	in vec3 FS_IN_Color;
+    in vec3 FS_IN_FragPos;
+
+    uniform vec4 camera_pos;
+    uniform vec4 fade_params;
 	
 	void main()
 	{
-	    PS_OUT_Color = vec4(PS_IN_Color, 1.0);
+	    float fade_start = push_consts.fade_params.x;
+        float fade_end = push_consts.fade_params.y;
+
+        if (fade_start < 0.0)
+            FS_OUT_Color = vec4(FS_IN_Color, 1.0);
+        else
+        {
+            float distance = length(FS_IN_FragPos - push_consts.camera_pos.xyz);
+            float after_fade_start = max(distance - fade_start, 0.0);
+            float opacity = clamp(1.0 - after_fade_start/(fade_end - fade_start), 0.0, 1.0);
+
+            FS_OUT_Color = vec4(FS_IN_Color, opacity);
+        }
 	}
 
 	)";
@@ -646,6 +1018,22 @@ void DebugDraw::shutdown()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+void DebugDraw::begin_batch()
+{
+    m_batched_mode = true;
+    m_batch_start  = m_world_vertices.size();
+    m_batch_end    = m_world_vertices.size();
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void DebugDraw::end_batch()
+{
+    m_batched_mode = false;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 void DebugDraw::capsule(const float& _height, const float& _radius, const glm::vec3& _pos, const glm::vec3& _c)
 {
     // Draw four lines
@@ -721,6 +1109,8 @@ void DebugDraw::aabb(const glm::vec3& _min, const glm::vec3& _max, const glm::ve
     glm::vec3 min = _pos + _min;
     glm::vec3 max = _pos + _max;
 
+    begin_batch();
+
     line(min, glm::vec3(max.x, min.y, min.z), _c);
     line(glm::vec3(max.x, min.y, min.z), glm::vec3(max.x, min.y, max.z), _c);
     line(glm::vec3(max.x, min.y, max.z), glm::vec3(min.x, min.y, max.z), _c);
@@ -735,6 +1125,8 @@ void DebugDraw::aabb(const glm::vec3& _min, const glm::vec3& _max, const glm::ve
     line(glm::vec3(max.x, min.y, min.z), glm::vec3(max.x, max.y, min.z), _c);
     line(glm::vec3(max.x, min.y, max.z), max, _c);
     line(glm::vec3(min.x, min.y, max.z), glm::vec3(min.x, max.y, max.z), _c);
+
+    end_batch();
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -793,6 +1185,106 @@ void DebugDraw::grid(const float& _x, const float& _z, const float& _y_level, co
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+float closest_divisable(float a, float b)
+{
+    int c1 = int(a) - (int(a) % int(b));
+    int c2 = (a + b) - (int(a) % int(b));
+
+    if (int(a) - c1 > c2 - int(a))
+        return float(c2);
+    else
+        return float(c1);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void DebugDraw::grid(const glm::mat4& view_proj, const float& unit_size, const float& highlight_unit_size)
+{
+    // Get world space frustum corners
+    glm::mat4 inverse = glm::inverse(view_proj);
+    glm::vec3 corners[8];
+
+    for (int i = 0; i < 8; i++)
+    {
+        glm::vec4 v = inverse * kFrustumCorners[i];
+        v           = v / v.w;
+        corners[i]  = glm::vec3(v.x, v.y, v.z);
+    }
+
+    // Find min and max
+    glm::vec3 min = corners[0];
+    glm::vec3 max = corners[0];
+
+    for (int i = 0; i < 8; i++)
+    {
+        if (corners[i].x < min.x)
+            min.x = corners[i].x;
+        if (corners[i].y < min.y)
+            min.y = corners[i].y;
+        if (corners[i].z < min.z)
+            min.z = corners[i].z;
+
+        if (corners[i].x > max.x)
+            max.x = corners[i].x;
+        if (corners[i].y > max.y)
+            max.y = corners[i].y;
+        if (corners[i].z > max.z)
+            max.z = corners[i].z;
+    }
+
+    glm::vec3 min_mod = glm::vec3(closest_divisable(min.x, unit_size), closest_divisable(min.y, unit_size), closest_divisable(min.z, unit_size));
+    glm::vec3 max_mod = glm::vec3(closest_divisable(max.x, unit_size), closest_divisable(max.y, unit_size), closest_divisable(max.z, unit_size));
+
+    float x = min_mod.x;
+
+    begin_batch();
+
+    while (x < max_mod.x)
+    {
+        glm::vec3 color = glm::vec3(1.0f);
+
+        float coord = int(x) % int(highlight_unit_size);
+
+        if (coord != 0.0f)
+            color = glm::vec3(0.2f);
+        
+        if (x != 0.0f)
+            line(glm::vec3(x, 0.0f, min.z), glm::vec3(x, 0.0f, max.z), color);
+        
+        x += unit_size;
+    }
+
+    float z = min_mod.z;
+
+    while (z < max_mod.z)
+    {
+        glm::vec3 color = glm::vec3(1.0f);
+
+        float coord = int(z) % int(highlight_unit_size);
+
+        if (coord != 0.0f)
+            color = glm::vec3(0.2f);
+
+        if (z != 0.0f)
+            line(glm::vec3(min.x, 0.0f, z), glm::vec3(max.x, 0.0f, z), color);
+        
+        z += unit_size;
+    }
+
+    // X-axis = Red
+    line(glm::vec3(0.0f, 0.0f, min.z), glm::vec3(0.0f, 0.0f, max.z), glm::vec3(1.0f, 0.0f, 0.0f));
+
+    // Y-axis = Green
+    line(glm::vec3(0.0f, min.y, 0.0f), glm::vec3(0.0f, max.y, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+    // Z-axis = Blue
+    line(glm::vec3(min.x, 0.0f, 0.0f), glm::vec3(max.x, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
+    end_batch();
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 void DebugDraw::line(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& c)
 {
     if (m_world_vertices.size() < MAX_VERTICES)
@@ -807,16 +1299,32 @@ void DebugDraw::line(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& 
         m_world_vertices.push_back(vw0);
         m_world_vertices.push_back(vw1);
 
-        DrawCommand cmd;
+        if (!m_batched_mode || m_batch_start == m_batch_end)
+        {
+            DrawCommand cmd;
+
+            cmd.depth_test = m_depth_test;
+            cmd.distance_fade = m_distance_fade;
+            cmd.fade_start    = m_fade_start;
+            cmd.fade_end      = m_fade_end;
 
 #if defined(DWSF_VULKAN)
-        cmd.type = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+            cmd.type = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
 #else
-        cmd.type = GL_LINES;
+            cmd.type = GL_LINES;
 #endif
-        cmd.vertices = 2;
+            cmd.vertices = 2;
 
-        m_draw_commands.push_back(cmd);
+            m_draw_commands.push_back(cmd);
+        }
+        else
+        {
+            DrawCommand& cmd = m_draw_commands.back();
+            cmd.vertices += 2;
+        }
+
+        if (m_batched_mode)
+            m_batch_end = m_world_vertices.size();
     }
 }
 
@@ -834,6 +1342,11 @@ void DebugDraw::line_strip(glm::vec3* v, const int& count, const glm::vec3& c)
     }
 
     DrawCommand cmd;
+
+    cmd.depth_test    = m_depth_test;
+    cmd.distance_fade = m_distance_fade;
+    cmd.fade_start    = m_fade_start;
+    cmd.fade_end      = m_fade_end;
 
 #if defined(DWSF_VULKAN)
     cmd.type = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
@@ -983,7 +1496,7 @@ void DebugDraw::transform(const glm::mat4& trans, const float& axis_length)
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 #if defined(DWSF_VULKAN)
-void DebugDraw::render(vk::Backend::Ptr backend, vk::CommandBuffer::Ptr cmd_buffer, int width, int height, const glm::mat4& view_proj)
+void DebugDraw::render(vk::Backend::Ptr backend, vk::CommandBuffer::Ptr cmd_buffer, int width, int height, const glm::mat4& view_proj, const glm::vec3& view_pos)
 {
     if (m_world_vertices.size() > 0)
     {
@@ -1012,20 +1525,31 @@ void DebugDraw::render(vk::Backend::Ptr backend, vk::CommandBuffer::Ptr cmd_buff
         {
             DrawCommand& cmd = m_draw_commands[i];
 
+            VkPipeline pipeline;
+
             if (cmd.type == VK_PRIMITIVE_TOPOLOGY_LINE_LIST)
             {
-                if (m_depth_test)
-                    vkCmdBindPipeline(cmd_buffer->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_line_depth_pipeline->handle());
+                if (cmd.depth_test)
+                    pipeline = m_line_depth_pipeline->handle();
                 else
-                    vkCmdBindPipeline(cmd_buffer->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_line_no_depth_pipeline->handle());
+                    pipeline = m_line_no_depth_pipeline->handle();
             }
             else
             {
-                if (m_depth_test)
-                    vkCmdBindPipeline(cmd_buffer->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_line_strip_depth_pipeline->handle());
+                if (cmd.depth_test)
+                    pipeline = m_line_strip_depth_pipeline->handle();
                 else
-                    vkCmdBindPipeline(cmd_buffer->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_line_strip_no_depth_pipeline->handle());
+                    pipeline = m_line_strip_no_depth_pipeline->handle();
             }
+
+            vkCmdBindPipeline(cmd_buffer->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+
+            glm::vec4 params[2];
+
+            params[0] = glm::vec4(view_pos, 0.0f);
+            params[1] = glm::vec4(cmd.distance_fade ? cmd.fade_start : -1.0f, cmd.fade_end, 0.0f, 0.0f);
+
+            vkCmdPushConstants(cmd_buffer->handle(), m_pipeline_layout->handle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(params), &params);
 
             vkCmdDraw(cmd_buffer->handle(), cmd.vertices, 1, v, 0);
             v += cmd.vertices;
@@ -1036,7 +1560,7 @@ void DebugDraw::render(vk::Backend::Ptr backend, vk::CommandBuffer::Ptr cmd_buff
     }
 }
 #else
-void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::mat4& view_proj)
+void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::mat4& view_proj, const glm::vec3& view_pos)
 {
     if (m_world_vertices.size() > 0)
     {
@@ -1065,16 +1589,27 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
         m_ubo->unmap();
 
         // Get previous state
-        GLboolean last_enable_cull_face  = glIsEnabled(GL_CULL_FACE);
-        GLboolean last_enable_depth_test = glIsEnabled(GL_DEPTH_TEST);
+        GLenum last_blend_src_rgb;
+        glGetIntegerv(GL_BLEND_SRC_RGB, (GLint*)&last_blend_src_rgb);
+        GLenum last_blend_dst_rgb;
+        glGetIntegerv(GL_BLEND_DST_RGB, (GLint*)&last_blend_dst_rgb);
+        GLenum last_blend_src_alpha;
+        glGetIntegerv(GL_BLEND_SRC_ALPHA, (GLint*)&last_blend_src_alpha);
+        GLenum last_blend_dst_alpha;
+        glGetIntegerv(GL_BLEND_DST_ALPHA, (GLint*)&last_blend_dst_alpha);
+        GLenum last_blend_equation_rgb;
+        glGetIntegerv(GL_BLEND_EQUATION_RGB, (GLint*)&last_blend_equation_rgb);
+        GLenum last_blend_equation_alpha;
+        glGetIntegerv(GL_BLEND_EQUATION_ALPHA, (GLint*)&last_blend_equation_alpha);
+        GLboolean last_enable_blend        = glIsEnabled(GL_BLEND);
+        GLboolean last_enable_cull_face    = glIsEnabled(GL_CULL_FACE);
+        GLboolean last_enable_depth_test   = glIsEnabled(GL_DEPTH_TEST);
+        GLboolean last_enable_scissor_test = glIsEnabled(GL_SCISSOR_TEST);
 
         // Set initial state
-        if (m_depth_test)
-            glDisable(GL_DEPTH_TEST);
-        else
-            glEnable(GL_DEPTH_TEST);
-
         glDisable(GL_CULL_FACE);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
 
         if (fbo)
             fbo->bind();
@@ -1091,6 +1626,19 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
         for (int i = 0; i < m_draw_commands.size(); i++)
         {
             DrawCommand& cmd = m_draw_commands[i];
+
+             if (cmd.depth_test)
+                glDisable(GL_DEPTH_TEST);
+            else
+                glEnable(GL_DEPTH_TEST);
+
+            glm::vec4 params[2];
+
+            params[0] = glm::vec4(view_pos, 0.0f);
+            params[1] = glm::vec4(cmd.distance_fade ? cmd.fade_start : -1.0f, cmd.fade_end, 0.0f, 0.0f);
+
+            m_line_program->set_uniform()
+
             glDrawArrays(cmd.type, v, cmd.vertices);
             v += cmd.vertices;
         }
@@ -1099,11 +1647,25 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
         m_world_vertices.clear();
 
         // Restore state
+        glBindBuffer(GL_ARRAY_BUFFER, last_array_buffer);
+        glBlendEquationSeparate(last_blend_equation_rgb, last_blend_equation_alpha);
+        glBlendFuncSeparate(last_blend_src_rgb, last_blend_dst_rgb, last_blend_src_alpha, last_blend_dst_alpha);
+        if (last_enable_blend)
+            glEnable(GL_BLEND);
+        else
+            glDisable(GL_BLEND);
         if (last_enable_cull_face)
             glEnable(GL_CULL_FACE);
-
+        else
+            glDisable(GL_CULL_FACE);
         if (last_enable_depth_test)
             glEnable(GL_DEPTH_TEST);
+        else
+            glDisable(GL_DEPTH_TEST);
+        if (last_enable_scissor_test)
+            glEnable(GL_SCISSOR_TEST);
+        else
+            glDisable(GL_SCISSOR_TEST);
     }
 }
 #endif
@@ -1267,7 +1829,12 @@ void DebugDraw::create_pipeline_states(vk::Backend::Ptr backend, vk::RenderPass:
     dw::vk::ColorBlendAttachmentStateDesc blend_att_desc;
 
     blend_att_desc.set_color_write_mask(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT)
-        .set_blend_enable(VK_FALSE);
+        .set_src_color_blend_factor(VK_BLEND_FACTOR_SRC_ALPHA)
+        .set_dst_color_blend_Factor(VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA)
+        .set_src_alpha_blend_factor(VK_BLEND_FACTOR_ONE)
+        .set_dst_alpha_blend_factor(VK_BLEND_FACTOR_ZERO)
+        .set_color_blend_op(VK_BLEND_OP_ADD)
+        .set_blend_enable(VK_TRUE);
 
     dw::vk::ColorBlendStateDesc blend_state;
 
@@ -1285,6 +1852,7 @@ void DebugDraw::create_pipeline_states(vk::Backend::Ptr backend, vk::RenderPass:
     dw::vk::PipelineLayout::Desc pl_desc;
 
     pl_desc.add_descriptor_set_layout(m_ds_layout);
+    pl_desc.add_push_constant_range(VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec4) * 2);
 
     m_pipeline_layout = dw::vk::PipelineLayout::create(backend, pl_desc);
 
