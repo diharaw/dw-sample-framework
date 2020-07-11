@@ -95,7 +95,7 @@ public:
 #if defined(DWSF_VULKAN)
     void render(vk::Backend::Ptr backend, vk::CommandBuffer::Ptr cmd_buffer, int width, int height, const glm::mat4& view_proj, const glm::vec3& view_pos);
 #else
-    void                               render(gl::Framebuffer* fbo, int width, int height, const glm::mat4& view_proj, const glm::vec3& view_pos, const glm::vec3& view_pos);
+    void                               render(gl::Framebuffer* fbo, int width, int height, const glm::mat4& view_proj, const glm::vec3& view_pos);
 #endif
 
 #if defined(DWSF_VULKAN)

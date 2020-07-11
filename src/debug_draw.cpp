@@ -912,14 +912,14 @@ const char* g_fs_src = R"(
 	
 	void main()
 	{
-	    float fade_start = push_consts.fade_params.x;
-        float fade_end = push_consts.fade_params.y;
+	    float fade_start = fade_params.x;
+        float fade_end = fade_params.y;
 
         if (fade_start < 0.0)
             FS_OUT_Color = vec4(FS_IN_Color, 1.0);
         else
         {
-            float distance = length(FS_IN_FragPos - push_consts.camera_pos.xyz);
+            float distance = length(FS_IN_FragPos - camera_pos.xyz);
             float after_fade_start = max(distance - fade_start, 0.0);
             float opacity = clamp(1.0 - after_fade_start/(fade_end - fade_start), 0.0, 1.0);
 
@@ -1005,6 +1005,7 @@ bool DebugDraw::init(
 
 void DebugDraw::shutdown()
 {
+#if defined(DWSF_VULKAN)
     m_line_strip_depth_pipeline.reset();
     m_line_strip_no_depth_pipeline.reset();
     m_line_depth_pipeline.reset();
@@ -1012,6 +1013,7 @@ void DebugDraw::shutdown()
     m_pipeline_layout.reset();
     m_ds.reset();
     m_ds_layout.reset();
+#endif
     m_line_vbo.reset();
     m_ubo.reset();
 }
@@ -1637,7 +1639,8 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
             params[0] = glm::vec4(view_pos, 0.0f);
             params[1] = glm::vec4(cmd.distance_fade ? cmd.fade_start : -1.0f, cmd.fade_end, 0.0f, 0.0f);
 
-            m_line_program->set_uniform()
+            m_line_program->set_uniform("camera_pos", params[0]);
+            m_line_program->set_uniform("fade_params", params[1]);
 
             glDrawArrays(cmd.type, v, cmd.vertices);
             v += cmd.vertices;
@@ -1647,7 +1650,7 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
         m_world_vertices.clear();
 
         // Restore state
-        glBindBuffer(GL_ARRAY_BUFFER, last_array_buffer);
+        //glBindBuffer(GL_ARRAY_BUFFER, last_array_buffer);
         glBlendEquationSeparate(last_blend_equation_rgb, last_blend_equation_alpha);
         glBlendFuncSeparate(last_blend_src_rgb, last_blend_dst_rgb, last_blend_src_alpha, last_blend_dst_alpha);
         if (last_enable_blend)
