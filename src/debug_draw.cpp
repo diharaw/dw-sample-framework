@@ -1,7 +1,9 @@
 #include <debug_draw.h>
 #include <logger.h>
 #include <utility.h>
-#include <vk_mem_alloc.h>
+#if defined(DWSF_VULKAN)
+#   include <vk_mem_alloc.h>
+#endif
 
 namespace dw
 {
