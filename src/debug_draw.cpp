@@ -2,7 +2,7 @@
 #include <logger.h>
 #include <utility.h>
 #if defined(DWSF_VULKAN)
-#   include <vk_mem_alloc.h>
+#    include <vk_mem_alloc.h>
 #endif
 
 namespace dw
@@ -1251,10 +1251,10 @@ void DebugDraw::grid(const glm::mat4& view_proj, const float& unit_size, const f
 
         if (coord != 0.0f)
             color = glm::vec3(0.2f);
-        
+
         if (x != 0.0f)
             line(glm::vec3(x, 0.0f, min.z), glm::vec3(x, 0.0f, max.z), color);
-        
+
         x += unit_size;
     }
 
@@ -1271,7 +1271,7 @@ void DebugDraw::grid(const glm::mat4& view_proj, const float& unit_size, const f
 
         if (z != 0.0f)
             line(glm::vec3(min.x, 0.0f, z), glm::vec3(max.x, 0.0f, z), color);
-        
+
         z += unit_size;
     }
 
@@ -1307,7 +1307,7 @@ void DebugDraw::line(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& 
         {
             DrawCommand cmd;
 
-            cmd.depth_test = m_depth_test;
+            cmd.depth_test    = m_depth_test;
             cmd.distance_fade = m_distance_fade;
             cmd.fade_start    = m_fade_start;
             cmd.fade_end      = m_fade_end;
@@ -1613,7 +1613,7 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
         // Set initial state
         glDisable(GL_CULL_FACE);
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         if (fbo)
             fbo->bind();
@@ -1631,7 +1631,7 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
         {
             DrawCommand& cmd = m_draw_commands[i];
 
-             if (cmd.depth_test)
+            if (cmd.depth_test)
                 glDisable(GL_DEPTH_TEST);
             else
                 glEnable(GL_DEPTH_TEST);

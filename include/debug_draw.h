@@ -28,10 +28,10 @@ struct VertexWorld
 
 struct DrawCommand
 {
-    int type;
-    int vertices;
-    bool depth_test;
-    bool distance_fade;
+    int   type;
+    int   vertices;
+    bool  depth_test;
+    bool  distance_fade;
     float fade_start;
     float fade_end;
 };
@@ -119,16 +119,16 @@ private:
 
     // Depth state
     bool m_depth_test = false;
-    
+
     // Batching
     uint32_t m_batch_start  = 0;
     uint32_t m_batch_end    = 0;
-    bool m_batched_mode = false;
+    bool     m_batched_mode = false;
 
-    // Fading 
-    float m_fade_end   = 0.0f;
-    float m_fade_start = 0.0f;
-    bool  m_distance_fade       = false;
+    // Fading
+    float m_fade_end      = 0.0f;
+    float m_fade_start    = 0.0f;
+    bool  m_distance_fade = false;
 
     // GPU resources.
 #if defined(DWSF_VULKAN)

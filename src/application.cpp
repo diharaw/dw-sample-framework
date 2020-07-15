@@ -20,6 +20,8 @@
 
 namespace dw
 {
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 #if defined(DWSF_VULKAN)
 void imgui_vulkan_error_check(VkResult err)
 {
@@ -31,6 +33,81 @@ void imgui_vulkan_error_check(VkResult err)
     if (err < 0)
         abort();
 }
+
+#else
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+static void APIENTRY glDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* user_param)
+{
+    std::string msg_source;
+
+    switch (source)
+    {
+        case GL_DEBUG_SOURCE_API:
+            msg_source = "API";
+            break;
+        case GL_DEBUG_SOURCE_SHADER_COMPILER:
+            msg_source = "SHADER_COMPILER";
+            break;
+        case GL_DEBUG_SOURCE_THIRD_PARTY:
+            msg_source = "THIRD_PARTY";
+            break;
+        case GL_DEBUG_SOURCE_APPLICATION:
+            msg_source = "APPLICATION";
+            break;
+        case GL_DEBUG_SOURCE_OTHER:
+            msg_source = "OTHER";
+            break;
+    }
+
+    std::string msg_type;
+
+    switch (type)
+    {
+        case GL_DEBUG_TYPE_ERROR:
+            msg_type = "ERROR";
+            break;
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+            msg_type = "DEPRECATED_BEHAVIOR";
+            break;
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+            msg_type = "UNDEFINED_BEHAVIOR";
+            break;
+        case GL_DEBUG_TYPE_PORTABILITY:
+            msg_type = "PORTABILITY";
+            break;
+        case GL_DEBUG_TYPE_PERFORMANCE:
+            msg_type = "PERFORMANCE";
+            break;
+        case GL_DEBUG_TYPE_OTHER:
+            msg_type = "OTHER";
+            break;
+    }
+
+    std::string msg_severity = "DEFAULT";
+
+    switch (severity)
+    {
+        case GL_DEBUG_SEVERITY_LOW:
+            msg_severity = "LOW";
+            break;
+        case GL_DEBUG_SEVERITY_MEDIUM:
+            msg_severity = "MEDIUM";
+            break;
+        case GL_DEBUG_SEVERITY_HIGH:
+            msg_severity = "HIGH";
+            break;
+    }
+
+    std::string log_msg = "glDebugMessage: " + std::string(message) + ", type = " + msg_type + ", source = " + msg_source + ", severity = " + msg_severity;
+
+    if (type == GL_DEBUG_TYPE_ERROR)
+        DW_LOG_ERROR(log_msg);
+    else
+        DW_LOG_WARNING(log_msg);
+}
+
 #endif
 
 #if defined(__EMSCRIPTEN__)
@@ -195,6 +272,13 @@ bool Application::init_base(int argc, const char* argv[])
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         return false;
 #    endif
+
+    if (settings.enable_debug_callback)
+    {
+        glDebugMessageCallback(glDebugCallback, NULL);
+        glEnable(GL_DEBUG_OUTPUT);
+    }
+
 #endif
 
 #if defined(DWSF_IMGUI)
