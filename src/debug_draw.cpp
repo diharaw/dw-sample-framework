@@ -1612,7 +1612,6 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
 
         // Set initial state
         glDisable(GL_CULL_FACE);
-        glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         if (fbo)
@@ -1630,6 +1629,11 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
         for (int i = 0; i < m_draw_commands.size(); i++)
         {
             DrawCommand& cmd = m_draw_commands[i];
+
+            if (cmd.distance_fade)
+                glEnable(GL_BLEND);
+            else
+                glDisable(GL_BLEND);
 
             if (cmd.depth_test)
                 glDisable(GL_DEPTH_TEST);
