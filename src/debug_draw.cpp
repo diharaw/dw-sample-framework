@@ -1636,9 +1636,9 @@ void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::m
                 glDisable(GL_BLEND);
 
             if (cmd.depth_test)
-                glDisable(GL_DEPTH_TEST);
-            else
                 glEnable(GL_DEPTH_TEST);
+            else
+                glDisable(GL_DEPTH_TEST);
 
             glm::vec4 params[2];
 
