@@ -1644,6 +1644,13 @@ void Buffer::set_data(size_t offset, size_t size, void* data)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+GLuint Buffer::handle()
+{
+    return m_gl_buffer;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 VertexBuffer::VertexBuffer(GLenum usage, size_t size, void* data) :
     Buffer(GL_ARRAY_BUFFER, usage, size, data) {}
 

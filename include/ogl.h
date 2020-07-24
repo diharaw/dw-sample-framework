@@ -262,6 +262,7 @@ public:
     void* map_range(GLenum access, size_t offset, size_t size);
     void  unmap();
     void  set_data(size_t offset, size_t size, void* data);
+    GLuint handle();
 
 protected:
     GLenum m_type;
