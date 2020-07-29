@@ -10,14 +10,6 @@ if (USE_VULKAN)
 	add_definitions(-DDWSF_VULKAN_RAY_TRACING)
 endif()
 
-if (ENABLE_SKY_MODEL)
-	add_definitions(-DDWSF_ENABLE_SKY_MODEL)
-endif()
-
-if (ENABLE_SHADOW_MAPS)
-	add_definitions(-DDWSF_ENABLE_SHADOW_MAPS)
-endif()
-
 set (CMAKE_CXX_STANDARD 14)
 
 set(DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/external/imgui/imgui.cpp
@@ -35,7 +27,6 @@ set(DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/external/imgui/imgui.cpp
 				 ${PROJECT_SOURCE_DIR}/src/profiler.cpp
 				 ${PROJECT_SOURCE_DIR}/src/scene.cpp
 				 ${PROJECT_SOURCE_DIR}/src/demo_player.cpp
-				 ${PROJECT_SOURCE_DIR}/src/sky_model.cpp
 				 ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_glfw.cpp)
 
 set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
@@ -58,7 +49,7 @@ set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 				  ${PROJECT_SOURCE_DIR}/include/profiler.h
 				  ${PROJECT_SOURCE_DIR}/include/scene.h
 				  ${PROJECT_SOURCE_DIR}/include/demo_player.h
-				  ${PROJECT_SOURCE_DIR}/include/sky_model.h)
+				  ${PROJECT_SOURCE_DIR}/include/vk.h)
 
 if (USE_VULKAN)
 	list(APPEND DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/vk.h ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_vulkan.h)

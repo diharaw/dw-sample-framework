@@ -254,14 +254,14 @@ class Buffer
 public:
     Buffer(GLenum type, GLenum usage, size_t size, void* data);
     virtual ~Buffer();
-    void   bind();
-    void   bind_base(int index);
-    void   bind_range(int index, size_t offset, size_t size);
-    void   unbind();
-    void*  map(GLenum access);
-    void*  map_range(GLenum access, size_t offset, size_t size);
-    void   unmap();
-    void   set_data(size_t offset, size_t size, void* data);
+    void  bind();
+    void  bind_base(int index);
+    void  bind_range(int index, size_t offset, size_t size);
+    void  unbind();
+    void* map(GLenum access);
+    void* map_range(GLenum access, size_t offset, size_t size);
+    void  unmap();
+    void  set_data(size_t offset, size_t size, void* data);
     GLuint handle();
 
 protected:
