@@ -12,6 +12,7 @@
 #    include <GLFW/glfw3.h>
 #endif
 #include <imgui.h>
+#include "sky_model.h"
 #include "vk.h"
 #include "logger.h"
 #include "timer.h"
@@ -133,6 +134,10 @@ protected:
     GLFWwindow*                         m_window;
     Timer                               m_timer;
     DebugDraw                           m_debug_draw;
+
+#if defined(DWSF_ENABLE_SKY_MODEL)
+    SkyModel m_sky_model;
+#endif
 
 #if defined(DWSF_VULKAN)
     bool                            m_should_recreate_swap_chain = false;

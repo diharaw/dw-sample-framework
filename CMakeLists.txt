@@ -11,6 +11,8 @@ set(ENABLE_CLANG_FORMATTING false CACHE BOOL "Enable clang formatting.")
 set(USE_VULKAN false CACHE BOOL "Use Vulkan graphics API.")
 set(ENABLE_VULKAN_RAY_TRACING false CACHE BOOL "Enable Vulkan ray tracing.")
 set(ENABLE_IMGUI true CACHE BOOL "Enable ImGui.")
+set(ENABLE_SKY_MODEL false CACHE BOOL "Enable Sky Model.")
+set(ENABLE_SHADOW_MAPS false CACHE BOOL "Enable Shadow Maps.")
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")

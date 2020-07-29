@@ -353,6 +353,10 @@ bool Application::init_base(int argc, const char* argv[])
                 ))
         return false;
 
+#if defined(DWSF_ENABLE_SKY_MODEL)
+    m_sky_model.initialize();
+#endif
+
     profiler::initialize(
 #if defined(DWSF_VULKAN)
         m_vk_backend
@@ -405,6 +409,10 @@ void Application::shutdown_base()
 #else
     // Shutdown debug draw.
     m_debug_draw.shutdown();
+
+#    if defined(DWSF_ENABLE_SKY_MODEL)
+    m_sky_model.shutdown();
+#    endif
 
 #    if defined(DWSF_IMGUI)
     ImGui_ImplOpenGL3_Shutdown();
