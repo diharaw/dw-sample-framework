@@ -3368,7 +3368,11 @@ void BrunetonSkyModel::render_skybox(uint32_t x, uint32_t y, uint32_t w, uint32_
     m_cubemap_program->use();
     m_cube_vao->bind();
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    if (fbo)
+        fbo->bind();
+    else
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
     glViewport(x, y, w, h);
 
     m_cubemap_program->set_uniform("u_View", view);
@@ -3390,7 +3394,7 @@ void BrunetonSkyModel::set_render_uniforms(gl::Program* program)
     program->set_uniform("mieG", m_mie_g);
     program->set_uniform("SUN_INTENSITY", m_sun_intensity);
     program->set_uniform("EARTH_POS", glm::vec3(0.0f, 6360010.0f, 0.0f));
-    program->set_uniform("SUN_DIR", m_direction * 1.0f);
+    program->set_uniform("SUN_DIR", m_direction * -1.0f);
 
     if (program->set_uniform("s_Transmittance", 0))
         m_transmittance_t->bind(0);

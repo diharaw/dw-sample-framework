@@ -42,13 +42,15 @@ public:
 
     inline gl::Framebuffer* framebuffer() { return m_shadow_map_fbo.get(); }
     inline gl::Texture2D*   texture() { return m_shadow_map.get(); }
-    inline glm::vec3 direction(const glm::vec3& d) { return m_light_direction; }
-    inline glm::vec3 target(const glm::vec3& t) { return m_light_target; }
-    inline glm::vec3 color(const glm::vec3& c) { return m_light_color; }
+    inline glm::vec3 direction() { return m_light_direction; }
+    inline glm::vec3 target() { return m_light_target; }
+    inline glm::vec3 color() { return m_light_color; }
     inline float            near_plane() { return m_near_plane; }
     inline float            far_plane() { return m_far_plane; }
     inline float            extents() { return m_extents; }
     inline float            backoff_distance() { return m_backoff_distance; }
+    inline glm::mat4        view() { return m_view; }
+    inline glm::mat4        projection() { return m_projection; }
 
 private:
     void update();

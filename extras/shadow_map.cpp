@@ -26,6 +26,8 @@ bool ShadowMap::initialize(uint32_t size)
     m_shadow_map_fbo->attach_depth_stencil_target(m_shadow_map.get(), 0, 0);
 
     update();
+
+    return true;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

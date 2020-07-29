@@ -99,7 +99,7 @@ private:
     std::vector<glm::mat4>                        m_capture_views;
     glm::mat4                                     m_capture_projection;
 
-    glm::vec3 m_direction;
+    glm::vec3 m_direction = glm::vec3(0.0f, 0.0f, 1.0f);
     float     m_normalized_sun_y = 1.15f;
     float     m_albedo           = 0.1f;
     float     m_turbidity        = 4.0f;
@@ -119,6 +119,13 @@ public:
 
     inline float turbidity() { return m_turbidity; }
     inline void  set_turbidity(float t) { m_turbidity = t; }
+
+    inline float sun_angle() { return m_sun_angle; }
+    inline void  set_sun_angle(float angle) 
+    { 
+        m_sun_angle = angle; 
+        m_direction = glm::normalize(glm::vec3(0.0f, sin(m_sun_angle), cos(m_sun_angle)));
+    }
 
 private:
 
