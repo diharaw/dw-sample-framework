@@ -2721,7 +2721,7 @@ void main()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-SkyModel::SkyModel()
+BrunetonSkyModel::BrunetonSkyModel()
 {
     m_transmittance_t = nullptr;
     m_irradiance_t[0] = nullptr;
@@ -2736,14 +2736,14 @@ SkyModel::SkyModel()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-SkyModel::~SkyModel()
+BrunetonSkyModel::~BrunetonSkyModel()
 {
 
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool SkyModel::initialize()
+bool BrunetonSkyModel::initialize()
 {
     m_copy_inscatter_1_cs = std::unique_ptr<dw::gl::Shader>(new gl::Shader(GL_COMPUTE_SHADER, g_copy_inscatter_1_src));
     m_copy_inscatter_n_cs = std::unique_ptr<dw::gl::Shader>(new gl::Shader(GL_COMPUTE_SHADER, g_copy_inscatter_n_src));
@@ -3312,7 +3312,7 @@ bool SkyModel::initialize()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void SkyModel::shutdown()
+void BrunetonSkyModel::shutdown()
 {
     DW_SAFE_DELETE(m_transmittance_t);
     DW_SAFE_DELETE(m_delta_et);
@@ -3332,7 +3332,7 @@ void SkyModel::shutdown()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void SkyModel::update_cubemap()
+void BrunetonSkyModel::update_cubemap()
 {
     m_sky_envmap_program->use();
     set_render_uniforms(m_sky_envmap_program.get());
@@ -3359,7 +3359,7 @@ void SkyModel::update_cubemap()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void SkyModel::render_skybox(uint32_t x, uint32_t y, uint32_t w, uint32_t h, glm::mat4 view, glm::mat4 proj, gl::Framebuffer* fbo)
+void BrunetonSkyModel::render_skybox(uint32_t x, uint32_t y, uint32_t w, uint32_t h, glm::mat4 view, glm::mat4 proj, gl::Framebuffer* fbo)
 {
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -3384,7 +3384,7 @@ void SkyModel::render_skybox(uint32_t x, uint32_t y, uint32_t w, uint32_t h, glm
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void SkyModel::set_render_uniforms(gl::Program* program)
+void BrunetonSkyModel::set_render_uniforms(gl::Program* program)
 {
     program->set_uniform("betaR", m_beta_r / SCALE);
     program->set_uniform("mieG", m_mie_g);
@@ -3404,7 +3404,7 @@ void SkyModel::set_render_uniforms(gl::Program* program)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void SkyModel::set_uniforms(gl::Program* program)
+void BrunetonSkyModel::set_uniforms(gl::Program* program)
 {
     program->set_uniform("Rg", Rg);
     program->set_uniform("Rt", Rt);
@@ -3428,7 +3428,7 @@ void SkyModel::set_uniforms(gl::Program* program)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool SkyModel::load_cached_textures()
+bool BrunetonSkyModel::load_cached_textures()
 {
     FILE* transmittance = fopen("transmittance.raw", "r");
 
@@ -3486,7 +3486,7 @@ bool SkyModel::load_cached_textures()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void SkyModel::write_textures()
+void BrunetonSkyModel::write_textures()
 {
     {
         FILE* transmittance = fopen("transmittance.raw", "wb");
@@ -3533,7 +3533,7 @@ void SkyModel::write_textures()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void SkyModel::precompute()
+void BrunetonSkyModel::precompute()
 {
     // -----------------------------------------------------------------------------
     // 1. Compute Transmittance Texture T
@@ -3758,7 +3758,7 @@ void SkyModel::precompute()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-gl::Texture2D* SkyModel::new_texture_2d(int width, int height)
+gl::Texture2D* BrunetonSkyModel::new_texture_2d(int width, int height)
 {
     gl::Texture2D* texture = new gl::Texture2D(width, height, 1, 1, 1, GL_RGBA32F, GL_RGBA, GL_FLOAT);
     texture->set_min_filter(GL_LINEAR);
@@ -3769,7 +3769,7 @@ gl::Texture2D* SkyModel::new_texture_2d(int width, int height)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-gl::Texture3D* SkyModel::new_texture_3d(int width, int height, int depth)
+gl::Texture3D* BrunetonSkyModel::new_texture_3d(int width, int height, int depth)
 {
     gl::Texture3D* texture = new gl::Texture3D(width, height, depth, 1, GL_RGBA32F, GL_RGBA, GL_FLOAT);
     texture->set_min_filter(GL_LINEAR);
@@ -3780,7 +3780,7 @@ gl::Texture3D* SkyModel::new_texture_3d(int width, int height, int depth)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void SkyModel::swap(gl::Texture2D** arr)
+void BrunetonSkyModel::swap(gl::Texture2D** arr)
 {
     gl::Texture2D* tmp = arr[READ];
     arr[READ]          = arr[WRITE];
@@ -3789,7 +3789,7 @@ void SkyModel::swap(gl::Texture2D** arr)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void SkyModel::swap(gl::Texture3D** arr)
+void BrunetonSkyModel::swap(gl::Texture3D** arr)
 {
     gl::Texture3D* tmp = arr[READ];
     arr[READ]          = arr[WRITE];
