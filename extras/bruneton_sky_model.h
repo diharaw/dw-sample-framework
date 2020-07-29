@@ -6,7 +6,7 @@
 
 namespace dw
 {
-class SkyModel
+class BrunetonSkyModel
 {
 private:
     //Dont change these
@@ -105,8 +105,8 @@ private:
     float     m_turbidity        = 4.0f;
 
 public:
-    SkyModel();
-    ~SkyModel();
+    BrunetonSkyModel();
+    ~BrunetonSkyModel();
 
     bool initialize();
     void shutdown();

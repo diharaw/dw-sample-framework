@@ -1,4 +1,4 @@
-#include <sky_model.h>
+#include "sky_model.h"
 #include <macros.h>
 #include <utility.h>
 #include <logger.h>
