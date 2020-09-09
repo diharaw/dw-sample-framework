@@ -2310,9 +2310,9 @@ ShaderBindingTable::ShaderBindingTable(Backend::Ptr backend, Desc desc) :
         m_groups.push_back(group_info);
     }
 
-    m_ray_gen_size    = desc.ray_gen_stages.size() * rt_props.shaderGroupHandleSize;
-    m_hit_group_size  = desc.hit_groups.size() * rt_props.shaderGroupHandleSize;
-    m_miss_group_size = desc.miss_stages.size() * rt_props.shaderGroupHandleSize;
+    m_ray_gen_size    = desc.ray_gen_stages.size() * rt_props.shaderGroupBaseAlignment;
+    m_hit_group_size  = desc.hit_groups.size() * rt_props.shaderGroupBaseAlignment;
+    m_miss_group_size = desc.miss_stages.size() * rt_props.shaderGroupBaseAlignment;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2416,14 +2416,27 @@ RayTracingPipeline::RayTracingPipeline(Backend::Ptr backend, Desc desc) :
 
     const auto& rt_props = backend->ray_tracing_properties();
 
-    size_t sbt_size = m_sbt->groups().size() * rt_props.shaderGroupHandleSize;
+    size_t sbt_size = m_sbt->groups().size() * rt_props.shaderGroupBaseAlignment;
 
     m_vk_buffer = vk::Buffer::create(backend, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, sbt_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-    if (vkGetRayTracingShaderGroupHandlesNV(backend->device(), m_vk_pipeline, 0, m_sbt->groups().size(), sbt_size, m_vk_buffer->mapped_ptr()) != VK_SUCCESS)
+    std::vector<uint8_t> scratch_mem(sbt_size);
+
+    if (vkGetRayTracingShaderGroupHandlesNV(backend->device(), m_vk_pipeline, 0, m_sbt->groups().size(), sbt_size, scratch_mem.data()) != VK_SUCCESS)
     {
         DW_LOG_FATAL("(Vulkan) Failed to get Shader Group handles.");
         throw std::runtime_error("(Vulkan) Failed to get Shader Group handles.");
+    }
+
+    uint8_t* src_ptr = scratch_mem.data();
+    uint8_t* dst_ptr = (uint8_t*)m_vk_buffer->mapped_ptr();
+
+    for (int i = 0; i < m_sbt->groups().size(); i++)
+    {
+        memcpy(dst_ptr, src_ptr, rt_props.shaderGroupHandleSize);
+
+        dst_ptr += rt_props.shaderGroupBaseAlignment;
+        src_ptr += rt_props.shaderGroupHandleSize;
     }
 }
 
