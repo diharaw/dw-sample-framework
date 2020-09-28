@@ -3111,6 +3111,7 @@ Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require
     VmaAllocatorCreateInfo allocator_info = {};
     allocator_info.physicalDevice         = m_vk_physical_device;
     allocator_info.device                 = m_vk_device;
+    allocator_info.instance               = m_vk_instance;
 
     if (vmaCreateAllocator(&allocator_info, &m_vma_allocator) != VK_SUCCESS)
     {
