@@ -699,6 +699,7 @@ public:
         Desc& set_type(VkAccelerationStructureTypeNV type);
         Desc& set_geometries(std::vector<VkGeometryNV> geometry_vec);
         Desc& set_instance_count(uint32_t count);
+        Desc& set_flags(VkBuildAccelerationStructureFlagsNV flags);
     };
 
     static AccelerationStructure::Ptr create(Backend::Ptr backend, Desc desc);
