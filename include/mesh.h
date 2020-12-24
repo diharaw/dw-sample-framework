@@ -30,6 +30,7 @@ struct SubMesh
     uint32_t    index_count;
     uint32_t    base_vertex;
     uint32_t    base_index;
+    uint32_t    vertex_count;
     glm::vec3   max_extents;
     glm::vec3   min_extents;
 };
@@ -48,19 +49,19 @@ public:
 #endif
         const std::string& path,
         bool               load_materials = true,
-        bool is_orca_mesh = false);
+        bool               is_orca_mesh   = false);
     // Custom factory method for creating a mesh from provided data.
     static Mesh::Ptr load(
 #if defined(DWSF_VULKAN)
         vk::Backend::Ptr backend,
 #endif
-        const std::string& name,
-        std::vector<Vertex> vertices,
-        std::vector<uint32_t> indices,
-        std::vector<SubMesh> sub_meshes,
+        const std::string&                     name,
+        std::vector<Vertex>                    vertices,
+        std::vector<uint32_t>                  indices,
+        std::vector<SubMesh>                   sub_meshes,
         std::vector<std::shared_ptr<Material>> materials,
-        glm::vec3          max_extents,
-        glm::vec3          min_extents);
+        glm::vec3                              max_extents,
+        glm::vec3                              min_extents);
 
     bool set_submesh_material(std::string name, std::shared_ptr<Material> material);
     bool set_submesh_material(uint32_t mesh_idx, std::shared_ptr<Material> material);
@@ -76,8 +77,7 @@ public:
     }
     inline vk::Buffer::Ptr                 index_buffer() { return m_ibo; }
     inline const vk::VertexInputStateDesc& vertex_input_state_desc() { return m_vertex_input_state_desc; }
-    inline const VkGeometryNV              ray_tracing_geometry() { return m_rt_geometry; }
-    inline vk::AccelerationStructure::Ptr  acceleration_structure() { return m_rt_as; }
+    inline vk::AccelerationStructure::Ptr  acceleration_structure() { return m_blas; }
 #else
     inline gl::VertexArray* mesh_vertex_array()
     {
@@ -128,7 +128,7 @@ private:
     static std::unordered_map<std::string, std::weak_ptr<Mesh>> m_cache;
 
     // Mesh geometry.
-    uint32_t                               m_id             = 0;
+    uint32_t                               m_id = 0;
     std::vector<std::shared_ptr<Material>> m_materials;
     std::vector<Vertex>                    m_vertices;
     std::vector<uint32_t>                  m_indices;
@@ -138,8 +138,8 @@ private:
 
     // GPU resources.
 #if defined(DWSF_VULKAN)
-    VkGeometryNV                   m_rt_geometry;
-    vk::AccelerationStructure::Ptr m_rt_as;
+    vk::AccelerationStructure::Ptr       m_blas;
+    VkAccelerationStructureCreateInfoKHR m_blas_info;
     vk::Buffer::Ptr                m_vbo;
     vk::Buffer::Ptr                m_ibo;
     vk::VertexInputStateDesc       m_vertex_input_state_desc;

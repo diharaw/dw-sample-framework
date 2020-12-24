@@ -146,7 +146,6 @@ Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& tex
 
 Material::~Material()
 {
-
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -236,7 +235,7 @@ vk::DescriptorSet::Ptr Material::create_descriptor_set(vk::Backend::Ptr backend)
     VkDescriptorImageInfo image_info[5];
 
     image_info[0].sampler     = m_common_sampler->handle();
-    image_info[0].imageView = m_albedo_idx != -1 ? m_image_views [m_albedo_idx]->handle():m_default_image_view->handle();
+    image_info[0].imageView   = m_albedo_idx != -1 ? m_image_views[m_albedo_idx]->handle() : m_default_image_view->handle();
     image_info[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     image_info[1].sampler     = m_common_sampler->handle();

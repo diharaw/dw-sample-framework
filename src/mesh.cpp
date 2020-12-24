@@ -152,37 +152,66 @@ Mesh::Ptr Mesh::load(
 
 void Mesh::initialize_for_ray_tracing(vk::Backend::Ptr backend)
 {
-    VkGeometryNV current = {};
+    std::vector<VkAccelerationStructureBuildRangeInfoKHR> build_ranges;
+    std::vector<VkAccelerationStructureGeometryKHR>       geometries;
+    std::vector<uint32_t>                                 max_primitive_counts;
 
-    current.sType                              = VK_STRUCTURE_TYPE_GEOMETRY_NV;
-    current.pNext                              = nullptr;
-    current.geometryType                       = VK_GEOMETRY_TYPE_TRIANGLES_NV;
-    current.geometry.triangles.sType           = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
-    current.geometry.triangles.pNext           = nullptr;
-    current.geometry.triangles.vertexData      = m_vbo->handle();
-    current.geometry.triangles.vertexOffset    = 0;
-    current.geometry.triangles.vertexCount     = m_vertices.size();
-    current.geometry.triangles.vertexStride    = sizeof(Vertex);
-    current.geometry.triangles.vertexFormat    = VK_FORMAT_R32G32B32_SFLOAT;
-    current.geometry.triangles.indexData       = m_ibo->handle();
-    current.geometry.triangles.indexOffset     = 0;
-    current.geometry.triangles.indexCount      = m_indices.size();
-    current.geometry.triangles.indexType       = VK_INDEX_TYPE_UINT32;
-    current.geometry.triangles.transformData   = VK_NULL_HANDLE;
-    current.geometry.triangles.transformOffset = 0;
-    current.geometry.aabbs                     = {};
-    current.geometry.aabbs.sType               = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
-    current.flags                              = VK_GEOMETRY_OPAQUE_BIT_NV;
+    // Populate geometries
+    for (int i = 0; i < m_sub_meshes.size(); i++)
+    {
+        Material::Ptr material = m_materials[m_sub_meshes[i].mat_idx];
 
-    m_rt_geometry = current;
+        VkAccelerationStructureGeometryKHR geometry;
+        DW_ZERO_MEMORY(geometry);
 
+        VkGeometryFlagsKHR geometry_flags = 0;
+
+        if (!material->alpha_test())
+            geometry_flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+
+        geometry.sType                                       = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+        geometry.pNext                                       = nullptr;
+        geometry.geometryType                                = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+        geometry.geometry.triangles.sType                    = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
+        geometry.geometry.triangles.pNext                    = nullptr;
+        geometry.geometry.triangles.vertexData.deviceAddress = m_vbo->device_address();
+        geometry.geometry.triangles.vertexStride             = sizeof(Vertex);
+        geometry.geometry.triangles.maxVertex                = m_sub_meshes[i].vertex_count;
+        geometry.geometry.triangles.vertexFormat             = VK_FORMAT_R32G32B32_SFLOAT;
+        geometry.geometry.triangles.indexData.deviceAddress  = m_ibo->device_address();
+        geometry.geometry.triangles.indexType                = VK_INDEX_TYPE_UINT32;
+        geometry.flags                                       = geometry_flags;
+
+        geometries.push_back(geometry);
+        max_primitive_counts.push_back(m_sub_meshes[i].index_count / 3);
+
+        VkAccelerationStructureBuildRangeInfoKHR build_range;
+        DW_ZERO_MEMORY(build_range);
+
+        build_range.primitiveCount  = m_sub_meshes[i].index_count / 3;
+        build_range.primitiveOffset = m_sub_meshes[i].base_index * sizeof(uint32_t);
+        build_range.firstVertex     = 0;
+        build_range.transformOffset = 0;
+
+        build_ranges.push_back(build_range);
+    }
+
+    vk::BatchUploader uploader(backend);
+
+    // Create blas
     vk::AccelerationStructure::Desc desc;
 
-    desc.set_geometries({ m_rt_geometry });
-    desc.set_instance_count(0);
-    desc.set_type(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV);
+    desc.set_type(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR);
+    desc.set_flags(VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
+    desc.set_geometries(geometries);
+    desc.set_geometry_count(geometries.size());
+    desc.set_max_primitive_counts(max_primitive_counts);
 
-    m_rt_as = vk::AccelerationStructure::create(backend, desc);
+    m_blas = vk::AccelerationStructure::create(backend, desc);
+
+    uploader.build_blas(m_blas, geometries, build_ranges);
+
+    uploader.submit();
 }
 
 #endif
@@ -234,6 +263,7 @@ void Mesh::load_from_disk(
         m_sub_meshes[i].index_count = Scene->mMeshes[i]->mNumFaces * 3;
         m_sub_meshes[i].base_index  = index_count;
         m_sub_meshes[i].base_vertex = vertex_count;
+        m_sub_meshes[i].vertex_count = Scene->mMeshes[i]->mNumVertices;
 
         vertex_count += Scene->mMeshes[i]->mNumVertices;
         index_count += m_sub_meshes[i].index_count;

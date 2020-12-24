@@ -3,77 +3,54 @@
 #include <mesh.h>
 #include <unordered_set>
 
+#if defined(DWSF_VULKAN)
+
 namespace dw
 {
-struct RTGeometryInstance
-{
-    glm::mat3x4 transform;
-    uint32_t    instanceCustomIndex : 24;
-    uint32_t    mask : 8;
-    uint32_t    instanceOffset : 24;
-    uint32_t    flags : 8;
-    uint64_t    accelerationStructureHandle;
-};
 
-struct Instance
-{
-    glm::mat4           transform;
-    std::weak_ptr<Mesh> mesh;
-};
-
-class Scene
+class RayTracedScene
 {
 public:
-    using Ptr = std::shared_ptr<Scene>;
+    using Ptr = std::shared_ptr<RayTracedScene>;
 
-    static Scene::Ptr create();
+    struct Instance
+    {
+        glm::mat4           transform;
+        std::weak_ptr<Mesh> mesh;
+    };
 
-    ~Scene();
+    static RayTracedScene::Ptr create(vk::Backend::Ptr backend, std::vector<Instance> instances);
 
-    void add_instance(dw::Mesh::Ptr mesh, glm::mat4 transform);
+    ~RayTracedScene();
 
-#if defined(DWSF_VULKAN)
-    void initialize_for_indirect_draw(vk::Backend::Ptr backend);
-    void initialize_for_ray_tracing(vk::Backend::Ptr backend);
+    void rebuild();
+    Instance& fetch_instance(const uint32_t& idx);
+    uint32_t local_to_global_material_idx(Mesh::Ptr mesh, uint32_t local_mat_idx);
 
-    inline vk::DescriptorSetLayout::Ptr   ray_tracing_geometry_descriptor_set_layout() { return m_ray_tracing_geometry_ds_layout; }
-    inline vk::DescriptorSetLayout::Ptr   indirect_draw_geometry_descriptor_set_layout() { return m_indirect_draw_geometry_ds_layout; }
-    inline vk::DescriptorSetLayout::Ptr   material_descriptor_set_layout() { return m_material_ds_layout; }
-    inline vk::DescriptorSet::Ptr         ray_tracing_geometry_descriptor_set() { return m_ray_tracing_geometry_ds; }
-    inline vk::DescriptorSet::Ptr         indirect_draw_geometry_descriptor_set() { return m_indirect_draw_geometry_ds; }
-    inline vk::DescriptorSet::Ptr         albedo_descriptor_set() { return m_albedo_ds; }
-    inline vk::DescriptorSet::Ptr         normal_descriptor_set() { return m_normal_ds; }
-    inline vk::DescriptorSet::Ptr         roughness_descriptor_set() { return m_roughness_ds; }
-    inline vk::DescriptorSet::Ptr         metallic_descriptor_set() { return m_metallic_ds; }
+    inline vk::DescriptorSetLayout::Ptr   descriptor_set_layout() { return m_ds_layout; }
+    inline vk::DescriptorSet::Ptr   descriptor_set() { return m_ds; }
     inline vk::AccelerationStructure::Ptr acceleration_structure() { return m_vk_top_level_as; }
-#endif
 
 private:
-    Scene();
-
-#if defined(DWSF_VULKAN)
-    void gather_instance_data(vk::Backend::Ptr backend, bool ray_tracing);
-    void create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing);
-    void build_acceleration_structure(vk::Backend::Ptr backend);
-#endif
+    RayTracedScene(vk::Backend::Ptr backend, std::vector<Instance> instances);
+    void gather_instance_data();
+    void create_descriptor_sets();
+    void build_acceleration_structure();
 
 private:
-#if defined(DWSF_VULKAN)
-    vk::DescriptorSetLayout::Ptr     m_material_ds_layout;
-    vk::DescriptorSetLayout::Ptr     m_ray_tracing_geometry_ds_layout;
-    vk::DescriptorSetLayout::Ptr     m_indirect_draw_geometry_ds_layout;
-    vk::DescriptorSet::Ptr           m_albedo_ds;
-    vk::DescriptorSet::Ptr           m_normal_ds;
-    vk::DescriptorSet::Ptr           m_roughness_ds;
-    vk::DescriptorSet::Ptr           m_metallic_ds;
-    vk::DescriptorSet::Ptr           m_ray_tracing_geometry_ds;
-    vk::DescriptorSet::Ptr           m_indirect_draw_geometry_ds;
-    std::vector<vk::Buffer::Ptr>     m_material_buffers;
-    std::vector<RTGeometryInstance>  m_rt_instances;
+    std::weak_ptr<vk::Backend>       m_backend;
+    vk::DescriptorSetLayout::Ptr     m_ds_layout;
+    vk::DescriptorSet::Ptr           m_ds;
+    vk::Buffer::Ptr                  m_material_data_buffer;
+    vk::Buffer::Ptr                  m_instance_data_buffer;
+    std::vector<vk::Buffer::Ptr>     m_material_indices_buffers;
+    std::vector<Instance>            m_instances;
     std::vector<std::weak_ptr<Mesh>> m_meshes;
     vk::AccelerationStructure::Ptr   m_vk_top_level_as;
-#endif
-
-    std::vector<Instance> m_instances;
+    std::unordered_map<uint32_t, std::unordered_map<uint32_t, uint32_t>> m_local_to_global_mat_idx;
+    std::unordered_map<uint32_t, uint32_t>                               m_local_to_global_texture_idx;
+    std::unordered_map<uint32_t, uint32_t>                               m_local_to_global_mesh_idx;
 };
 } // namespace dw
+
+#endif

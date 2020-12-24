@@ -11,101 +11,253 @@ namespace dw
 {
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Scene::Ptr Scene::create()
+struct InstanceData
 {
-    return std::shared_ptr<Scene>(new Scene());
+    glm::mat4 model_matrix;
+    uint32_t  mesh_index;
+    float     padding[3];
+};
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+struct MaterialData
+{
+    glm::ivec4 texture_indices0 = glm::ivec4(-1); // x: albedo, y: normals, z: roughness, w: metallic
+    glm::ivec4 texture_indices1 = glm::ivec4(-1); // x: emissive, z: roughness_channel, w: metallic_channel
+    glm::vec4  albedo;
+    glm::vec4  emissive;
+    glm::vec4  roughness_metallic;
+};
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+RayTracedScene::Ptr RayTracedScene::create(vk::Backend::Ptr backend, std::vector<Instance> instances)
+{
+    return std::shared_ptr<RayTracedScene>(new RayTracedScene(backend, instances));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Scene::Scene()
+RayTracedScene::RayTracedScene(vk::Backend::Ptr backend, std::vector<Instance> instances) :
+    m_backend(backend), m_instances(instances)
 {
+    gather_instance_data();
+    create_descriptor_sets();
+    build_acceleration_structure();
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Scene::~Scene()
+RayTracedScene::~RayTracedScene()
 {
-#if defined(DWSF_VULKAN)
-    for (int i = 0; i < m_material_buffers.size(); i++)
-        m_material_buffers[i].reset();
+    for (int i = 0; i < m_material_indices_buffers.size(); i++)
+        m_material_indices_buffers[i].reset();
 
-    m_material_ds_layout.reset();
-    m_ray_tracing_geometry_ds_layout.reset();
-    m_indirect_draw_geometry_ds_layout.reset();
-    m_albedo_ds.reset();
-    m_normal_ds.reset();
-    m_roughness_ds.reset();
-    m_metallic_ds.reset();
-    m_ray_tracing_geometry_ds.reset();
-    m_indirect_draw_geometry_ds.reset();
+    m_ds_layout.reset();
+    m_ds.reset();
     m_vk_top_level_as.reset();
-#endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Scene::add_instance(dw::Mesh::Ptr mesh, glm::mat4 transform)
-{
-    m_instances.push_back({ transform, mesh });
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-#if defined(DWSF_VULKAN)
-
-void Scene::initialize_for_indirect_draw(vk::Backend::Ptr backend)
+void RayTracedScene::rebuild()
 {
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Scene::initialize_for_ray_tracing(vk::Backend::Ptr backend)
+RayTracedScene::Instance& RayTracedScene::fetch_instance(const uint32_t& idx)
 {
-    gather_instance_data(backend, true);
-    create_descriptor_sets(backend, true);
-    build_acceleration_structure(backend);
+    return m_instances[idx];
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Scene::gather_instance_data(vk::Backend::Ptr backend, bool ray_tracing)
+uint32_t RayTracedScene::local_to_global_material_idx(Mesh::Ptr mesh, uint32_t local_mat_idx)
 {
-    std::unordered_map<uint32_t, uint32_t> attrib_map;
+    if (m_local_to_global_mat_idx.find(mesh->id()) != m_local_to_global_mat_idx.end())
+    {
+        auto& map = m_local_to_global_mat_idx[mesh->id()];
+
+        if (map.find(local_mat_idx) != map.end())
+            return map[local_mat_idx];
+        else
+            return 0;
+    }
+    else
+        return 0;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void RayTracedScene::gather_instance_data()
+{
+    std::unordered_set<uint32_t> processed_meshes;
+    std::unordered_set<uint32_t> processed_materials;
+
+    std::vector<VkDescriptorBufferInfo> vbo_descriptors;
+    std::vector<VkDescriptorBufferInfo> ibo_descriptors;
+    std::vector<VkDescriptorImageInfo>  image_descriptors;
+
+    std::vector<VkAccelerationStructureInstanceKHR> rt_instances;
+    std::vector<InstanceData>                       instance_datas;
+    std::vector<MaterialData>                       material_datas;
+
+    m_material_indices_buffers.reserve(m_instances.size());
 
     for (auto& instance : m_instances)
     {
         auto mesh = instance.mesh.lock();
 
-        SubMesh* submeshes = mesh->sub_meshes();
+        const std::vector<SubMesh>& submeshes = mesh->sub_meshes();
 
         uint32_t mesh_id = mesh->id();
 
-        if (attrib_map.find(mesh_id) == attrib_map.end())
+        if (processed_meshes.find(mesh_id) == processed_meshes.end())
         {
-            attrib_map[mesh_id] = m_meshes.size();
+            processed_meshes.insert(mesh_id);
+            m_local_to_global_mesh_idx[mesh_id] = m_meshes.size();
             m_meshes.push_back(instance.mesh);
+
+            VkDescriptorBufferInfo ibo_info;
+
+            ibo_info.buffer = mesh->index_buffer()->handle();
+            ibo_info.offset = 0;
+            ibo_info.range  = VK_WHOLE_SIZE;
+
+            ibo_descriptors.push_back(ibo_info);
+
+            VkDescriptorBufferInfo vbo_info;
+
+            vbo_info.buffer = mesh->vertex_buffer()->handle();
+            vbo_info.offset = 0;
+            vbo_info.range  = VK_WHOLE_SIZE;
+
+            vbo_descriptors.push_back(vbo_info);
+
+            const auto& materials = mesh->materials();
+
+            for (auto submesh : submeshes)
+            {
+                Material::Ptr mat = materials[submesh.mat_idx];
+
+                if (processed_materials.find(mat->id()) == processed_materials.end())
+                {
+                    processed_materials.insert(mat->id());
+                    m_local_to_global_mat_idx[mesh_id][mat->id()] = materials.size();
+
+                    MaterialData material_data;
+
+                    material_data.albedo = mat->albedo_value();
+                    material_data.roughness_metallic = glm::vec4(mat->roughness_value(), mat->metallic_value(), 0.0f, 0.0f);
+                    material_data.emissive = glm::vec4(mat->emissive_value(), 0.0f);
+
+                    if (mat->albedo_image_view())
+                    {
+                        VkDescriptorImageInfo image_info;
+
+                        image_info.sampler     = Material::common_sampler()->handle();
+                        image_info.imageView   = mat->albedo_image_view()->handle();
+                        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+                        material_data.texture_indices0.x = image_descriptors.size();
+
+                        image_descriptors.push_back(image_info);
+                    }
+
+                    if (mat->normal_image_view())
+                    {
+                        VkDescriptorImageInfo image_info;
+
+                        image_info.sampler     = Material::common_sampler()->handle();
+                        image_info.imageView   = mat->normal_image_view()->handle();
+                        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+                        material_data.texture_indices0.y = image_descriptors.size();
+
+                        image_descriptors.push_back(image_info);
+                    }
+
+                    if (mat->roughness_image_view())
+                    {
+                        VkDescriptorImageInfo image_info;
+
+                        image_info.sampler     = Material::common_sampler()->handle();
+                        image_info.imageView   = mat->roughness_image_view()->handle();
+                        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+                        material_data.texture_indices0.z = image_descriptors.size();
+                        material_data.texture_indices1.z = mat->m_roughness_idx.y;
+
+                        image_descriptors.push_back(image_info);
+                    }
+
+                    if (mat->metallic_image_view())
+                    {
+                        VkDescriptorImageInfo image_info;
+
+                        image_info.sampler     = Material::common_sampler()->handle();
+                        image_info.imageView   = mat->metallic_image_view()->handle();
+                        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+                        material_data.texture_indices0.w = image_descriptors.size();
+                        material_data.texture_indices1.w = mat->m_metallic_idx.y;
+
+                        image_descriptors.push_back(image_info);
+                    }
+
+                    if (mat->emissive_image_view())
+                    {
+                        VkDescriptorImageInfo image_info;
+
+                        image_info.sampler     = Material::common_sampler()->handle();
+                        image_info.imageView   = mat->emissive_image_view()->handle();
+                        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+                        material_data.texture_indices1.x = image_descriptors.size();
+
+                        image_descriptors.push_back(image_info);
+                    }
+ 
+                    material_datas.push_back(material_data);
+                }
+            }
         }
+    }
 
-        if (ray_tracing)
-        {
-            RTGeometryInstance rt_instance;
+    for (auto& instance : m_instances)
+    {
+        auto mesh = instance.mesh.lock();
 
-            rt_instance.transform                   = glm::mat3x4(instance.transform);
-            rt_instance.instanceCustomIndex         = m_rt_instances.size();
-            rt_instance.mask                        = 0xff;
-            rt_instance.instanceOffset              = 0;
-            rt_instance.flags                       = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;
-            rt_instance.accelerationStructureHandle = mesh->acceleration_structure()->opaque_handle();
+        InstanceData instance_data;
 
-            m_rt_instances.push_back(rt_instance);
-        }
+        // Set mesh data index
+        instance_data.mesh_index   = m_local_to_global_mesh_idx[mesh->id()];
+        instance_data.model_matrix = instance.transform;
+
+        // TODO: copy instance data
+
+        VkAccelerationStructureInstanceKHR rt_instance;
+
+        glm::mat3x4 transform = glm::mat3x4(glm::transpose(instance.transform));
+
+        memcpy(&rt_instance.transform, &transform, sizeof(rt_instance.transform));
+
+        rt_instance.instanceCustomIndex                    = rt_instances.size();
+        rt_instance.mask                                   = 0xFF;
+        rt_instance.instanceShaderBindingTableRecordOffset = 0;
+        rt_instance.flags                                  = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+        rt_instance.accelerationStructureReference         = mesh->acceleration_structure()->device_address();
+
+        rt_instances.push_back(rt_instance);
+
+        // TODO: copy rt instance
     }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Scene::create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
+void RayTracedScene::create_descriptor_sets()
 {
     std::vector<VkDescriptorBufferInfo> vbo_descriptors;
     std::vector<VkDescriptorBufferInfo> ibo_descriptors;
@@ -300,7 +452,7 @@ void Scene::create_descriptor_sets(vk::Backend::Ptr backend, bool ray_tracing)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Scene::build_acceleration_structure(vk::Backend::Ptr backend)
+void RayTracedScene::build_acceleration_structure(vk::Backend::Ptr backend)
 {
     // Allocate instance buffer
 
@@ -399,8 +551,6 @@ void Scene::build_acceleration_structure(vk::Backend::Ptr backend)
 
     backend->flush_graphics({ cmd_buf });
 }
-
-#endif
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 } // namespace dw

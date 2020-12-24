@@ -22,21 +22,7 @@ namespace dw
 {
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-#if defined(DWSF_VULKAN)
-void imgui_vulkan_error_check(VkResult err)
-{
-    if (err == 0)
-        return;
-
-    DW_LOG_ERROR("(Vulkan) Error " + std::to_string(err));
-
-    if (err < 0)
-        abort();
-}
-
-#else
-
-// -----------------------------------------------------------------------------------------------------------------------------------
+#if !defined(DWSF_VULKAN)
 
 static void APIENTRY glDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* user_param)
 {
@@ -254,8 +240,7 @@ bool Application::init_base(int argc, const char* argv[])
 #    endif
                                        ,
                                        settings.ray_tracing,
-                                       settings.device_extensions,
-                                       settings.device_pnext);
+                                       settings.device_extensions);
 
     m_image_available_semaphores.resize(vk::Backend::kMaxFramesInFlight);
     m_render_finished_semaphores.resize(vk::Backend::kMaxFramesInFlight);

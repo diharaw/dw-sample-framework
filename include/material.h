@@ -83,11 +83,13 @@ public:
     inline float     roughness_value() { return m_roughness; }
     inline float     metallic_value() { return m_metallic; }
     inline glm::vec3 emissive_value() { return m_emissive_color; }
+    inline bool      alpha_test() { return m_alpha_test; }
 
     inline void set_albedo_value(const glm::vec4& value) { m_albedo_color = value; }
     inline void set_roughness_value(const float& value) { m_roughness = value; }
     inline void set_metallic_value(const float& value) { m_metallic = value; }
     inline void set_emissive_value(const glm::vec3& value) { m_emissive_color = value; }
+    inline void set_alpha_test(const bool& value) { m_alpha_test = value; }
 
 private:
     Material();
@@ -96,21 +98,22 @@ public:
     // Material cache.
     static std::unordered_map<std::string, std::weak_ptr<Material>> m_cache;
 
-    int32_t  m_albedo_idx = -1;
-    int32_t           m_normal_idx = -1;
-    glm::ivec2        m_roughness_idx    = glm::ivec2(-1);
-    glm::ivec2        m_metallic_idx  = glm::ivec2(-1);
-    int32_t           m_emissive_idx   = -1;
-    glm::vec4 m_albedo_color     = glm::vec4(1.0f);
-    glm::vec3 m_emissive_color = glm::vec3(0.0f);
-    float     m_roughness      = 1.0f;
-    float     m_metallic       = 0.0f;
+    int32_t    m_albedo_idx     = -1;
+    int32_t    m_normal_idx     = -1;
+    glm::ivec2 m_roughness_idx  = glm::ivec2(-1);
+    glm::ivec2 m_metallic_idx   = glm::ivec2(-1);
+    int32_t    m_emissive_idx   = -1;
+    glm::vec4  m_albedo_color   = glm::vec4(1.0f);
+    glm::vec3  m_emissive_color = glm::vec3(0.0f);
+    float      m_roughness      = 1.0f;
+    float      m_metallic       = 0.0f;
+    bool       m_alpha_test     = false;
 
     uint32_t m_id = 0;
 
     // Texture list. In the same order as the Assimp texture enums.
 #if defined(DWSF_VULKAN)
-    std::vector<vk::Image::Ptr> m_images;
+    std::vector<vk::Image::Ptr>     m_images;
     std::vector<vk::ImageView::Ptr> m_image_views;
 
     vk::DescriptorSet::Ptr m_descriptor_set;
