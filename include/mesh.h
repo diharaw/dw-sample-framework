@@ -47,19 +47,18 @@ public:
         vk::Backend::Ptr backend,
 #endif
         const std::string& path,
-        bool               load_materials = true);
+        bool               load_materials = true,
+        bool is_orca_mesh = false);
     // Custom factory method for creating a mesh from provided data.
     static Mesh::Ptr load(
 #if defined(DWSF_VULKAN)
         vk::Backend::Ptr backend,
 #endif
         const std::string& name,
-        int                num_vertices,
-        Vertex*            vertices,
-        int                num_indices,
-        uint32_t*          indices,
-        int                num_sub_meshes,
-        SubMesh*           sub_meshes,
+        std::vector<Vertex> vertices,
+        std::vector<uint32_t> indices,
+        std::vector<SubMesh> sub_meshes,
+        std::vector<std::shared_ptr<Material>> materials,
         glm::vec3          max_extents,
         glm::vec3          min_extents);
 
@@ -91,26 +90,23 @@ public:
         return m_id;
     }
     inline const std::vector<std::shared_ptr<Material>>& materials() { return m_materials; }
-    inline uint32_t                                      material_count() { return m_materials.size(); }
-    inline uint32_t                                      sub_mesh_count() { return m_sub_mesh_count; }
-    inline SubMesh*                                      sub_meshes() { return m_sub_meshes; }
-    inline uint32_t                                      vertex_count() { return m_vertex_count; }
-    inline uint32_t                                      index_count() { return m_index_count; }
-    inline uint32_t*                                     indices() { return m_indices; }
-    inline Vertex*                                       vertices() { return m_vertices; }
+    inline const std::vector<SubMesh>&                   sub_meshes() { return m_sub_meshes; }
+    inline const std::vector<uint32_t>&                  indices() { return m_indices; }
+    inline const std::vector<Vertex>&                    vertices() { return m_vertices; }
     inline std::shared_ptr<Material>                     material(uint32_t idx) { return m_materials[idx]; }
 
     ~Mesh();
 
 private:
-    // Private constructor and destructor to prevent manual creation.
+    // Private constructor to prevent manual creation.
     Mesh();
     Mesh(
 #if defined(DWSF_VULKAN)
         vk::Backend::Ptr backend,
 #endif
         const std::string& path,
-        bool               load_materials);
+        bool               load_materials,
+        bool               is_orca_mesh);
 
     // Internal initialization methods.
     void create_gpu_objects(
@@ -124,7 +120,8 @@ private:
         vk::Backend::Ptr backend,
 #endif
         const std::string& path,
-        bool               load_materials);
+        bool               load_materials,
+        bool               is_orca_mesh);
 
 private:
     // Mesh cache. Used to prevent multiple loads.
@@ -132,13 +129,10 @@ private:
 
     // Mesh geometry.
     uint32_t                               m_id             = 0;
-    uint32_t                               m_vertex_count   = 0;
-    uint32_t                               m_index_count    = 0;
-    uint32_t                               m_sub_mesh_count = 0;
     std::vector<std::shared_ptr<Material>> m_materials;
-    SubMesh*                               m_sub_meshes = nullptr;
-    Vertex*                                m_vertices   = nullptr;
-    uint32_t*                              m_indices    = nullptr;
+    std::vector<Vertex>                    m_vertices;
+    std::vector<uint32_t>                  m_indices;
+    std::vector<SubMesh>                   m_sub_meshes;
     glm::vec3                              m_max_extents;
     glm::vec3                              m_min_extents;
 

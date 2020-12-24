@@ -7,6 +7,8 @@
 #include <mesh.h>
 #include <stdio.h>
 #include <ogl.h>
+#include <utility.h>
+#include <assimp/pbrmaterial.h>
 #if defined(DWSF_VULKAN)
 #    include <vk_mem_alloc.h>
 #endif
@@ -24,6 +26,42 @@ static const aiTextureType kTextureTypes[] = {
 static std::string kTextureTypeStrings[] = {
     "aiTextureType_DIFFUSE", "aiTextureType_SPECULAR", "aiTextureType_AMBIENT", "aiTextureType_EMISSIVE", "aiTextureType_HEIGHT", "aiTextureType_NORMALS", "aiTextureType_SHININESS", "aiTextureType_OPACITY", "aiTextureType_DISPLACEMENT", "aiTextureType_LIGHTMAP", "aiTextureType_REFLECTION"
 };
+
+std::string get_gltf_base_color_texture_path(aiMaterial* material)
+{
+    aiString path;
+    aiReturn result = material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &path);
+
+    if (result == aiReturn_FAILURE)
+        return "";
+    else
+    {
+        std::string cppStr = std::string(path.C_Str());
+
+        if (cppStr == "")
+            return "";
+
+        return cppStr;
+    }
+}
+
+std::string get_gltf_metallic_roughness_texture_path(aiMaterial* material)
+{
+    aiString path;
+    aiReturn result = material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &path);
+
+    if (result == aiReturn_FAILURE)
+        return "";
+    else
+    {
+        std::string cppStr = std::string(path.C_Str());
+
+        if (cppStr == "")
+            return "";
+
+        return cppStr;
+    }
+}
 
 static uint32_t g_last_mesh_idx = 0;
 
@@ -43,7 +81,8 @@ Mesh::Ptr Mesh::load(
     vk::Backend::Ptr backend,
 #endif
     const std::string& path,
-    bool               load_materials)
+    bool               load_materials,
+    bool               is_orca_mesh)
 {
     if (m_cache.find(path) == m_cache.end() || m_cache[path].expired())
     {
@@ -52,7 +91,8 @@ Mesh::Ptr Mesh::load(
             backend,
 #endif
             path,
-            load_materials));
+            load_materials,
+            is_orca_mesh));
         m_cache[path] = mesh;
         return mesh;
     }
@@ -69,29 +109,25 @@ Mesh::Ptr Mesh::load(
 #if defined(DWSF_VULKAN)
     vk::Backend::Ptr backend,
 #endif
-    const std::string& name,
-    int                num_vertices,
-    Vertex*            vertices,
-    int                num_indices,
-    uint32_t*          indices,
-    int                num_sub_meshes,
-    SubMesh*           sub_meshes,
-    glm::vec3          max_extents,
-    glm::vec3          min_extents)
+    const std::string&                     name,
+    std::vector<Vertex>                    vertices,
+    std::vector<uint32_t>                  indices,
+    std::vector<SubMesh>                   sub_meshes,
+    std::vector<std::shared_ptr<Material>> materials,
+    glm::vec3                              max_extents,
+    glm::vec3                              min_extents)
 {
     if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
     {
         Mesh::Ptr mesh = std::shared_ptr<Mesh>(new Mesh());
 
         // Manually assign properties...
-        mesh->m_vertices       = vertices;
-        mesh->m_vertex_count   = num_vertices;
-        mesh->m_indices        = indices;
-        mesh->m_index_count    = num_indices;
-        mesh->m_sub_meshes     = sub_meshes;
-        mesh->m_sub_mesh_count = num_sub_meshes;
-        mesh->m_max_extents    = max_extents;
-        mesh->m_min_extents    = min_extents;
+        mesh->m_vertices    = vertices;
+        mesh->m_materials   = materials;
+        mesh->m_indices     = indices;
+        mesh->m_sub_meshes  = sub_meshes;
+        mesh->m_max_extents = max_extents;
+        mesh->m_min_extents = min_extents;
 
         // ...then manually call the method to create GPU objects.
         mesh->create_gpu_objects(
@@ -125,12 +161,12 @@ void Mesh::initialize_for_ray_tracing(vk::Backend::Ptr backend)
     current.geometry.triangles.pNext           = nullptr;
     current.geometry.triangles.vertexData      = m_vbo->handle();
     current.geometry.triangles.vertexOffset    = 0;
-    current.geometry.triangles.vertexCount     = m_vertex_count;
+    current.geometry.triangles.vertexCount     = m_vertices.size();
     current.geometry.triangles.vertexStride    = sizeof(Vertex);
     current.geometry.triangles.vertexFormat    = VK_FORMAT_R32G32B32_SFLOAT;
     current.geometry.triangles.indexData       = m_ibo->handle();
     current.geometry.triangles.indexOffset     = 0;
-    current.geometry.triangles.indexCount      = m_index_count;
+    current.geometry.triangles.indexCount      = m_indices.size();
     current.geometry.triangles.indexType       = VK_INDEX_TYPE_UINT32;
     current.geometry.triangles.transformData   = VK_NULL_HANDLE;
     current.geometry.triangles.transformOffset = 0;
@@ -165,15 +201,20 @@ void Mesh::load_from_disk(
     vk::Backend::Ptr backend,
 #endif
     const std::string& path,
-    bool               load_materials)
+    bool               load_materials,
+    bool               is_orca_mesh)
 {
     const aiScene*   Scene;
     Assimp::Importer importer;
-    Scene = importer.ReadFile(path,
-                              aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+    Scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
-    m_sub_mesh_count = Scene->mNumMeshes;
-    m_sub_meshes     = new SubMesh[m_sub_mesh_count];
+    bool        is_gltf   = false;
+    std::string extension = utility::file_extension(path);
+
+    if (extension == "gltf" || extension == "glb")
+        is_gltf = true;
+
+    m_sub_meshes.resize(Scene->mNumMeshes);
 
     // Temporary variables
     aiMaterial*                                 temp_material;
@@ -181,22 +222,36 @@ void Mesh::load_from_disk(
     std::unordered_map<uint32_t, Material::Ptr> mat_id_mapping;
     std::unordered_map<uint32_t, uint32_t>      local_mat_idx_mapping;
 
+    uint32_t vertex_count = 0;
+    uint32_t index_count  = 0;
+
     // Iterate over submeshes and find materials
-    for (int i = 0; i < m_sub_mesh_count; i++)
+    for (int i = 0; i < m_sub_meshes.size(); i++)
     {
         bool has_least_one_texture = false;
 
         m_sub_meshes[i].name        = std::string(Scene->mMeshes[i]->mName.C_Str());
         m_sub_meshes[i].index_count = Scene->mMeshes[i]->mNumFaces * 3;
-        m_sub_meshes[i].base_index  = m_index_count;
-        m_sub_meshes[i].base_vertex = m_vertex_count;
+        m_sub_meshes[i].base_index  = index_count;
+        m_sub_meshes[i].base_vertex = vertex_count;
 
-        m_vertex_count += Scene->mMeshes[i]->mNumVertices;
-        m_index_count += m_sub_meshes[i].index_count;
+        vertex_count += Scene->mMeshes[i]->mNumVertices;
+        index_count += m_sub_meshes[i].index_count;
 
         if (load_materials)
         {
-            std::string material_paths[16];
+            std::vector<std::string> texture_paths;
+
+            int32_t    albedo_idx    = -1;
+            int32_t    normal_idx    = -1;
+            glm::ivec2 roughness_idx = glm::ivec2(-1);
+            glm::ivec2 metallic_idx  = glm::ivec2(-1);
+            int32_t    emissive_idx  = -1;
+
+            glm::vec4 albedo_value    = glm::vec4(1.0f);
+            float     roughness_value = 1.0f;
+            float     metallic_value  = 0.0f;
+            glm::vec3 emissive_value  = glm::vec3(0.0f);
 
             if (mat_id_mapping.find(Scene->mMeshes[i]->mMaterialIndex) == mat_id_mapping.end())
             {
@@ -208,83 +263,219 @@ void Mesh::load_from_disk(
                 aiColor3D diffuse         = aiColor3D(1.0f, 1.0f, 1.0f);
                 bool      has_diifuse_val = false;
 
-                for (uint32_t i = 0; i < 11; i++)
+                // If this is a GLTF, try to find the base color texture path
+                if (is_gltf)
                 {
-                    std::string texture = assimp_get_texture_path(temp_material, kTextureTypes[i]);
-
-                    if (texture != "")
-                    {
-                        std::replace(texture.begin(), texture.end(), '\\', '/');
-
-                        if (texture.length() > 4 && texture[0] != ' ')
-                        {
-                            DW_LOG_INFO("Found " + kTextureTypeStrings[i] + ": " + texture);
-                            material_paths[kTextureTypes[i]] = texture;
-                            has_least_one_texture            = true;
-                        }
-                    }
-                    else if (i == 0)
-                    {
-                        // Try loading in a Diffuse material property
-                        has_diifuse_val = temp_material->Get(AI_MATKEY_COLOR_DIFFUSE,
-                                                             diffuse)
-                            == aiReturn_SUCCESS;
-                    }
-                }
-
-                if (has_least_one_texture)
-                {
-                    Material::Ptr mat = Material::load(
-#if defined(DWSF_VULKAN)
-                        backend,
-#endif
-                        current_mat_name,
-                        &material_paths[0]);
-
-                    mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex]        = mat;
-                    local_mat_idx_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_materials.size();
-
-                    m_sub_meshes[i].mat_idx = m_materials.size();
-
-                    m_materials.push_back(mat);
-                }
-                else if (has_diifuse_val)
-                {
-                    Material::Ptr mat = Material::load(
-#if defined(DWSF_VULKAN)
-                        backend,
-#endif
-                        current_mat_name,
-                        0,
-                        nullptr,
-                        glm::vec4(diffuse.r, diffuse.g, diffuse.b, 1.0f));
-
-                    mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex]        = mat;
-                    local_mat_idx_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_materials.size();
-
-                    m_sub_meshes[i].mat_idx = m_materials.size();
-
-                    m_materials.push_back(mat);
+                    std::string path = get_gltf_base_color_texture_path(temp_material);
+                    albedo_idx       = texture_paths.size();
+                    texture_paths.push_back(path);
                 }
                 else
-                    m_sub_meshes[i].mat_idx = UINT32_MAX;
+                {
+                    // If not, try to find the Diffuse texture path
+                    std::string path = assimp_get_texture_path(temp_material, aiTextureType_DIFFUSE);
+
+                    // If that doesn't exist, try to find Diffuse texture
+                    if (path.empty())
+                        path = assimp_get_texture_path(temp_material, aiTextureType_BASE_COLOR);
+
+                    if (!path.empty())
+                    {
+                        albedo_idx = texture_paths.size();
+                        texture_paths.push_back(path);
+                    }
+                }
+
+                if (albedo_idx == -1)
+                {
+                    aiColor3D diffuse = aiColor3D(1.0f, 1.0f, 1.0f);
+                    float     alpha   = 1.0f;
+
+                    // Try loading in a Diffuse material property
+                    if (temp_material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse) != AI_SUCCESS)
+                        temp_material->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_FACTOR, diffuse);
+
+                    temp_material->Get(AI_MATKEY_OPACITY, alpha);
+#if defined(MATERIAL_LOG)
+                    printf("Albedo Color: %f, %f, %f \n", diffuse.r, diffuse.g, diffuse.b);
+#endif
+
+                    albedo_value = glm::vec4(diffuse.r, diffuse.g, diffuse.b, alpha);
+                }
+                else
+                {
+#if defined(MATERIAL_LOG)
+                    printf("Albedo Path: %s \n", albedo_path.c_str());
+#endif
+                    std::string path = texture_paths[albedo_idx];
+
+                    std::replace(path.begin(), path.end(), '\\', '/');
+
+                    texture_paths[albedo_idx] = path;
+                }
+
+                if (is_orca_mesh)
+                {
+                    std::string roughness_metallic_path = assimp_get_texture_path(temp_material, aiTextureType_SPECULAR);
+
+                    if (!roughness_metallic_path.empty())
+                    {
+#if defined(MATERIAL_LOG)
+                        printf("Roughness Metallic Path: %s \n", roughness_metallic_path.c_str());
+#endif
+                        std::replace(roughness_metallic_path.begin(), roughness_metallic_path.end(), '\\', '/');
+
+                        roughness_idx.x = texture_paths.size();
+                        roughness_idx.y = 1;
+
+                        metallic_idx.x = texture_paths.size();
+                        metallic_idx.y = 2;
+
+                        texture_paths.push_back(roughness_metallic_path);
+                    }
+                }
+                else
+                {
+                    // Try to find Roughness texture
+                    std::string roughness_path = assimp_get_texture_path(temp_material, aiTextureType_SHININESS);
+
+                    if (roughness_path.empty())
+                        roughness_path = get_gltf_metallic_roughness_texture_path(temp_material);
+
+                    if (roughness_path.empty())
+                    {
+                        // Try loading in a Diffuse material property
+                        temp_material->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR, roughness_value);
+#if defined(MATERIAL_LOG)
+                        printf("Roughness Color: %f \n", roughness);
+#endif
+                    }
+                    else
+                    {
+#if defined(MATERIAL_LOG)
+                        printf("Roughness Path: %s \n", roughness_path.c_str());
+#endif
+                        std::replace(roughness_path.begin(), roughness_path.end(), '\\', '/');
+
+                        roughness_idx.x = texture_paths.size();
+                        roughness_idx.y = is_gltf ? 1 : 0;
+
+                        texture_paths.push_back(roughness_path);
+                    }
+
+                    // Try to find Metallic texture
+                    std::string metallic_path = assimp_get_texture_path(temp_material, aiTextureType_AMBIENT);
+
+                    if (metallic_path.empty())
+                        metallic_path = get_gltf_metallic_roughness_texture_path(temp_material);
+
+                    if (metallic_path.empty())
+                    {
+                        // Try loading in a Diffuse material property
+                        temp_material->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLIC_FACTOR, metallic_value);
+#if defined(MATERIAL_LOG)
+                        printf("Metallic Color: %f \n", metallic);
+#endif
+                    }
+                    else
+                    {
+#if defined(MATERIAL_LOG)
+                        printf("Metallic Path: %s \n", metallic_path.c_str());
+#endif
+                        std::replace(metallic_path.begin(), metallic_path.end(), '\\', '/');
+
+                        metallic_idx.x = texture_paths.size();
+                        metallic_idx.y = is_gltf ? 2 : 0;
+
+                        texture_paths.push_back(metallic_path);
+                    }
+                }
+
+                // Try to find Emissive texture
+                std::string emissive_path = assimp_get_texture_path(temp_material, aiTextureType_EMISSIVE);
+
+                if (emissive_path.empty())
+                {
+                    aiColor3D emissive;
+
+                    // Try loading in a Emissive material property
+                    if (temp_material->Get(AI_MATKEY_COLOR_EMISSIVE, emissive))
+                    {
+#if defined(MATERIAL_LOG)
+                        printf("Emissive Color: %f, %f, %f \n", emissive.r, emissive.g, emissive.b);
+#endif
+                        emissive_value.r = emissive.r;
+                        emissive_value.g = emissive.g;
+                        emissive_value.b = emissive.b;
+                    }
+                }
+                else
+                {
+#if defined(MATERIAL_LOG)
+                    printf("Emissive Path: %s \n", emissive_path.c_str());
+#endif
+                    std::replace(emissive_path.begin(), emissive_path.end(), '\\', '/');
+
+                    emissive_idx = texture_paths.size();
+                    texture_paths.push_back(emissive_path);
+                }
+
+                // Try to find Normal texture
+                std::string normal_path = assimp_get_texture_path(temp_material, aiTextureType_NORMALS);
+
+                if (normal_path.empty())
+                    normal_path = assimp_get_texture_path(temp_material, aiTextureType_HEIGHT);
+
+                if (!normal_path.empty())
+                {
+#if defined(MATERIAL_LOG)
+                    printf("Normal Path: %s \n", normal_path.c_str());
+#endif
+                    std::replace(normal_path.begin(), normal_path.end(), '\\', '/');
+
+                    normal_idx = texture_paths.size();
+                    texture_paths.push_back(normal_path);
+                }
+
+                Material::Ptr mat = Material::load(
+#if defined(DWSF_VULKAN)
+                    backend,
+#endif
+                    texture_paths,
+                    albedo_idx,
+                    normal_idx,
+                    roughness_idx,
+                    metallic_idx,
+                    emissive_idx);
+
+                mat->set_albedo_value(albedo_value);
+                mat->set_roughness_value(roughness_value);
+                mat->set_metallic_value(metallic_value);
+                mat->set_emissive_value(emissive_value);
+
+                mat_id_mapping[Scene->mMeshes[i]->mMaterialIndex]        = mat;
+                local_mat_idx_mapping[Scene->mMeshes[i]->mMaterialIndex] = m_materials.size();
+
+                m_sub_meshes[i].mat_idx = m_materials.size();
+
+                m_materials.push_back(mat);
             }
             else // if already exists, find the pointer.
                 m_sub_meshes[i].mat_idx = local_mat_idx_mapping[Scene->mMeshes[i]->mMaterialIndex];
         }
     }
 
-    m_vertices = new Vertex[m_vertex_count];
-    m_indices  = new uint32_t[m_index_count];
+    m_vertices.resize(vertex_count);
+    m_indices.resize(index_count);
 
-    std::vector<uint32_t> temp_indices(m_index_count);
+    std::vector<uint32_t> temp_indices(index_count);
 
     aiMesh* temp_mesh;
     int     idx         = 0;
     int     vertexIndex = 0;
 
     // Iterate over submeshes...
-    for (int i = 0; i < m_sub_mesh_count; i++)
+    for (int i = 0; i < m_sub_meshes.size(); i++)
     {
         temp_mesh                   = Scene->mMeshes[i];
         m_sub_meshes[i].max_extents = glm::vec3(temp_mesh->mVertices[0].x, temp_mesh->mVertices[0].y, temp_mesh->mVertices[0].z);
@@ -353,7 +544,7 @@ void Mesh::load_from_disk(
 
     int count = 0;
 
-    for (int i = 0; i < m_sub_mesh_count; i++)
+    for (int i = 0; i < m_sub_meshes.size(); i++)
     {
         SubMesh& submesh = m_sub_meshes[i];
 
@@ -367,7 +558,7 @@ void Mesh::load_from_disk(
     m_min_extents = m_sub_meshes[0].min_extents;
 
     // Find bounding box extents of entire mesh.
-    for (int i = 0; i < m_sub_mesh_count; i++)
+    for (int i = 0; i < m_sub_meshes.size(); i++)
     {
         if (m_sub_meshes[i].max_extents.x > m_max_extents.x)
             m_max_extents.x = m_sub_meshes[i].max_extents.x;
@@ -394,8 +585,8 @@ void Mesh::create_gpu_objects(
 )
 {
 #if defined(DWSF_VULKAN)
-    m_vbo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(Vertex) * m_vertex_count, VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_vertices[0]);
-    m_ibo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(uint32_t) * m_index_count, VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_indices[0]);
+    m_vbo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(Vertex) * m_vertices.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_vertices[0]);
+    m_ibo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(uint32_t) * m_indices.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_indices[0]);
 
     m_vertex_input_state_desc.add_binding_desc(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
 
@@ -448,7 +639,8 @@ Mesh::Mesh(
     vk::Backend::Ptr backend,
 #endif
     const std::string& path,
-    bool               load_materials)
+    bool               load_materials,
+    bool               is_orca_mesh)
 {
     m_id = g_last_mesh_idx++;
 
@@ -457,7 +649,8 @@ Mesh::Mesh(
         backend,
 #endif
         path,
-        load_materials);
+        load_materials,
+        is_orca_mesh);
     create_gpu_objects(
 #if defined(DWSF_VULKAN)
         backend
@@ -475,18 +668,13 @@ Mesh::~Mesh()
 
     m_ibo.reset();
     m_vbo.reset();
-
-    // Delete geometry data.
-    DW_SAFE_DELETE_ARRAY(m_sub_meshes);
-    DW_SAFE_DELETE_ARRAY(m_vertices);
-    DW_SAFE_DELETE_ARRAY(m_indices);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 bool Mesh::set_submesh_material(std::string name, std::shared_ptr<Material> material)
 {
-    for (int i = 0; i < m_sub_mesh_count; i++)
+    for (int i = 0; i < m_sub_meshes.size(); i++)
     {
         if (name == m_sub_meshes[i].name)
         {
@@ -504,7 +692,7 @@ bool Mesh::set_submesh_material(std::string name, std::shared_ptr<Material> mate
 
 bool Mesh::set_submesh_material(uint32_t mesh_idx, std::shared_ptr<Material> material)
 {
-    if (mesh_idx >= m_sub_mesh_count)
+    if (mesh_idx >= m_sub_meshes.size())
         return false;
 
     m_sub_meshes[mesh_idx].mat_idx = m_materials.size();
@@ -517,7 +705,7 @@ bool Mesh::set_submesh_material(uint32_t mesh_idx, std::shared_ptr<Material> mat
 
 void Mesh::set_global_material(std::shared_ptr<Material> material)
 {
-    for (int i = 0; i < m_sub_mesh_count; i++)
+    for (int i = 0; i < m_sub_meshes.size(); i++)
         m_sub_meshes[i].mat_idx = m_materials.size();
 
     m_materials.push_back(material);

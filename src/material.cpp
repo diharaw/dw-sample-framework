@@ -28,41 +28,35 @@ static uint32_t g_last_mat_idx = 0;
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Material::Ptr Material::load(vk::Backend::Ptr backend, const std::string& name, const std::string* textures)
+Material::Ptr Material::load(vk::Backend::Ptr backend, const std::vector<std::string>& textures, const int32_t& albedo_idx, const int32_t& normal_idx, const glm::ivec2& roughness_idx, const glm::ivec2& metallic_idx, const int32_t& emissive_idx)
 {
-    if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
+    std::string mat_id;
+
+    for (auto path : textures)
+        mat_id += path;
+
+    if (m_cache.find(mat_id) == m_cache.end() || m_cache[mat_id].expired())
     {
-        Material::Ptr mat = std::shared_ptr<Material>(new Material(backend, name, textures));
-        m_cache[name]     = mat;
+        Material::Ptr mat = std::shared_ptr<Material>(new Material(backend, textures, albedo_idx, normal_idx, roughness_idx, metallic_idx, emissive_idx));
+        m_cache[mat_id]   = mat;
         return mat;
     }
     else
-        return m_cache[name].lock();
+        return m_cache[mat_id].lock();
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Material::Ptr Material::load(vk::Backend::Ptr backend, const std::string& name, int num_textures, vk::Image::Ptr* images, glm::vec4 albedo, float roughness, float metalness)
+Material::Ptr Material::create(vk::Backend::Ptr backend, glm::vec4 albedo, float roughness, float metallic, glm::vec3 emissive)
 {
-    if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
-    {
-        Material::Ptr mat = std::shared_ptr<Material>(new Material());
+    Material::Ptr mat = std::shared_ptr<Material>(new Material());
 
-        for (int i = 0; i < num_textures; i++)
-        {
-            mat->m_images[i] = images[i];
+    mat->m_albedo_color   = albedo;
+    mat->m_roughness      = roughness;
+    mat->m_metallic       = metallic;
+    mat->m_emissive_color = emissive;
 
-            if (images[i])
-                mat->m_image_views[i] = load_image_view(backend, "image_view_" + std::to_string(i), mat->m_images[i]);
-        }
-
-        mat->m_albedo_val = albedo;
-
-        m_cache[name] = mat;
-        return mat;
-    }
-    else
-        return m_cache[name].lock();
+    return mat;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -70,51 +64,89 @@ Material::Ptr Material::load(vk::Backend::Ptr backend, const std::string& name, 
 Material::Material()
 {
     m_id = g_last_mat_idx++;
-
-    for (uint32_t i = 0; i < 16; i++)
-    {
-        m_images[i]      = nullptr;
-        m_image_views[i] = nullptr;
-    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Material::Material(vk::Backend::Ptr backend, const std::string& name, const std::string* textures)
+Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& textures, const int32_t& albedo_idx, const int32_t& normal_idx, const glm::ivec2& roughness_idx, const glm::ivec2& metallic_idx, const int32_t& emissive_idx) :
+    m_albedo_idx(albedo_idx), m_normal_idx(normal_idx), m_roughness_idx(roughness_idx), m_metallic_idx(metallic_idx), m_emissive_idx(emissive_idx)
 {
     m_id = g_last_mat_idx++;
 
-    for (uint32_t i = 0; i < 16; i++)
+    if (albedo_idx != -1 && textures[albedo_idx].size() > 0)
     {
-        m_images[i]      = nullptr;
-        m_image_views[i] = nullptr;
+        auto image = load_image(backend, textures[albedo_idx], true);
 
-        if (!textures[i].empty())
+        m_images.push_back(image);
+
+        if (image)
         {
-            // First index must always be diffuse/albedo, so SRGB is set to true.
-            m_images[i] = load_image(backend, textures[i], i == aiTextureType_DIFFUSE ? true : false);
+            auto image_view = load_image_view(backend, textures[albedo_idx], image);
+            m_image_views.push_back(image_view);
+        }
+    }
 
-            if (m_images[i])
-                m_image_views[i] = load_image_view(backend, textures[i], m_images[i]);
+    if (normal_idx != -1 && textures[normal_idx].size() > 0)
+    {
+        auto image = load_image(backend, textures[normal_idx], true);
+
+        m_images.push_back(image);
+
+        if (image)
+        {
+            auto image_view = load_image_view(backend, textures[normal_idx], image);
+            m_image_views.push_back(image_view);
+        }
+    }
+
+    if (roughness_idx.x != -1 && textures[roughness_idx.x].size() > 0)
+    {
+        auto image = load_image(backend, textures[roughness_idx.x], true);
+
+        m_images.push_back(image);
+
+        if (image)
+        {
+            auto image_view = load_image_view(backend, textures[roughness_idx.x], image);
+            m_image_views.push_back(image_view);
+        }
+    }
+
+    if (metallic_idx.x != -1 && textures[metallic_idx.x].size() > 0)
+    {
+        auto image = load_image(backend, textures[metallic_idx.x], true);
+
+        m_images.push_back(image);
+
+        if (image)
+        {
+            auto image_view = load_image_view(backend, textures[metallic_idx.x], image);
+            m_image_views.push_back(image_view);
+        }
+    }
+
+    if (emissive_idx != -1 && textures[emissive_idx].size() > 0)
+    {
+        auto image = load_image(backend, textures[emissive_idx], true);
+
+        m_images.push_back(image);
+
+        if (image)
+        {
+            auto image_view = load_image_view(backend, textures[emissive_idx], image);
+            m_image_views.push_back(image_view);
         }
     }
 
     // Create descriptor set
-    m_descriptor_set = create_pbr_descriptor_set(backend);
+    m_descriptor_set = create_descriptor_set(backend);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Material::~Material()
 {
-    for (uint32_t i = 0; i < 16; i++)
-    {
-        if (m_images[i])
-            unload_image(m_images[i]);
 
-        if (m_image_views[i])
-            unload_image_view(m_image_views[i]);
-    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -127,6 +159,7 @@ void Material::initialize_common_resources(vk::Backend::Ptr backend)
     ds_layout_desc.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
     ds_layout_desc.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
     ds_layout_desc.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+    ds_layout_desc.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 
     m_common_ds_layout = vk::DescriptorSetLayout::create(backend, ds_layout_desc);
 
@@ -182,25 +215,6 @@ vk::Image::Ptr Material::load_image(vk::Backend::Ptr backend, const std::string&
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Material::unload_image(vk::Image::Ptr image)
-{
-    for (auto itr : m_image_cache)
-    {
-        if (itr.second.expired())
-            continue;
-
-        auto current = itr.second.lock();
-
-        if (current->handle() == image->handle())
-        {
-            m_image_cache.erase(itr.first);
-            return;
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
 vk::ImageView::Ptr Material::load_image_view(vk::Backend::Ptr backend, const std::string& path, vk::Image::Ptr image)
 {
     if (m_image_view_cache.find(path) == m_image_view_cache.end() || m_image_view_cache[path].expired())
@@ -215,48 +229,33 @@ vk::ImageView::Ptr Material::load_image_view(vk::Backend::Ptr backend, const std
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Material::unload_image_view(vk::ImageView::Ptr image)
-{
-    for (auto itr : m_image_view_cache)
-    {
-        if (itr.second.expired())
-            continue;
-
-        auto current = itr.second.lock();
-
-        if (current->handle() == image->handle())
-        {
-            m_image_view_cache.erase(itr.first);
-            return;
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-vk::DescriptorSet::Ptr Material::create_pbr_descriptor_set(vk::Backend::Ptr backend)
+vk::DescriptorSet::Ptr Material::create_descriptor_set(vk::Backend::Ptr backend)
 {
     vk::DescriptorSet::Ptr ds = backend->allocate_descriptor_set(m_common_ds_layout);
 
-    VkDescriptorImageInfo image_info[4];
+    VkDescriptorImageInfo image_info[5];
 
     image_info[0].sampler     = m_common_sampler->handle();
-    image_info[0].imageView   = m_image_views[aiTextureType_DIFFUSE] ? m_image_views[aiTextureType_DIFFUSE]->handle() : m_default_image_view->handle();
+    image_info[0].imageView = m_albedo_idx != -1 ? m_image_views [m_albedo_idx]->handle():m_default_image_view->handle();
     image_info[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     image_info[1].sampler     = m_common_sampler->handle();
-    image_info[1].imageView   = m_image_views[aiTextureType_HEIGHT] ? m_image_views[aiTextureType_HEIGHT]->handle() : m_default_image_view->handle();
+    image_info[1].imageView   = m_normal_idx != -1 ? m_image_views[m_normal_idx]->handle() : m_default_image_view->handle();
     image_info[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     image_info[2].sampler     = m_common_sampler->handle();
-    image_info[2].imageView   = m_image_views[aiTextureType_SHININESS] ? m_image_views[aiTextureType_SHININESS]->handle() : m_default_image_view->handle();
+    image_info[2].imageView   = m_roughness_idx.x != -1 ? m_image_views[m_roughness_idx.x]->handle() : m_default_image_view->handle();
     image_info[2].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     image_info[3].sampler     = m_common_sampler->handle();
-    image_info[3].imageView   = m_image_views[aiTextureType_AMBIENT] ? m_image_views[aiTextureType_AMBIENT]->handle() : m_default_image_view->handle();
+    image_info[3].imageView   = m_metallic_idx.x != -1 ? m_image_views[m_metallic_idx.x]->handle() : m_default_image_view->handle();
     image_info[3].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-    VkWriteDescriptorSet write_data[4];
+    image_info[4].sampler     = m_common_sampler->handle();
+    image_info[4].imageView   = m_emissive_idx != -1 ? m_image_views[m_emissive_idx]->handle() : m_default_image_view->handle();
+    image_info[4].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkWriteDescriptorSet write_data[5];
 
     DW_ZERO_MEMORY(write_data[0]);
 
@@ -294,7 +293,16 @@ vk::DescriptorSet::Ptr Material::create_pbr_descriptor_set(vk::Backend::Ptr back
     write_data[3].dstBinding      = 3;
     write_data[3].dstSet          = ds->handle();
 
-    vkUpdateDescriptorSets(backend->device(), 4, write_data, 0, nullptr);
+    DW_ZERO_MEMORY(write_data[4]);
+
+    write_data[4].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_data[4].descriptorCount = 1;
+    write_data[4].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write_data[4].pImageInfo      = &image_info[4];
+    write_data[4].dstBinding      = 4;
+    write_data[4].dstSet          = ds->handle();
+
+    vkUpdateDescriptorSets(backend->device(), 5, write_data, 0, nullptr);
 
     return ds;
 }
