@@ -17,7 +17,7 @@ A simple C++ framework for implementing graphics technique samples using OpenGL 
 * Camera class
 * CPU-GPU profiler
 * Logger
-* Helper classes for:
+* Optional extra helpers for:
 	* Vulkan Ray Tracing
 	* Hosek-Wilkie sky model
 	* Cubemap prefiltering
