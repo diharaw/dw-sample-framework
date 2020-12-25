@@ -4,6 +4,7 @@
 #include <fstream>
 #include <extensions_vk.h>
 #include <glm.hpp>
+#include <utility.h>
 
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
@@ -174,6 +175,60 @@ bool QueueInfos::transfer()
 Object::Object(Backend::Ptr backend) :
     m_vk_backend(backend)
 {
+}
+
+Image::Ptr Image::create_from_file(Backend::Ptr backend, std::string path, bool flip_vertical, bool srgb)
+{
+    int x, y, n;
+    stbi_set_flip_vertically_on_load(flip_vertical);
+
+    std::string ext = utility::file_extension(path);
+
+    if (ext == "hdr")
+    {
+        float* data = stbi_loadf(path.c_str(), &x, &y, &n, 0);
+
+        if (!data)
+            return nullptr;
+
+        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 0, 1, VK_FORMAT_R32G32B32_SFLOAT, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, x * y * sizeof(float) * 3, data));
+
+        stbi_image_free(data);
+
+        return image;
+    }
+    else
+    {
+        stbi_uc* data = stbi_load(path.c_str(), &x, &y, &n, 0);
+
+        if (!data)
+            return nullptr;
+
+        if (n == 3)
+        {
+            stbi_image_free(data);
+            data = stbi_load(path.c_str(), &x, &y, &n, 4);
+            n    = 4;
+        }
+
+        VkFormat format;
+
+        if (n == 1)
+            format = VK_FORMAT_R8_UNORM;
+        else
+        {
+            if (srgb)
+                format = VK_FORMAT_R8G8B8A8_SRGB;
+            else
+                format = VK_FORMAT_R8G8B8A8_UNORM;
+        }
+
+        Image::Ptr image = std::shared_ptr<Image>(new Image(backend, VK_IMAGE_TYPE_2D, (uint32_t)x, (uint32_t)y, 1, 0, 1, format, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, x * y * n, data));
+
+        stbi_image_free(data);
+
+        return image;
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

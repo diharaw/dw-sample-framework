@@ -88,7 +88,7 @@ Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& tex
 
     if (normal_idx != -1 && textures[normal_idx].size() > 0)
     {
-        auto image = load_image(backend, textures[normal_idx], true);
+        auto image = load_image(backend, textures[normal_idx]);
 
         m_images.push_back(image);
 
@@ -101,7 +101,7 @@ Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& tex
 
     if (roughness_idx.x != -1 && textures[roughness_idx.x].size() > 0)
     {
-        auto image = load_image(backend, textures[roughness_idx.x], true);
+        auto image = load_image(backend, textures[roughness_idx.x]);
 
         m_images.push_back(image);
 
@@ -114,7 +114,7 @@ Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& tex
 
     if (metallic_idx.x != -1 && textures[metallic_idx.x].size() > 0)
     {
-        auto image = load_image(backend, textures[metallic_idx.x], true);
+        auto image = load_image(backend, textures[metallic_idx.x]);
 
         m_images.push_back(image);
 
@@ -127,7 +127,7 @@ Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& tex
 
     if (emissive_idx != -1 && textures[emissive_idx].size() > 0)
     {
-        auto image = load_image(backend, textures[emissive_idx], true);
+        auto image = load_image(backend, textures[emissive_idx]);
 
         m_images.push_back(image);
 

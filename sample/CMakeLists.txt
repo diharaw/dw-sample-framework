@@ -61,7 +61,7 @@ if (USE_VULKAN)
         add_custom_command(
             OUTPUT ${SPIRV}
             COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/bin/$(Configuration)/shaders"
-            COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -o ${SPIRV}
+            COMMAND ${GLSL_VALIDATOR} --target-env vulkan1.2 -V ${GLSL} -o ${SPIRV}
             DEPENDS ${GLSL})
         list(APPEND SPIRV_BINARY_FILES ${SPIRV})
     endforeach(GLSL)

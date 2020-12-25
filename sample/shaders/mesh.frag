@@ -25,5 +25,10 @@ void main()
 
 	vec3 color = diffuse * lambert + ambient;
 
+	// HDR tonemapping
+    color = color / (color + vec3(1.0));
+    // gamma correct
+    color = pow(color, vec3(1.0 / 2.2));
+
     FS_OUT_Color = color;
 }

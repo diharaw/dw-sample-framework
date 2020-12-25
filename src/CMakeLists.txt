@@ -25,7 +25,7 @@ set(DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/external/imgui/imgui.cpp
 				 ${PROJECT_SOURCE_DIR}/src/material.cpp
 				 ${PROJECT_SOURCE_DIR}/src/application.cpp
 				 ${PROJECT_SOURCE_DIR}/src/profiler.cpp
-				 ${PROJECT_SOURCE_DIR}/src/scene.cpp
+				 ${PROJECT_SOURCE_DIR}/src/ray_traced_scene.cpp
 				 ${PROJECT_SOURCE_DIR}/src/demo_player.cpp
 				 ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_glfw.cpp)
 
@@ -47,16 +47,15 @@ set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
 				  ${PROJECT_SOURCE_DIR}/include/logger.h
 				  ${PROJECT_SOURCE_DIR}/include/utility.h
 				  ${PROJECT_SOURCE_DIR}/include/profiler.h
-				  ${PROJECT_SOURCE_DIR}/include/scene.h
-				  ${PROJECT_SOURCE_DIR}/include/demo_player.h
-				  ${PROJECT_SOURCE_DIR}/include/vk.h)
+				  ${PROJECT_SOURCE_DIR}/include/ray_traced_scene.h
+				  ${PROJECT_SOURCE_DIR}/include/demo_player.h)
 
 if (USE_VULKAN)
-	list(APPEND DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/vk.h ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_vulkan.h)
-	list(APPEND DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/src/vk.cpp ${PROJECT_SOURCE_DIR}/include/vk.h ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_vulkan.cpp)
+	list(APPEND DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/vk.h ${PROJECT_SOURCE_DIR}/include/extensions_vk.h ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_vulkan.h)
+	list(APPEND DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/src/vk.cpp ${PROJECT_SOURCE_DIR}/src/extensions_vk.cpp ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_vulkan.cpp)
 else()
 	list(APPEND DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/ogl.h ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_opengl3.h)
-	list(APPEND DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/src/ogl.cpp ${PROJECT_SOURCE_DIR}/include/vk.h ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_opengl3.cpp)
+	list(APPEND DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/src/ogl.cpp ${PROJECT_SOURCE_DIR}/external/imgui/examples/imgui_impl_opengl3.cpp)
 
 	if(NOT EMSCRIPTEN)
 		list(APPEND DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/glad/glad.h)

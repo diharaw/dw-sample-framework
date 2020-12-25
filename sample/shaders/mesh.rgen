@@ -1,32 +1,94 @@
 #version 460
-#extension GL_NV_ray_tracing : require
+#extension GL_EXT_ray_tracing : require
+#extension GL_GOOGLE_include_directive : require
 
-layout(binding = 0, set = 0) uniform accelerationStructureNV topLevelAS;
-layout(binding = 1, set = 0, rgba8) uniform image2D image;
-layout(binding = 2, set = 0) uniform CameraProperties 
+struct Vertex
+{
+    vec4 position;
+    vec4 tex_coord;
+    vec4 normal;
+    vec4 tangent;
+    vec4 bitangent;
+};
+
+struct Material
+{
+    ivec4 texture_indices0; // x: albedo, y: normals, z: roughness, w: metallic
+    ivec4 texture_indices1; // x: emissive, z: roughness_channel, w: metallic_channel
+    vec4  albedo;
+    vec4  emissive;
+    vec4  roughness_metallic;
+};
+
+struct Instance
+{
+    mat4 model_matrix;
+    mat4 normal_matrix;
+    uint mesh_idx;
+};
+
+// ------------------------------------------------------------------------
+// Set 0 ------------------------------------------------------------------
+// ------------------------------------------------------------------------
+
+layout (set = 0, binding = 0, std430) readonly buffer MaterialBuffer 
+{
+    Material data[];
+} Materials;
+
+layout (set = 0, binding = 1, std430) readonly buffer InstanceBuffer 
+{
+    Instance data[];
+} Instances;
+
+layout (set = 0, binding = 2) uniform accelerationStructureEXT u_TopLevelAS;
+
+layout (set = 0, binding = 3, std430) readonly buffer VertexBuffer 
+{
+    Vertex data[];
+} Vertices[1024];
+
+layout (set = 0, binding = 4) readonly buffer IndexBuffer 
+{
+    uint data[];
+} Indices[1024];
+
+layout (set = 0, binding = 5) readonly buffer SubmeshInfoBuffer 
+{
+    uvec2 data[];
+} SubmeshInfo[];
+
+layout (set = 0, binding = 6) uniform sampler2D s_Textures[];
+
+// ------------------------------------------------------------------------
+// Set 1 ------------------------------------------------------------------
+// ------------------------------------------------------------------------
+
+layout (set = 1, binding = 0, rgba8) uniform image2D image;
+layout (set = 1, binding = 1) uniform CameraProperties 
 {
 	mat4 viewInverse;
 	mat4 projInverse;
 } cam;
 
-layout(location = 0) rayPayloadNV vec3 hitValue;
+layout(location = 0) rayPayloadEXT vec3 hitValue;
 
 void main() 
 {
-	const vec2 pixelCenter = vec2(gl_LaunchIDNV.xy) + vec2(0.5);
-	const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeNV.xy);
+	const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
+	const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeEXT.xy);
 	vec2 d = inUV * 2.0 - 1.0;
 
 	vec4 origin = cam.viewInverse * vec4(0,0,0,1);
 	vec4 target = cam.projInverse * vec4(d.x, d.y, 1, 1) ;
 	vec4 direction = cam.viewInverse*vec4(normalize(target.xyz), 0) ;
 
-	uint rayFlags = gl_RayFlagsOpaqueNV;
+	uint rayFlags = gl_RayFlagsOpaqueEXT;
 	uint cullMask = 0xff;
 	float tmin = 0.001;
 	float tmax = 10000.0;
 
-	traceNV(topLevelAS, rayFlags, cullMask, 0, 0, 0, origin.xyz, tmin, direction.xyz, tmax, 0);
+	traceRayEXT(u_TopLevelAS, rayFlags, cullMask, 0, 0, 0, origin.xyz, tmin, direction.xyz, tmax, 0);
 
-	imageStore(image, ivec2(gl_LaunchIDNV.xy), vec4(hitValue, 0.0));
+	imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(hitValue, 0.0));
 }

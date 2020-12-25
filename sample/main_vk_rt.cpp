@@ -6,7 +6,7 @@
 #include <profiler.h>
 #include <assimp/scene.h>
 #include <vk_mem_alloc.h>
-#include <scene.h>
+#include <ray_traced_scene.h>
 
 // Uniform buffer data structure.
 struct Transforms
@@ -55,6 +55,8 @@ protected:
 
         {
             DW_SCOPED_SAMPLE("update", cmd_buf);
+
+            m_scene->build_tlas(cmd_buf);
 
             // Render profiler.
 #if defined(DWSF_IMGUI)
@@ -167,9 +169,8 @@ private:
         {
             dw::vk::DescriptorSetLayout::Desc desc;
 
-            desc.add_binding(0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 1, VK_SHADER_STAGE_RAYGEN_BIT_NV);
-            desc.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_RAYGEN_BIT_NV);
-            desc.add_binding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_RAYGEN_BIT_NV);
+            desc.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_RAYGEN_BIT_NV);
+            desc.add_binding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_RAYGEN_BIT_NV);
 
             m_ray_tracing_layout = dw::vk::DescriptorSetLayout::create(m_vk_backend, desc);
         }
@@ -204,36 +205,21 @@ private:
         {
             m_ray_tracing_ds = m_vk_backend->allocate_descriptor_set(m_ray_tracing_layout);
 
-            VkWriteDescriptorSet write_data[3];
+            VkWriteDescriptorSet write_data[2];
             DW_ZERO_MEMORY(write_data[0]);
             DW_ZERO_MEMORY(write_data[1]);
-            DW_ZERO_MEMORY(write_data[2]);
-
-            VkWriteDescriptorSetAccelerationStructureNV descriptor_as;
-
-            descriptor_as.sType                      = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV;
-            descriptor_as.pNext                      = nullptr;
-            descriptor_as.accelerationStructureCount = 1;
-            descriptor_as.pAccelerationStructures    = &m_scene->acceleration_structure()->handle();
-
-            write_data[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            write_data[0].pNext           = &descriptor_as;
-            write_data[0].descriptorCount = 1;
-            write_data[0].descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
-            write_data[0].dstBinding      = 0;
-            write_data[0].dstSet          = m_ray_tracing_ds->handle();
 
             VkDescriptorImageInfo output_image;
             output_image.sampler     = VK_NULL_HANDLE;
             output_image.imageView   = m_output_view->handle();
             output_image.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-            write_data[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            write_data[1].descriptorCount = 1;
-            write_data[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-            write_data[1].pImageInfo      = &output_image;
-            write_data[1].dstBinding      = 1;
-            write_data[1].dstSet          = m_ray_tracing_ds->handle();
+            write_data[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            write_data[0].descriptorCount = 1;
+            write_data[0].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            write_data[0].pImageInfo      = &output_image;
+            write_data[0].dstBinding      = 0;
+            write_data[0].dstSet          = m_ray_tracing_ds->handle();
 
             VkDescriptorBufferInfo buffer_info;
 
@@ -241,14 +227,14 @@ private:
             buffer_info.offset = 0;
             buffer_info.range  = m_ubo_size;
 
-            write_data[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            write_data[2].descriptorCount = 1;
-            write_data[2].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-            write_data[2].pBufferInfo     = &buffer_info;
-            write_data[2].dstBinding      = 2;
-            write_data[2].dstSet          = m_ray_tracing_ds->handle();
+            write_data[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            write_data[1].descriptorCount = 1;
+            write_data[1].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+            write_data[1].pBufferInfo     = &buffer_info;
+            write_data[1].dstBinding      = 1;
+            write_data[1].dstSet          = m_ray_tracing_ds->handle();
 
-            vkUpdateDescriptorSets(m_vk_backend->device(), 3, &write_data[0], 0, nullptr);
+            vkUpdateDescriptorSets(m_vk_backend->device(), 2, &write_data[0], 0, nullptr);
         }
     }
 
@@ -286,7 +272,7 @@ private:
 
         dw::vk::RayTracingPipeline::Desc desc;
 
-        desc.set_recursion_depth(1);
+        desc.set_max_pipeline_ray_recursion_depth(8);
         desc.set_shader_binding_table(m_sbt);
 
         // ---------------------------------------------------------------------------
@@ -295,6 +281,7 @@ private:
 
         dw::vk::PipelineLayout::Desc pl_desc;
 
+        pl_desc.add_descriptor_set_layout(m_scene->descriptor_set_layout());
         pl_desc.add_descriptor_set_layout(m_ray_tracing_layout);
 
         m_raytracing_pipeline_layout = dw::vk::PipelineLayout::create(m_vk_backend, pl_desc);
@@ -311,13 +298,12 @@ private:
         m_mesh = dw::Mesh::load(m_vk_backend, "teapot.obj");
         m_mesh->initialize_for_ray_tracing(m_vk_backend);
 
-        m_scene = dw::Scene::create();
+        dw::RayTracedScene::Instance instance;
 
-        glm::mat4 transform = glm::mat4(1.0f);
+        instance.mesh      = m_mesh;
+        instance.transform = glm::mat4(1.0f);
 
-        m_scene->add_instance(m_mesh, transform);
-
-        m_scene->initialize_for_ray_tracing(m_vk_backend);
+        m_scene = dw::RayTracedScene::create(m_vk_backend, { instance });
 
         return m_mesh != nullptr;
     }
@@ -346,29 +332,28 @@ private:
             VK_IMAGE_LAYOUT_GENERAL,
             subresource_range);
 
-        auto& rt_props = m_vk_backend->ray_tracing_properties();
+        auto& rt_pipeline_props = m_vk_backend->ray_tracing_pipeline_properties();
 
-        vkCmdBindPipeline(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, m_raytracing_pipeline->handle());
+        vkCmdBindPipeline(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_raytracing_pipeline->handle());
 
         const uint32_t dynamic_offset = m_ubo_size * m_vk_backend->current_frame_idx();
 
-        vkCmdBindDescriptorSets(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, m_raytracing_pipeline_layout->handle(), 0, 1, &m_ray_tracing_ds->handle(), 1, &dynamic_offset);
+        VkDescriptorSet descriptor_sets[] = {
+            m_scene->descriptor_set()->handle(),
+            m_ray_tracing_ds->handle(),
+        };
 
-        vkCmdTraceRaysNV(cmd_buf->handle(),
-                         m_raytracing_pipeline->shader_binding_table_buffer()->handle(),
-                         0,
-                         m_raytracing_pipeline->shader_binding_table_buffer()->handle(),
-                         m_sbt->miss_group_offset(),
-                         rt_props.shaderGroupHandleSize,
-                         m_raytracing_pipeline->shader_binding_table_buffer()->handle(),
-                         m_sbt->hit_group_offset(),
-                         rt_props.shaderGroupHandleSize,
-                         VK_NULL_HANDLE,
-                         0,
-                         0,
-                         m_width,
-                         m_height,
-                         1);
+        vkCmdBindDescriptorSets(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_raytracing_pipeline_layout->handle(), 0, 2, descriptor_sets, 1, &dynamic_offset);
+
+        VkDeviceSize group_size   = dw::vk::utilities::aligned_size(rt_pipeline_props.shaderGroupHandleSize, rt_pipeline_props.shaderGroupBaseAlignment);
+        VkDeviceSize group_stride = group_size;
+
+        const VkStridedDeviceAddressRegionKHR raygen_sbt   = { m_raytracing_pipeline->shader_binding_table_buffer()->device_address(), group_stride, group_size };
+        const VkStridedDeviceAddressRegionKHR miss_sbt     = { m_raytracing_pipeline->shader_binding_table_buffer()->device_address() + m_sbt->miss_group_offset(), group_stride, group_size * 2 };
+        const VkStridedDeviceAddressRegionKHR hit_sbt      = { m_raytracing_pipeline->shader_binding_table_buffer()->device_address() + m_sbt->hit_group_offset(), group_stride, group_size * 2 };
+        const VkStridedDeviceAddressRegionKHR callable_sbt = { VK_NULL_HANDLE, 0, 0 };
+
+        vkCmdTraceRaysKHR(cmd_buf->handle(), &raygen_sbt, &miss_sbt, &hit_sbt, &callable_sbt, m_width, m_height, 1);
 
         // Prepare ray tracing output image as transfer source
         dw::vk::utilities::set_image_layout(
@@ -449,6 +434,11 @@ private:
         m_transforms.proj_inverse = glm::inverse(m_main_camera->m_projection);
         m_transforms.view_inverse = glm::inverse(m_main_camera->m_view);
 
+        dw::RayTracedScene::Instance& instance = m_scene->fetch_instance(0);
+
+        glm::mat4 model    = glm::mat4(1.0f);
+        instance.transform = glm::rotate(model, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+
         uint8_t* ptr = (uint8_t*)m_ubo->mapped_ptr();
         memcpy(ptr + m_ubo_size * m_vk_backend->current_frame_idx(), &m_transforms, sizeof(Transforms));
     }
@@ -477,8 +467,8 @@ private:
     std::unique_ptr<dw::Camera> m_main_camera;
 
     // Assets.
-    dw::Mesh::Ptr  m_mesh;
-    dw::Scene::Ptr m_scene;
+    dw::Mesh::Ptr           m_mesh;
+    dw::RayTracedScene::Ptr m_scene;
 
     // Uniforms.
     Transforms m_transforms;

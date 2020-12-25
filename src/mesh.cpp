@@ -259,10 +259,10 @@ void Mesh::load_from_disk(
     {
         bool has_least_one_texture = false;
 
-        m_sub_meshes[i].name        = std::string(Scene->mMeshes[i]->mName.C_Str());
-        m_sub_meshes[i].index_count = Scene->mMeshes[i]->mNumFaces * 3;
-        m_sub_meshes[i].base_index  = index_count;
-        m_sub_meshes[i].base_vertex = vertex_count;
+        m_sub_meshes[i].name         = std::string(Scene->mMeshes[i]->mName.C_Str());
+        m_sub_meshes[i].index_count  = Scene->mMeshes[i]->mNumFaces * 3;
+        m_sub_meshes[i].base_index   = index_count;
+        m_sub_meshes[i].base_vertex  = vertex_count;
         m_sub_meshes[i].vertex_count = Scene->mMeshes[i]->mNumVertices;
 
         vertex_count += Scene->mMeshes[i]->mNumVertices;
@@ -615,8 +615,8 @@ void Mesh::create_gpu_objects(
 )
 {
 #if defined(DWSF_VULKAN)
-    m_vbo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(Vertex) * m_vertices.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_vertices[0]);
-    m_ibo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, sizeof(uint32_t) * m_indices.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_indices[0]);
+    m_vbo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, sizeof(Vertex) * m_vertices.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_vertices[0]);
+    m_ibo = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, sizeof(uint32_t) * m_indices.size(), VMA_MEMORY_USAGE_GPU_ONLY, 0, &m_indices[0]);
 
     m_vertex_input_state_desc.add_binding_desc(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX);
 

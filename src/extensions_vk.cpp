@@ -29,7 +29,7 @@
  */
 
 #include <assert.h>
-#include <gfx/extensions_vk.h>
+#include <extensions_vk.h>
 
 /* loaders */
 /* /////////////////////////////////// */

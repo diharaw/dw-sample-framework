@@ -140,9 +140,9 @@ private:
 #if defined(DWSF_VULKAN)
     vk::AccelerationStructure::Ptr       m_blas;
     VkAccelerationStructureCreateInfoKHR m_blas_info;
-    vk::Buffer::Ptr                m_vbo;
-    vk::Buffer::Ptr                m_ibo;
-    vk::VertexInputStateDesc       m_vertex_input_state_desc;
+    vk::Buffer::Ptr                      m_vbo;
+    vk::Buffer::Ptr                      m_ibo;
+    vk::VertexInputStateDesc             m_vertex_input_state_desc;
 #else
     std::unique_ptr<gl::VertexArray>  m_vao = nullptr;
     std::unique_ptr<gl::VertexBuffer> m_vbo = nullptr;

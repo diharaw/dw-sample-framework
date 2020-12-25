@@ -49,6 +49,12 @@ void main()
     vec3 diffuse = texture(s_Diffuse, PS_IN_TexCoord).xyz;// + vec3(1.0);
 	vec3 ambient = diffuse * 0.03;
 	vec3 color = diffuse * lambert + ambient;
+
+    // HDR tonemapping
+    color = color / (color + vec3(1.0));
+    // gamma correct
+    color = pow(color, vec3(1.0 / 2.2));
+
     PS_OUT_Color = vec4(color, 1.0);
 }
 )";

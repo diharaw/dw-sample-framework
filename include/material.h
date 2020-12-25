@@ -31,16 +31,16 @@ public:
     static void          shutdown_common_resources();
 
     // Rendering related getters.
-    inline vk::ImageView::Ptr                  albedo_image_view() { return m_albedo_idx != -1 ? m_image_views[m_albedo_idx] : m_default_image_view; }
-    inline vk::ImageView::Ptr                  normal_image_view() { return m_normal_idx != -1 ? m_image_views[m_albedo_idx] : m_default_image_view; }
-    inline vk::ImageView::Ptr                  roughness_image_view() { return m_roughness_idx.x != -1 ? m_image_views[m_roughness_idx.x] : m_default_image_view; }
-    inline vk::ImageView::Ptr                  metallic_image_view() { return m_metallic_idx.x != -1 ? m_image_views[m_metallic_idx.x] : m_default_image_view; }
-    inline vk::ImageView::Ptr                  emissive_image_view() { return m_emissive_idx != -1 ? m_image_views[m_emissive_idx] : m_default_image_view; }
-    inline vk::Image::Ptr                      albedo_image() { return m_albedo_idx != -1 ? m_images[m_albedo_idx] : m_default_image; }
-    inline vk::Image::Ptr                      normal_image() { return m_normal_idx != -1 ? m_images[m_normal_idx] : m_default_image; }
-    inline vk::Image::Ptr                      roughness_image() { return m_roughness_idx.x != -1 ? m_images[m_roughness_idx.x] : m_default_image; }
-    inline vk::Image::Ptr                      metallic_image() { return m_metallic_idx.x != -1 ? m_images[m_metallic_idx.x] : m_default_image; }
-    inline vk::Image::Ptr                      emissive_image() { return m_emissive_idx != -1 ? m_images[m_emissive_idx] : m_default_image; }
+    inline vk::ImageView::Ptr                  albedo_image_view() { return m_albedo_idx != -1 ? m_image_views[m_albedo_idx] : nullptr; }
+    inline vk::ImageView::Ptr                  normal_image_view() { return m_normal_idx != -1 ? m_image_views[m_albedo_idx] : nullptr; }
+    inline vk::ImageView::Ptr                  roughness_image_view() { return m_roughness_idx.x != -1 ? m_image_views[m_roughness_idx.x] : nullptr; }
+    inline vk::ImageView::Ptr                  metallic_image_view() { return m_metallic_idx.x != -1 ? m_image_views[m_metallic_idx.x] : nullptr; }
+    inline vk::ImageView::Ptr                  emissive_image_view() { return m_emissive_idx != -1 ? m_image_views[m_emissive_idx] : nullptr; }
+    inline vk::Image::Ptr                      albedo_image() { return m_albedo_idx != -1 ? m_images[m_albedo_idx] : nullptr; }
+    inline vk::Image::Ptr                      normal_image() { return m_normal_idx != -1 ? m_images[m_normal_idx] : nullptr; }
+    inline vk::Image::Ptr                      roughness_image() { return m_roughness_idx.x != -1 ? m_images[m_roughness_idx.x] : nullptr; }
+    inline vk::Image::Ptr                      metallic_image() { return m_metallic_idx.x != -1 ? m_images[m_metallic_idx.x] : nullptr; }
+    inline vk::Image::Ptr                      emissive_image() { return m_emissive_idx != -1 ? m_images[m_emissive_idx] : nullptr; }
     inline vk::DescriptorSet::Ptr              descriptor_set() { return m_descriptor_set; }
     static inline vk::Sampler::Ptr             common_sampler() { return m_common_sampler; }
     static inline vk::DescriptorSetLayout::Ptr descriptor_set_layout() { return m_common_ds_layout; }
