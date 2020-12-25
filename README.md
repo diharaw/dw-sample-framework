@@ -18,11 +18,11 @@ A simple C++ framework for implementing graphics technique samples using OpenGL 
 * CPU-GPU profiler
 * Logger
 * Helper classes for:
-	* * Vulkan Ray Tracing,
-	* * Hosek-Wilkie sky model
-	* * Cubemap prefiltering
-	* * Cubemap SH projection
-	* * BRDF LUT generation 
+	* Vulkan Ray Tracing,
+	* Hosek-Wilkie sky model
+	* Cubemap prefiltering
+	* Cubemap SH projection
+	* BRDF LUT generation 
 
 ## What it looks like
 Creating a project using dwSampleFramework is as easy as inheriting from the dw::Application class and overriding the methods you need.
