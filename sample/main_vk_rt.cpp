@@ -38,6 +38,7 @@ protected:
         create_output_image();
         create_descriptor_set_layout();
         create_descriptor_set();
+        write_descriptor_set();
         create_copy_pipeline();
         create_ray_tracing_pipeline();
 
@@ -124,6 +125,9 @@ protected:
     {
         // Override window resized method to update camera projection.
         m_main_camera->update_projection(60.0f, 0.1f, 1000.0f, float(m_width) / float(m_height));
+        m_vk_backend->wait_idle();
+        create_output_image();
+        write_descriptor_set();
     }
 
     // -----------------------------------------------------------------------------------------------------------------------------------
@@ -180,9 +184,15 @@ private:
 
     void create_descriptor_set()
     {
-        {
-            m_copy_ds = m_vk_backend->allocate_descriptor_set(m_copy_layout);
+        m_copy_ds        = m_vk_backend->allocate_descriptor_set(m_copy_layout);
+        m_ray_tracing_ds = m_vk_backend->allocate_descriptor_set(m_ray_tracing_layout);
+    }
 
+    // -----------------------------------------------------------------------------------------------------------------------------------
+
+    void write_descriptor_set()
+    {
+        {
             VkDescriptorImageInfo image_info;
 
             image_info.sampler     = dw::Material::common_sampler()->handle();
@@ -203,8 +213,6 @@ private:
         }
 
         {
-            m_ray_tracing_ds = m_vk_backend->allocate_descriptor_set(m_ray_tracing_layout);
-
             VkWriteDescriptorSet write_data[2];
             DW_ZERO_MEMORY(write_data[0]);
             DW_ZERO_MEMORY(write_data[1]);
@@ -436,10 +444,10 @@ private:
 
         dw::RayTracedScene::Instance& instance = m_scene->fetch_instance(0);
 
-        glm::mat4 model    = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, -20.0f, 0.0f));
-        model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(0.6f));
+        glm::mat4 model = glm::mat4(1.0f);
+        model           = glm::translate(model, glm::vec3(0.0f, -20.0f, 0.0f));
+        model           = glm::rotate(model, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+        model           = glm::scale(model, glm::vec3(0.6f));
 
         instance.transform = model;
 

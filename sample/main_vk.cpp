@@ -38,6 +38,7 @@ protected:
 
         create_descriptor_set_layout();
         create_descriptor_set();
+        write_descriptor_set();
         create_pipeline_state();
 
         // Create camera.
@@ -151,7 +152,12 @@ private:
     void create_descriptor_set()
     {
         m_per_frame_ds = m_vk_backend->allocate_descriptor_set(m_per_frame_ds_layout);
+    }
 
+    // -----------------------------------------------------------------------------------------------------------------------------------
+
+    void write_descriptor_set()
+    {
         VkDescriptorBufferInfo buffer_info;
 
         buffer_info.buffer = m_ubo->handle();

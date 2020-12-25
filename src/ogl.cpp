@@ -24,7 +24,6 @@ Object::Object(const GLenum& identifier) :
 
 Object::~Object()
 {
-    
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -37,7 +36,8 @@ void Object::set_name(const GLuint& name, const std::string& label)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Texture::Texture() : Object(GL_TEXTURE) { GL_CHECK_ERROR(glGenTextures(1, &m_gl_tex)); }
+Texture::Texture() :
+    Object(GL_TEXTURE) { GL_CHECK_ERROR(glGenTextures(1, &m_gl_tex)); }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -1889,7 +1889,8 @@ void VertexArray::set_name(const std::string& name)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Query::Query() : Object(GL_QUERY) { GL_CHECK_ERROR(glGenQueries(1, &m_query)); }
+Query::Query() :
+    Object(GL_QUERY) { GL_CHECK_ERROR(glGenQueries(1, &m_query)); }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 

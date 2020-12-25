@@ -3,18 +3,26 @@
 [![License: MIT](https://img.shields.io/packagist/l/doctrine/orm.svg)](https://opensource.org/licenses/MIT)
 
 ## What is it?
-A simple C++ framework for implementing graphics technique samples using OpenGL.
+A simple C++ framework for implementing graphics technique samples using OpenGL or Vulkan.
 
 ## Features
 * Cross-platform
-* Wrapper classes for common OpenGL objects (Textures, Shaders, Buffers, etc)
+* Wrapper classes for common OpenGL and Vulkan objects
 * Mesh loading
 * Texture loading
-* Input
+* Keyboard and mouse input
 * Debug drawing
+* Demo player
 * ImGui integration
 * Camera class
 * CPU-GPU profiler
+* Logger
+* Helper classes for:
+	* * Vulkan Ray Tracing,
+	* * Hosek-Wilkie sky model
+	* * Cubemap prefiltering
+	* * Cubemap SH projection
+	* * BRDF LUT generation 
 
 ## What it looks like
 Creating a project using dwSampleFramework is as easy as inheriting from the dw::Application class and overriding the methods you need.

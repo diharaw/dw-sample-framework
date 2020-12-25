@@ -191,8 +191,8 @@ private:
     {
         // Create uniform buffer for matrix data
         m_ubo = dw::gl::UniformBuffer::create(GL_DYNAMIC_DRAW,
-                                                        sizeof(Transforms),
-                                                        nullptr);
+                                              sizeof(Transforms),
+                                              nullptr);
 
         return true;
     }
@@ -279,7 +279,7 @@ private:
 private:
     // GPU resources.
     dw::gl::Shader::Ptr        m_vs;
-    dw::gl::Shader::Ptr m_fs;
+    dw::gl::Shader::Ptr        m_fs;
     dw::gl::Program::Ptr       m_program;
     dw::gl::UniformBuffer::Ptr m_ubo;
 

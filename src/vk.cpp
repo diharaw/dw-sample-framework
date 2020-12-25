@@ -4825,13 +4825,13 @@ VkPresentModeKHR Backend::choose_swap_present_mode(const std::vector<VkPresentMo
 VkExtent2D Backend::choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities)
 {
     // Causes macro issue on windows.
-#ifdef max
-#    undef max
-#endif
+#    ifdef max
+#        undef max
+#    endif
 
-#ifdef min
-#    undef min
-#endif
+#    ifdef min
+#        undef min
+#    endif
 
     VkSurfaceCapabilitiesKHR caps;
 

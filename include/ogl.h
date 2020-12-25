@@ -66,7 +66,7 @@ protected:
     void set_name(const GLuint& name, const std::string& label);
 
 private:
-    GLenum m_identifier;
+    GLenum      m_identifier;
     std::string m_name;
 };
 
@@ -103,7 +103,7 @@ public:
     void set_mag_filter(GLenum filter);
     void set_compare_mode(GLenum mode);
     void set_compare_func(GLenum func);
-    
+
     void set_name(const std::string& name);
 
 protected:

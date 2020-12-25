@@ -18,19 +18,19 @@ public:
     static Material::Ptr load(
 #if defined(DWSF_VULKAN)
         vk::Backend::Ptr backend,
-#endif        
-        const std::vector<std::string>& textures, 
-        const int32_t& albedo_idx, 
-        const int32_t& normal_idx, 
-        const glm::ivec2& roughness_idx, 
-        const glm::ivec2& metallic_idx, 
-        const int32_t& emissive_idx);
+#endif
+        const std::vector<std::string>& textures,
+        const int32_t&                  albedo_idx,
+        const int32_t&                  normal_idx,
+        const glm::ivec2&               roughness_idx,
+        const glm::ivec2&               metallic_idx,
+        const int32_t&                  emissive_idx);
 
     // Custom factory method for creating a material from provided data.
-    static Material::Ptr create(glm::vec4 albedo = glm::vec4(1.0f), 
-        float roughness = 0.0f, 
-        float metalness = 0.0f, 
-        glm::vec3 emissive = glm::vec3(0.0f));
+    static Material::Ptr create(glm::vec4 albedo    = glm::vec4(1.0f),
+                                float     roughness = 0.0f,
+                                float     metalness = 0.0f,
+                                glm::vec3 emissive  = glm::vec3(0.0f));
 
     static bool is_loaded(const std::string& name);
 
@@ -57,8 +57,8 @@ public:
 
     // Texture factory methods.
 #if defined(DWSF_VULKAN)
-    static void          initialize_common_resources(vk::Backend::Ptr backend);
-    static void          shutdown_common_resources();
+    static void initialize_common_resources(vk::Backend::Ptr backend);
+    static void shutdown_common_resources();
 
     // Rendering related getters.
     inline vk::ImageView::Ptr                  albedo_image_view() { return m_albedo_idx != -1 ? m_image_views[m_albedo_idx] : nullptr; }
@@ -91,16 +91,21 @@ private:
 
     vk::DescriptorSet::Ptr create_descriptor_set(vk::Backend::Ptr backend);
 #else
-    static gl::Texture2D::Ptr load_texture(const std::string& path, bool srgb = false);
+    static gl::Texture2D::Ptr       load_texture(const std::string& path, bool srgb = false);
 #endif
 
 private:
     // Private constructor and destructor.
     Material(
-#    if defined(DWSF_VULKAN)
-        vk::Backend::Ptr                backend,
-#    endif   
-        const std::vector<std::string>& textures, const int32_t& albedo_idx, const int32_t& normal_idx, const glm::ivec2& roughness_idx, const glm::ivec2& metallic_idx, const int32_t& emissive_idx);
+#if defined(DWSF_VULKAN)
+        vk::Backend::Ptr backend,
+#endif
+        const std::vector<std::string>& textures,
+        const int32_t&                  albedo_idx,
+        const int32_t&                  normal_idx,
+        const glm::ivec2&               roughness_idx,
+        const glm::ivec2&               metallic_idx,
+        const int32_t&                  emissive_idx);
     Material();
 
 private:

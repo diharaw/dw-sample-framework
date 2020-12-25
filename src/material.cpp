@@ -28,9 +28,14 @@ static uint32_t g_last_mat_idx = 0;
 
 Material::Ptr Material::load(
 #if defined(DWSF_VULKAN)
-    vk::Backend::Ptr                backend,
+    vk::Backend::Ptr backend,
 #endif
-    const std::vector<std::string>& textures, const int32_t& albedo_idx, const int32_t& normal_idx, const glm::ivec2& roughness_idx, const glm::ivec2& metallic_idx, const int32_t& emissive_idx)
+    const std::vector<std::string>& textures,
+    const int32_t&                  albedo_idx,
+    const int32_t&                  normal_idx,
+    const glm::ivec2&               roughness_idx,
+    const glm::ivec2&               metallic_idx,
+    const int32_t&                  emissive_idx)
 {
     std::string mat_id;
 
@@ -41,10 +46,15 @@ Material::Ptr Material::load(
     {
         Material::Ptr mat = std::shared_ptr<Material>(new Material(
 #if defined(DWSF_VULKAN)
-            backend, 
-#endif            
-            textures, albedo_idx, normal_idx, roughness_idx, metallic_idx, emissive_idx));
-        m_cache[mat_id]   = mat;
+            backend,
+#endif
+            textures,
+            albedo_idx,
+            normal_idx,
+            roughness_idx,
+            metallic_idx,
+            emissive_idx));
+        m_cache[mat_id] = mat;
         return mat;
     }
     else
