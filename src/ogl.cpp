@@ -15,7 +15,29 @@ namespace gl
 {
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Texture::Texture() { GL_CHECK_ERROR(glGenTextures(1, &m_gl_tex)); }
+Object::Object(const GLenum& identifier) :
+    m_identifier(identifier)
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Object::~Object()
+{
+    
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Object::set_name(const GLuint& name, const std::string& label)
+{
+    m_name = label;
+    glObjectLabel(m_identifier, name, label.size(), label.c_str());
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture::Texture() : Object(GL_TEXTURE) { GL_CHECK_ERROR(glGenTextures(1, &m_gl_tex)); }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -144,11 +166,26 @@ void Texture::set_compare_func(GLenum func)
     GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_COMPARE_FUNC, func));
     GL_CHECK_ERROR(glBindTexture(m_target, 0));
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Texture::set_name(const std::string& name)
+{
+    Object::set_name(m_gl_tex, name);
+}
+
 #    endif
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 #    if !defined(__EMSCRIPTEN__)
+Texture1D::Ptr Texture1D::create(uint32_t w, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type)
+{
+    return std::shared_ptr<Texture1D>(new Texture1D(w, array_size, mip_levels, internal_format, format, type));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 Texture1D::Texture1D(uint32_t w, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type) :
     Texture()
 {
@@ -252,7 +289,7 @@ uint32_t Texture1D::mip_levels() { return m_mip_levels; }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Texture2D* Texture2D::create_from_files(std::string path, bool flip_vertical, bool srgb)
+Texture2D::Ptr Texture2D::create_from_files(std::string path, bool flip_vertical, bool srgb)
 {
     int x, y, n;
     stbi_set_flip_vertically_on_load(flip_vertical);
@@ -266,7 +303,7 @@ Texture2D* Texture2D::create_from_files(std::string path, bool flip_vertical, bo
         if (!data)
             return nullptr;
 
-        Texture2D* texture = new Texture2D(x, y, 1, -1, 1, GL_RGB32F, GL_RGB, GL_FLOAT);
+        Texture2D::Ptr texture = Texture2D::create(x, y, 1, -1, 1, GL_RGB32F, GL_RGB, GL_FLOAT);
         texture->set_data(0, 0, data);
         texture->generate_mipmaps();
 
@@ -318,7 +355,7 @@ Texture2D* Texture2D::create_from_files(std::string path, bool flip_vertical, bo
             }
         }
 
-        Texture2D* texture = new Texture2D(x, y, 1, -1, 1, internal_format, format, GL_UNSIGNED_BYTE);
+        Texture2D::Ptr texture = Texture2D::create(x, y, 1, -1, 1, internal_format, format, GL_UNSIGNED_BYTE);
         texture->set_data(0, 0, data);
         texture->generate_mipmaps();
 
@@ -326,6 +363,13 @@ Texture2D* Texture2D::create_from_files(std::string path, bool flip_vertical, bo
 
         return texture;
     }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture2D::Ptr Texture2D::create(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, uint32_t num_samples, GLenum internal_format, GLenum format, GLenum type)
+{
+    return std::shared_ptr<Texture2D>(new Texture2D(w, h, array_size, mip_levels, num_samples, internal_format, format, type));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -585,6 +629,13 @@ void Texture2D::save_to_disk(std::string path, int32_t array_index, int32_t mip_
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+Texture3D::Ptr Texture3D::create(uint32_t w, uint32_t h, uint32_t d, int mip_levels, GLenum internal_format, GLenum format, GLenum type)
+{
+    return std::shared_ptr<Texture3D>(new Texture3D(w, h, d, mip_levels, internal_format, format, type));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 Texture3D::Texture3D(uint32_t w, uint32_t h, uint32_t d, int mip_levels, GLenum internal_format, GLenum format, GLenum type) :
     Texture()
 {
@@ -683,7 +734,7 @@ uint32_t Texture3D::mip_levels() { return m_mip_levels; }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-TextureCube* TextureCube::create_from_files(std::string path[], bool srgb)
+TextureCube::Ptr TextureCube::create_from_files(std::string path[], bool srgb)
 {
     if (utility::file_extension(path[0]) == "hdr")
     {
@@ -701,7 +752,7 @@ TextureCube* TextureCube::create_from_files(std::string path[], bool srgb)
         internal_format = GL_RGB32F;
         format          = GL_RGB;
 
-        TextureCube* cube = new TextureCube(x, y, 1, -1, internal_format, format, GL_FLOAT);
+        TextureCube::Ptr cube = TextureCube::create(x, y, 1, -1, internal_format, format, GL_FLOAT);
 
         cube->set_data(0, 0, 0, data);
         stbi_image_free(data);
@@ -744,7 +795,7 @@ TextureCube* TextureCube::create_from_files(std::string path[], bool srgb)
             format          = GL_RGB;
         }
 
-        TextureCube* cube = new TextureCube(x, y, 1, -1, internal_format, format, GL_UNSIGNED_BYTE);
+        TextureCube::Ptr cube = TextureCube::create(x, y, 1, -1, internal_format, format, GL_UNSIGNED_BYTE);
 
         cube->set_data(0, 0, 0, data);
         stbi_image_free(data);
@@ -763,6 +814,13 @@ TextureCube* TextureCube::create_from_files(std::string path[], bool srgb)
 
         return cube;
     }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+TextureCube::Ptr TextureCube::create(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type)
+{
+    return std::shared_ptr<TextureCube>(new TextureCube(w, h, array_size, mip_levels, internal_format, format, type));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -898,7 +956,15 @@ uint32_t TextureCube::mip_levels() { return m_mip_levels; }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Framebuffer::Framebuffer() { GL_CHECK_ERROR(glGenFramebuffers(1, &m_gl_fbo)); }
+Framebuffer::Ptr Framebuffer::create()
+{
+    return std::shared_ptr<Framebuffer>(new Framebuffer());
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Framebuffer::Framebuffer() :
+    Object(GL_FRAMEBUFFER) { GL_CHECK_ERROR(glGenFramebuffers(1, &m_gl_fbo)); }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -923,7 +989,7 @@ void Framebuffer::unbind()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Framebuffer::attach_render_target(uint32_t attachment, Texture* texture, uint32_t layer, uint32_t mip_level, bool draw, bool read)
+void Framebuffer::attach_render_target(uint32_t attachment, Texture::Ptr texture, uint32_t layer, uint32_t mip_level, bool draw, bool read)
 {
     glBindTexture(texture->target(), texture->id());
     bind();
@@ -975,18 +1041,17 @@ void Framebuffer::attach_render_target(uint32_t attachment, Texture* texture, ui
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Framebuffer::attach_multiple_render_targets(uint32_t  attachment_count,
-                                                 Texture** texture)
+void Framebuffer::attach_multiple_render_targets(std::vector<Texture::Ptr> textures)
 {
     bind();
 
-    m_render_target_count = attachment_count;
+    m_render_target_count = textures.size();
 
     for (int i = 0; i < m_render_target_count; i++)
     {
-        glBindTexture(texture[i]->target(), texture[i]->id());
+        glBindTexture(textures[i]->target(), textures[i]->id());
         GL_CHECK_ERROR(
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture[i]->target(), texture[i]->id(), 0));
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, textures[i]->target(), textures[i]->id(), 0));
         m_attachments[i] = GL_COLOR_ATTACHMENT0 + i;
     }
 
@@ -999,13 +1064,13 @@ void Framebuffer::attach_multiple_render_targets(uint32_t  attachment_count,
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Framebuffer::attach_render_target(uint32_t     attachment,
-                                       TextureCube* texture,
-                                       uint32_t     face,
-                                       uint32_t     layer,
-                                       uint32_t     mip_level,
-                                       bool         draw,
-                                       bool         read)
+void Framebuffer::attach_render_target(uint32_t         attachment,
+                                       TextureCube::Ptr texture,
+                                       uint32_t         face,
+                                       uint32_t         layer,
+                                       uint32_t         mip_level,
+                                       bool             draw,
+                                       bool             read)
 {
     glBindTexture(texture->target(), texture->id());
     bind();
@@ -1062,7 +1127,7 @@ void Framebuffer::attach_render_target(uint32_t     attachment,
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Framebuffer::attach_depth_stencil_target(Texture* texture, uint32_t layer, uint32_t mip_level)
+void Framebuffer::attach_depth_stencil_target(Texture::Ptr texture, uint32_t layer, uint32_t mip_level)
 {
     glBindTexture(texture->target(), texture->id());
     bind();
@@ -1089,10 +1154,10 @@ void Framebuffer::attach_depth_stencil_target(Texture* texture, uint32_t layer, 
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Framebuffer::attach_depth_stencil_target(TextureCube* texture,
-                                              uint32_t     face,
-                                              uint32_t     layer,
-                                              uint32_t     mip_level)
+void Framebuffer::attach_depth_stencil_target(TextureCube::Ptr texture,
+                                              uint32_t         face,
+                                              uint32_t         layer,
+                                              uint32_t         mip_level)
 {
     glBindTexture(texture->target(), texture->id());
     bind();
@@ -1174,7 +1239,14 @@ uint32_t Framebuffer::render_targets() { return m_render_target_count; }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Shader* Shader::create_from_file(GLenum type, std::string path, std::vector<std::string> defines)
+void Framebuffer::set_name(const std::string& name)
+{
+    Object::set_name(m_gl_fbo, name);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Shader::Ptr Shader::create_from_file(GLenum type, std::string path, std::vector<std::string> defines)
 {
     std::string source;
 
@@ -1188,7 +1260,7 @@ Shader* Shader::create_from_file(GLenum type, std::string path, std::vector<std:
         return nullptr;
     }
 
-    Shader* shader = new Shader(type, source);
+    Shader::Ptr shader = Shader::create(type, source);
 
     if (shader->compiled())
         return shader;
@@ -1198,8 +1270,15 @@ Shader* Shader::create_from_file(GLenum type, std::string path, std::vector<std:
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+Shader::Ptr Shader::create(GLenum type, std::string source)
+{
+    return std::shared_ptr<Shader>(new Shader(type, source));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 Shader::Shader(GLenum type, std::string source) :
-    m_type(type)
+    m_type(type), Object(GL_SHADER)
 {
     GL_CHECK_ERROR(m_gl_shader = glCreateShader(type));
 
@@ -1248,10 +1327,25 @@ bool Shader::compiled() { return m_compiled; }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Program::Program(uint32_t count, Shader** shaders)
+void Shader::set_name(const std::string& name)
+{
+    Object::set_name(m_gl_shader, name);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Program::Ptr Program::create(std::vector<Shader::Ptr> shaders)
+{
+    return std::shared_ptr<Program>(new Program(shaders));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Program::Program(std::vector<Shader::Ptr> shaders) :
+    Object(GL_PROGRAM)
 {
 #    if !defined(__EMSCRIPTEN__)
-    if (count == 1 && shaders[0]->type() != GL_COMPUTE_SHADER)
+    if (shaders.size() == 1 && shaders[0]->type() != GL_COMPUTE_SHADER)
     {
         DW_LOG_ERROR("OPENGL: Compute shader programs can only have one shader.");
         assert(false);
@@ -1262,7 +1356,7 @@ Program::Program(uint32_t count, Shader** shaders)
 
     GL_CHECK_ERROR(m_gl_program = glCreateProgram());
 
-    for (int i = 0; i < count; i++)
+    for (int i = 0; i < shaders.size(); i++)
     {
         GL_CHECK_ERROR(glAttachShader(m_gl_program, shaders[i]->m_gl_shader));
     }
@@ -1540,8 +1634,15 @@ bool Program::set_uniform(std::string name, int count, glm::mat4* value)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+void Program::set_name(const std::string& name)
+{
+    Object::set_name(m_gl_program, name);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 Buffer::Buffer(GLenum type, GLenum usage, size_t size, void* data) :
-    m_type(type), m_size(size)
+    m_type(type), m_size(size), Object(GL_BUFFER)
 {
     GL_CHECK_ERROR(glGenBuffers(1, &m_gl_buffer));
 
@@ -1644,9 +1745,23 @@ void Buffer::set_data(size_t offset, size_t size, void* data)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+void Buffer::set_name(const std::string& name)
+{
+    Object::set_name(m_gl_buffer, name);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 GLuint Buffer::handle()
 {
     return m_gl_buffer;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+VertexBuffer::Ptr VertexBuffer::create(GLenum usage, size_t size, void* data)
+{
+    return std::shared_ptr<VertexBuffer>(new VertexBuffer(usage, size, data));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1660,12 +1775,26 @@ VertexBuffer::~VertexBuffer() {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+IndexBuffer::Ptr IndexBuffer::create(GLenum usage, size_t size, void* data)
+{
+    return std::shared_ptr<IndexBuffer>(new IndexBuffer(usage, size, data));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 IndexBuffer::IndexBuffer(GLenum usage, size_t size, void* data) :
     Buffer(GL_ELEMENT_ARRAY_BUFFER, usage, size, data) {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 IndexBuffer::~IndexBuffer() {}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+UniformBuffer::Ptr UniformBuffer::create(GLenum usage, size_t size, void* data)
+{
+    return std::shared_ptr<UniformBuffer>(new UniformBuffer(usage, size, data));
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -1679,6 +1808,13 @@ UniformBuffer::~UniformBuffer() {}
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 #    if !defined(__EMSCRIPTEN__)
+ShaderStorageBuffer::Ptr ShaderStorageBuffer::create(GLenum usage, size_t size, void* data)
+{
+    return std::shared_ptr<ShaderStorageBuffer>(new ShaderStorageBuffer(usage, size, data));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 ShaderStorageBuffer::ShaderStorageBuffer(GLenum usage, size_t size, void* data) :
     Buffer(GL_SHADER_STORAGE_BUFFER, usage, size, data)
 {
@@ -1691,7 +1827,15 @@ ShaderStorageBuffer::~ShaderStorageBuffer() {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-VertexArray::VertexArray(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[])
+VertexArray::Ptr VertexArray::create(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[])
+{
+    return std::shared_ptr<VertexArray>(new VertexArray(vbo, ibo, vertex_size, attrib_count, attribs));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+VertexArray::VertexArray(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[]) :
+    Object(GL_VERTEX_ARRAY)
 {
     GL_CHECK_ERROR(glGenVertexArrays(1, &m_gl_vao));
     GL_CHECK_ERROR(glBindVertexArray(m_gl_vao));
@@ -1738,7 +1882,14 @@ void VertexArray::unbind() { GL_CHECK_ERROR(glBindVertexArray(0)); }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Query::Query() { GL_CHECK_ERROR(glGenQueries(1, &m_query)); }
+void VertexArray::set_name(const std::string& name)
+{
+    Object::set_name(m_gl_vao, name);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Query::Query() : Object(GL_QUERY) { GL_CHECK_ERROR(glGenQueries(1, &m_query)); }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -1787,6 +1938,13 @@ bool Query::result_available()
     GL_CHECK_ERROR(glGetQueryObjectiv(m_query, GL_QUERY_RESULT_AVAILABLE, &done));
 #    endif
     return done == 1;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Query::set_name(const std::string& name)
+{
+    Object::set_name(m_query, name);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

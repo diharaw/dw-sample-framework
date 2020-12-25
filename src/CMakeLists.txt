@@ -7,7 +7,6 @@ endif()
 
 if (USE_VULKAN)
     add_definitions(-DDWSF_VULKAN)
-	add_definitions(-DDWSF_VULKAN_RAY_TRACING)
 endif()
 
 set (CMAKE_CXX_STANDARD 14)

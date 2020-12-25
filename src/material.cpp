@@ -19,16 +19,18 @@ vk::Sampler::Ptr                                              Material::m_common
 vk::Image::Ptr                                                Material::m_default_image;
 vk::ImageView::Ptr                                            Material::m_default_image_view;
 #else
-std::unordered_map<std::string, gl::Texture2D*> Material::m_texture_cache;
+std::unordered_map<std::string, std::weak_ptr<gl::Texture2D>> Material::m_texture_cache;
 #endif
 
 static uint32_t g_last_mat_idx = 0;
 
-#if defined(DWSF_VULKAN)
-
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Material::Ptr Material::load(vk::Backend::Ptr backend, const std::vector<std::string>& textures, const int32_t& albedo_idx, const int32_t& normal_idx, const glm::ivec2& roughness_idx, const glm::ivec2& metallic_idx, const int32_t& emissive_idx)
+Material::Ptr Material::load(
+#if defined(DWSF_VULKAN)
+    vk::Backend::Ptr                backend,
+#endif
+    const std::vector<std::string>& textures, const int32_t& albedo_idx, const int32_t& normal_idx, const glm::ivec2& roughness_idx, const glm::ivec2& metallic_idx, const int32_t& emissive_idx)
 {
     std::string mat_id;
 
@@ -37,7 +39,11 @@ Material::Ptr Material::load(vk::Backend::Ptr backend, const std::vector<std::st
 
     if (m_cache.find(mat_id) == m_cache.end() || m_cache[mat_id].expired())
     {
-        Material::Ptr mat = std::shared_ptr<Material>(new Material(backend, textures, albedo_idx, normal_idx, roughness_idx, metallic_idx, emissive_idx));
+        Material::Ptr mat = std::shared_ptr<Material>(new Material(
+#if defined(DWSF_VULKAN)
+            backend, 
+#endif            
+            textures, albedo_idx, normal_idx, roughness_idx, metallic_idx, emissive_idx));
         m_cache[mat_id]   = mat;
         return mat;
     }
@@ -47,7 +53,7 @@ Material::Ptr Material::load(vk::Backend::Ptr backend, const std::vector<std::st
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Material::Ptr Material::create(vk::Backend::Ptr backend, glm::vec4 albedo, float roughness, float metallic, glm::vec3 emissive)
+Material::Ptr Material::create(glm::vec4 albedo, float roughness, float metallic, glm::vec3 emissive)
 {
     Material::Ptr mat = std::shared_ptr<Material>(new Material());
 
@@ -65,6 +71,21 @@ Material::Material()
 {
     m_id = g_last_mat_idx++;
 }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+bool Material::is_loaded(const std::string& name)
+{
+    return m_cache.find(name) != m_cache.end();
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Material::~Material()
+{
+}
+
+#if defined(DWSF_VULKAN)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -140,12 +161,6 @@ Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& tex
 
     // Create descriptor set
     m_descriptor_set = create_descriptor_set(backend);
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-Material::~Material()
-{
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -310,110 +325,42 @@ vk::DescriptorSet::Ptr Material::create_descriptor_set(vk::Backend::Ptr backend)
 
 #else
 
-Material::Ptr Material::load(const std::string& name, const std::string* textures)
+Material::Material(const std::vector<std::string>& textures, const int32_t& albedo_idx, const int32_t& normal_idx, const glm::ivec2& roughness_idx, const glm::ivec2& metallic_idx, const int32_t& emissive_idx) :
+    m_albedo_idx(albedo_idx), m_normal_idx(normal_idx), m_roughness_idx(roughness_idx), m_metallic_idx(metallic_idx), m_emissive_idx(emissive_idx)
 {
-    if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
-    {
-        Material::Ptr mat = std::shared_ptr<Material>(new Material(name, textures));
-        m_cache[name]     = mat;
-        return mat;
-    }
-    else
-        return m_cache[name].lock();
+    m_id = g_last_mat_idx++;
+
+    if (albedo_idx != -1 && textures[albedo_idx].size() > 0)
+        m_textures.push_back(load_texture(textures[albedo_idx], true));
+
+    if (normal_idx != -1 && textures[normal_idx].size() > 0)
+        m_textures.push_back(load_texture(textures[normal_idx], false));
+
+    if (roughness_idx.x != -1 && textures[roughness_idx.x].size() > 0)
+        m_textures.push_back(load_texture(textures[roughness_idx.x], false));
+
+    if (metallic_idx.x != -1 && textures[metallic_idx.x].size() > 0)
+        m_textures.push_back(load_texture(textures[metallic_idx.x], false));
+
+    if (emissive_idx != -1 && textures[emissive_idx].size() > 0)
+        m_textures.push_back(load_texture(textures[emissive_idx], false));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Material::Ptr Material::load(const std::string& name, int num_textures, gl::Texture2D** textures, glm::vec4 albedo, float roughness, float metalness)
+gl::Texture2D::Ptr Material::load_texture(const std::string& path, bool srgb)
 {
-    if (m_cache.find(name) == m_cache.end() || m_cache[name].expired())
-    {
-        Material::Ptr mat = std::shared_ptr<Material>(new Material());
-
-        for (int i = 0; i < num_textures; i++)
-            mat->m_textures[i] = textures[i];
-
-        mat->m_albedo_val = albedo;
-
-        m_cache[name] = mat;
-        return mat;
-    }
+    if (m_texture_cache.find(path) != m_texture_cache.end() && !m_texture_cache[path].expired())
+        return m_texture_cache[path].lock();
     else
-        return m_cache[name].lock();
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-gl::Texture2D* Material::load_texture(const std::string& path, bool srgb)
-{
-    if (m_texture_cache.find(path) == m_texture_cache.end())
     {
-        gl::Texture2D* tex    = gl::Texture2D::create_from_files(path, false, srgb);
-        m_texture_cache[path] = tex;
+        gl::Texture2D::Ptr tex = gl::Texture2D::create_from_files(path, false, srgb);
+        m_texture_cache[path]  = tex;
         return tex;
-    }
-    else
-        return m_texture_cache[path];
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Material::unload_texture(gl::Texture2D*& tex)
-{
-    for (auto itr : m_texture_cache)
-    {
-        if (itr.second == tex)
-        {
-            m_texture_cache.erase(itr.first);
-            DW_SAFE_DELETE(tex);
-            return;
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-Material::Material()
-{
-    for (uint32_t i = 0; i < 16; i++)
-        m_textures[i] = nullptr;
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-Material::Material(const std::string& name, const std::string* textures)
-{
-    for (uint32_t i = 0; i < 16; i++)
-    {
-        m_textures[i] = nullptr;
-
-        if (!textures[i].empty())
-        {
-            // First index must always be diffuse/albedo, so SRGB is set to true.
-            m_textures[i] = load_texture(textures[i], i == 0 ? true : false);
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-Material::~Material()
-{
-    for (uint32_t i = 0; i < 16; i++)
-    {
-        if (m_textures[i])
-            unload_texture(m_textures[i]);
     }
 }
 
 #endif
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-bool Material::is_loaded(const std::string& name)
-{
-    return m_cache.find(name) != m_cache.end();
-}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 } // namespace dw

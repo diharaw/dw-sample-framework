@@ -14,6 +14,7 @@
 #    include <string>
 #    include <unordered_map>
 #    include <glm.hpp>
+#    include <memory>
 //#define DW_ENABLE_GL_ERROR_CHECK
 // OpenGL error checking macro.
 #    ifdef DW_ENABLE_GL_ERROR_CHECK
@@ -55,11 +56,26 @@ namespace dw
 {
 namespace gl
 {
-// Texture base class.
-class Texture
+class Object
 {
 public:
-    Texture();
+    Object(const GLenum& identifier);
+    virtual ~Object();
+
+protected:
+    void set_name(const GLuint& name, const std::string& label);
+
+private:
+    GLenum m_identifier;
+    std::string m_name;
+};
+
+// Texture base class.
+class Texture : public Object
+{
+public:
+    using Ptr = std::shared_ptr<Texture>;
+
     virtual ~Texture();
 
     // Bind texture to specified texture unit i.e GL_TEXTURE<unit>.
@@ -87,6 +103,11 @@ public:
     void set_mag_filter(GLenum filter);
     void set_compare_mode(GLenum mode);
     void set_compare_func(GLenum func);
+    
+    void set_name(const std::string& name);
+
+protected:
+    Texture();
 
 protected:
     GLuint   m_gl_tex;
@@ -101,11 +122,17 @@ protected:
 class Texture1D : public Texture
 {
 public:
-    Texture1D(uint32_t w, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type);
+    using Ptr = std::shared_ptr<Texture1D>;
+
+    static Texture1D::Ptr create(uint32_t w, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type);
+
     ~Texture1D();
     void     set_data(int array_index, int mip_level, void* data);
     uint32_t width();
     uint32_t mip_levels();
+
+private:
+    Texture1D(uint32_t w, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type);
 
 private:
     uint32_t m_width;
@@ -116,8 +143,11 @@ private:
 class Texture2D : public Texture
 {
 public:
-    static Texture2D* create_from_files(std::string path, bool flip_vertical = false, bool srgb = true);
-    Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, uint32_t num_samples, GLenum internal_format, GLenum format, GLenum type);
+    using Ptr = std::shared_ptr<Texture2D>;
+
+    static Texture2D::Ptr create_from_files(std::string path, bool flip_vertical = false, bool srgb = true);
+    static Texture2D::Ptr create(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, uint32_t num_samples, GLenum internal_format, GLenum format, GLenum type);
+
     ~Texture2D();
     void     set_data(int32_t array_index, int32_t mip_level, void* data);
     uint32_t width();
@@ -125,6 +155,9 @@ public:
     uint32_t mip_levels();
     uint32_t num_samples();
     void     save_to_disk(std::string path, int32_t array_index, int32_t mip_level);
+
+private:
+    Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, uint32_t num_samples, GLenum internal_format, GLenum format, GLenum type);
 
 private:
     uint32_t m_width;
@@ -136,13 +169,19 @@ private:
 class Texture3D : public Texture
 {
 public:
-    Texture3D(uint32_t w, uint32_t h, uint32_t d, int mip_levels, GLenum internal_format, GLenum format, GLenum type);
+    using Ptr = std::shared_ptr<Texture3D>;
+
+    static Texture3D::Ptr create(uint32_t w, uint32_t h, uint32_t d, int mip_levels, GLenum internal_format, GLenum format, GLenum type);
+
     ~Texture3D();
     void     set_data(int mip_level, void* data);
     uint32_t width();
     uint32_t height();
     uint32_t depth();
     uint32_t mip_levels();
+
+private:
+    Texture3D(uint32_t w, uint32_t h, uint32_t d, int mip_levels, GLenum internal_format, GLenum format, GLenum type);
 
 private:
     uint32_t m_width;
@@ -154,8 +193,11 @@ private:
 class TextureCube : public Texture
 {
 public:
-    static TextureCube* create_from_files(std::string path[], bool srgb = true);
-    TextureCube(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type);
+    using Ptr = std::shared_ptr<TextureCube>;
+
+    static TextureCube::Ptr create_from_files(std::string path[], bool srgb = true);
+    static TextureCube::Ptr create(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type);
+
     ~TextureCube();
     void     set_data(int face_index, int layer_index, int mip_level, void* data);
     uint32_t width();
@@ -163,35 +205,46 @@ public:
     uint32_t mip_levels();
 
 private:
+    TextureCube(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type);
+
+private:
     uint32_t m_width;
     uint32_t m_height;
     uint32_t m_mip_levels;
 };
 
-class Framebuffer
+class Framebuffer : public Object
 {
 public:
-    Framebuffer();
+    using Ptr = std::shared_ptr<Framebuffer>;
+
+    static Framebuffer::Ptr create();
+
     ~Framebuffer();
     void bind();
     void unbind();
 
     // Attach entire texture or entire layer of a layered texture as a render target.
-    void attach_render_target(uint32_t attachment, Texture* texture, uint32_t layer, uint32_t mip_level, bool draw = true, bool read = true);
+    void attach_render_target(uint32_t attachment, Texture::Ptr texture, uint32_t layer, uint32_t mip_level, bool draw = true, bool read = true);
 
     // Attach multiple render targets.
-    void attach_multiple_render_targets(uint32_t attachment_count, Texture** texture);
+    void attach_multiple_render_targets(std::vector<Texture::Ptr> textures);
 
     // Attach a given face from a cubemap or a specific layer of a cubemap array as a render target.
-    void attach_render_target(uint32_t attachment, TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level, bool draw = true, bool read = true);
+    void attach_render_target(uint32_t attachment, TextureCube::Ptr texture, uint32_t face, uint32_t layer, uint32_t mip_level, bool draw = true, bool read = true);
 
     // Attach entire texture or entire layer of a layered texture as a depth stencil target.
-    void attach_depth_stencil_target(Texture* texture, uint32_t layer, uint32_t mip_level);
+    void attach_depth_stencil_target(Texture::Ptr texture, uint32_t layer, uint32_t mip_level);
 
     // Attach a given face from a cubemap or a specific layer of a cubemap array as a depth stencil target.
-    void attach_depth_stencil_target(TextureCube* texture, uint32_t face, uint32_t layer, uint32_t mip_level);
+    void attach_depth_stencil_target(TextureCube::Ptr texture, uint32_t face, uint32_t layer, uint32_t mip_level);
 
     uint32_t render_targets();
+
+    void set_name(const std::string& name);
+
+private:
+    Framebuffer();
 
 private:
     void check_status();
@@ -202,17 +255,25 @@ private:
     GLuint   m_gl_fbo;
 };
 
-class Shader
+class Shader : public Object
 {
     friend class Program;
 
 public:
-    static Shader* create_from_file(GLenum type, std::string path, std::vector<std::string> defines = std::vector<std::string>());
+    using Ptr = std::shared_ptr<Shader>;
 
-    Shader(GLenum type, std::string source);
+    static Shader::Ptr create_from_file(GLenum type, std::string path, std::vector<std::string> defines = std::vector<std::string>());
+
+    static Shader::Ptr create(GLenum type, std::string source);
+
     ~Shader();
     GLenum type();
     bool   compiled();
+
+    void set_name(const std::string& name);
+
+private:
+    Shader(GLenum type, std::string source);
 
 private:
     bool   m_compiled;
@@ -220,10 +281,13 @@ private:
     GLenum m_type;
 };
 
-class Program
+class Program : public Object
 {
 public:
-    Program(uint32_t count, Shader** shaders);
+    using Ptr = std::shared_ptr<Program>;
+
+    static Program::Ptr create(std::vector<Shader::Ptr> shaders);
+
     ~Program();
     void use();
     void uniform_block_binding(std::string name, int binding);
@@ -244,15 +308,21 @@ public:
     bool set_uniform(std::string name, int count, glm::mat3* value);
     bool set_uniform(std::string name, int count, glm::mat4* value);
 
+    void set_name(const std::string& name);
+
+private:
+    Program(std::vector<Shader::Ptr> shaders);
+
 private:
     GLuint                                  m_gl_program;
     std::unordered_map<std::string, GLuint> m_location_map;
 };
 
-class Buffer
+class Buffer : public Object
 {
 public:
-    Buffer(GLenum type, GLenum usage, size_t size, void* data);
+    using Ptr = std::shared_ptr<Buffer>;
+
     virtual ~Buffer();
     void   bind();
     void   bind_base(int index);
@@ -263,6 +333,11 @@ public:
     void   unmap();
     void   set_data(size_t offset, size_t size, void* data);
     GLuint handle();
+
+    void set_name(const std::string& name);
+
+protected:
+    Buffer(GLenum type, GLenum usage, size_t size, void* data);
 
 protected:
     GLenum m_type;
@@ -278,30 +353,54 @@ protected:
 class VertexBuffer : public Buffer
 {
 public:
-    VertexBuffer(GLenum usage, size_t size, void* data = nullptr);
+    using Ptr = std::shared_ptr<VertexBuffer>;
+
+    static VertexBuffer::Ptr create(GLenum usage, size_t size, void* data = nullptr);
+
     ~VertexBuffer();
+
+private:
+    VertexBuffer(GLenum usage, size_t size, void* data = nullptr);
 };
 
 class IndexBuffer : public Buffer
 {
 public:
-    IndexBuffer(GLenum usage, size_t size, void* data = nullptr);
+    using Ptr = std::shared_ptr<IndexBuffer>;
+
+    static IndexBuffer::Ptr create(GLenum usage, size_t size, void* data = nullptr);
+
     ~IndexBuffer();
+
+private:
+    IndexBuffer(GLenum usage, size_t size, void* data = nullptr);
 };
 
 class UniformBuffer : public Buffer
 {
 public:
-    UniformBuffer(GLenum usage, size_t size, void* data = nullptr);
+    using Ptr = std::shared_ptr<UniformBuffer>;
+
+    static UniformBuffer::Ptr create(GLenum usage, size_t size, void* data = nullptr);
+
     ~UniformBuffer();
+
+private:
+    UniformBuffer(GLenum usage, size_t size, void* data = nullptr);
 };
 
 #    if !defined(__EMSCRIPTEN__)
 class ShaderStorageBuffer : public Buffer
 {
 public:
-    ShaderStorageBuffer(GLenum usage, size_t size, void* data = nullptr);
+    using Ptr = std::shared_ptr<ShaderStorageBuffer>;
+
+    static ShaderStorageBuffer::Ptr create(GLenum usage, size_t size, void* data = nullptr);
+
     ~ShaderStorageBuffer();
+
+private:
+    ShaderStorageBuffer(GLenum usage, size_t size, void* data = nullptr);
 };
 #    endif
 
@@ -313,19 +412,27 @@ struct VertexAttrib
     uint32_t offset;
 };
 
-class VertexArray
+class VertexArray : public Object
 {
 public:
-    VertexArray(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[]);
+    using Ptr = std::shared_ptr<VertexArray>;
+
+    static VertexArray::Ptr create(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[]);
+
     ~VertexArray();
     void bind();
     void unbind();
+
+    void set_name(const std::string& name);
+
+private:
+    VertexArray(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[]);
 
 private:
     GLuint m_gl_vao;
 };
 
-class Query
+class Query : public Object
 {
 public:
     Query();
@@ -335,6 +442,8 @@ public:
     void end(GLenum type);
     void result_64(uint64_t* ptr);
     bool result_available();
+
+    void set_name(const std::string& name);
 
 private:
     GLuint m_query;

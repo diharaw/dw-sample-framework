@@ -627,15 +627,15 @@ void Mesh::create_gpu_objects(
     m_vertex_input_state_desc.add_attribute_desc(4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex, bitangent));
 #else
     // Create vertex buffer.
-    m_vbo = std::make_unique<gl::VertexBuffer>(
-        GL_STATIC_DRAW, sizeof(Vertex) * m_vertex_count, m_vertices);
+    m_vbo = gl::VertexBuffer::create(
+        GL_STATIC_DRAW, sizeof(Vertex) * m_vertices.size(), m_vertices.data());
 
     if (!m_vbo)
         DW_LOG_ERROR("Failed to create Vertex Buffer");
 
     // Create index buffer.
-    m_ibo = std::make_unique<gl::IndexBuffer>(
-        GL_STATIC_DRAW, sizeof(uint32_t) * m_index_count, m_indices);
+    m_ibo = gl::IndexBuffer::create(
+        GL_STATIC_DRAW, sizeof(uint32_t) * m_indices.size(), m_indices.data());
 
     if (!m_ibo)
         DW_LOG_ERROR("Failed to create Index Buffer");
@@ -648,7 +648,7 @@ void Mesh::create_gpu_objects(
                                    { 4, GL_FLOAT, false, offsetof(Vertex, bitangent) } };
 
     // Create vertex array.
-    m_vao = std::make_unique<gl::VertexArray>(m_vbo.get(), m_ibo.get(), sizeof(Vertex), 5, attribs);
+    m_vao = gl::VertexArray::create(m_vbo.get(), m_ibo.get(), sizeof(Vertex), 5, attribs);
 
     if (!m_vao)
         DW_LOG_ERROR("Failed to create Vertex Array");

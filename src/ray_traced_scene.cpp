@@ -10,6 +10,7 @@
 #define MAX_MATERIAL_COUNT 1024
 #define MAX_INSTANCES 1024
 
+#if defined(DWSF_VULKAN)
 namespace dw
 {
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -351,7 +352,7 @@ void RayTracedScene::create_gpu_resources()
                         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
                         material_data.texture_indices0.z = image_descriptors.size();
-                        material_data.texture_indices1.z = mat->m_roughness_idx.y;
+                        material_data.texture_indices1.z = mat->roughness_idx().y;
 
                         image_descriptors.push_back(image_info);
                     }
@@ -365,7 +366,7 @@ void RayTracedScene::create_gpu_resources()
                         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
                         material_data.texture_indices0.w = image_descriptors.size();
-                        material_data.texture_indices1.w = mat->m_metallic_idx.y;
+                        material_data.texture_indices1.w = mat->metallic_idx().y;
 
                         image_descriptors.push_back(image_info);
                     }
@@ -587,3 +588,4 @@ void RayTracedScene::copy_tlas_data()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 } // namespace dw
+#endif

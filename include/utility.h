@@ -42,7 +42,7 @@ extern void change_current_working_directory(std::string path);
 
 #if !defined(DWSF_VULKAN)
 // Create compute program
-extern bool create_compute_program(const std::string& path, gl::Shader** shader, gl::Program** program, std::vector<std::string> defines = std::vector<std::string>());
+extern bool create_compute_program(const std::string& path, gl::Shader::Ptr& shader, gl::Program::Ptr& program, std::vector<std::string> defines = std::vector<std::string>());
 #endif
 
 } // namespace utility

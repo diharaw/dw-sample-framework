@@ -16,6 +16,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#if defined(DWSF_VULKAN)
+
 //#define ENABLE_GPU_ASSISTED_VALIDATION
 
 namespace dw
@@ -73,9 +75,9 @@ const char* get_vendor_name(uint32_t id)
     }
 }
 
-#define MAX_DESCRIPTOR_POOL_THREADS 32
-#define MAX_COMMAND_THREADS 32
-#define MAX_THREAD_LOCAL_COMMAND_BUFFERS 8
+#    define MAX_DESCRIPTOR_POOL_THREADS 32
+#    define MAX_COMMAND_THREADS 32
+#    define MAX_THREAD_LOCAL_COMMAND_BUFFERS 8
 
 struct ThreadLocalCommandBuffers
 {
@@ -3357,9 +3359,9 @@ Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require
         create_info.ppEnabledLayerNames = kValidationLayers.data();
 
         debug_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-#if defined(ENABLE_GPU_ASSISTED_VALIDATION)
+#    if defined(ENABLE_GPU_ASSISTED_VALIDATION)
         debug_create_info.pNext = &validation_features;
-#endif
+#    endif
         debug_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         debug_create_info.messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         debug_create_info.pfnUserCallback = debug_callback;
@@ -3389,28 +3391,32 @@ Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require
 
     std::vector<const char*> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-    device_extensions.push_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
-    device_extensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
-    device_extensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
-    device_extensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+    if (require_ray_tracing)
+    {
+        device_extensions.push_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
+        device_extensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+        device_extensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+        device_extensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+        device_extensions.push_back(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
+        device_extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+        device_extensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+    }
+
     device_extensions.push_back(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
     device_extensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
     device_extensions.push_back(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
     device_extensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
-    device_extensions.push_back(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
-    device_extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
-    device_extensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
 
     for (auto ext : additional_device_extensions)
         device_extensions.push_back(ext);
 
-    if (!find_physical_device(device_extensions))
+    if (!find_physical_device(device_extensions, require_ray_tracing))
     {
         DW_LOG_FATAL("(Vulkan) Failed to find a suitable GPU.");
         throw std::runtime_error("(Vulkan) Failed to find a suitable GPU.");
     }
 
-    if (!create_logical_device(device_extensions))
+    if (!create_logical_device(device_extensions, require_ray_tracing))
     {
         DW_LOG_FATAL("(Vulkan) Failed to create logical device.");
         throw std::runtime_error("(Vulkan) Failed to create logical device.");
@@ -4186,7 +4192,7 @@ bool Backend::create_surface(GLFWwindow* window)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool Backend::find_physical_device(std::vector<const char*> extensions)
+bool Backend::find_physical_device(std::vector<const char*> extensions, bool require_ray_tracing)
 {
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(m_vk_instance, &device_count, nullptr);
@@ -4207,7 +4213,7 @@ bool Backend::find_physical_device(std::vector<const char*> extensions)
         QueueInfos              infos;
         SwapChainSupportDetails details;
 
-        if (is_device_suitable(device, VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU, infos, details, extensions))
+        if (is_device_suitable(device, VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU, infos, details, extensions, require_ray_tracing))
         {
             m_vk_physical_device = device;
             m_selected_queues    = infos;
@@ -4222,7 +4228,7 @@ bool Backend::find_physical_device(std::vector<const char*> extensions)
         QueueInfos              infos;
         SwapChainSupportDetails details;
 
-        if (is_device_suitable(device, VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU, infos, details, extensions))
+        if (is_device_suitable(device, VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU, infos, details, extensions, require_ray_tracing))
         {
             m_vk_physical_device = device;
             m_selected_queues    = infos;
@@ -4236,22 +4242,11 @@ bool Backend::find_physical_device(std::vector<const char*> extensions)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool Backend::is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType type, QueueInfos& infos, SwapChainSupportDetails& details, std::vector<const char*> extensions)
+bool Backend::is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType type, QueueInfos& infos, SwapChainSupportDetails& details, std::vector<const char*> extensions, bool require_ray_tracing)
 {
     vkGetPhysicalDeviceProperties(device, &m_device_properties);
 
     uint32_t vendorId = m_device_properties.vendorID;
-
-    bool requires_ray_tracing = false;
-
-    for (auto& ext : extensions)
-    {
-        if (strcmp(ext, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) == 0)
-        {
-            requires_ray_tracing = true;
-            break;
-        }
-    }
 
     if (m_device_properties.deviceType == type)
     {
@@ -4265,7 +4260,7 @@ bool Backend::is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType t
             DW_LOG_INFO("(Vulkan) Type   : " + std::string(kDeviceTypes[m_device_properties.deviceType]));
             DW_LOG_INFO("(Vulkan) Driver : " + std::to_string(m_device_properties.driverVersion));
 
-            if (requires_ray_tracing)
+            if (require_ray_tracing)
             {
                 // Get ray tracing pipeline properties
                 DW_ZERO_MEMORY(m_ray_tracing_pipeline_properties);
@@ -4496,7 +4491,7 @@ bool Backend::is_queue_compatible(VkQueueFlags current_queue_flags, int32_t grap
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool Backend::create_logical_device(std::vector<const char*> extensions)
+bool Backend::create_logical_device(std::vector<const char*> extensions, bool require_ray_tracing)
 {
     // Acceleration Structure Features
     VkPhysicalDeviceAccelerationStructureFeaturesKHR device_acceleration_structure_features;
@@ -4525,7 +4520,9 @@ bool Backend::create_logical_device(std::vector<const char*> extensions)
     features11.pNext = &features12;
 
     features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    features12.pNext = &device_ray_tracing_pipeline_features;
+
+    if (require_ray_tracing)
+        features12.pNext = &device_ray_tracing_pipeline_features;
 
     // Physical Device Features 2
     VkPhysicalDeviceFeatures2 physical_device_features_2;
@@ -5018,3 +5015,5 @@ void set_object_name(VkDevice device, uint64_t object, std::string name, VkObjec
 // -----------------------------------------------------------------------------------------------------------------------------------
 } // namespace vk
 } // namespace dw
+
+#endif

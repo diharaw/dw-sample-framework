@@ -71,8 +71,6 @@ protected:
             // Update uniforms.
             update_uniforms(cmd_buf);
 
-            ImGui::ShowDemoWindow();
-
             // Render.
             render(cmd_buf);
         }
@@ -158,7 +156,7 @@ private:
 
         buffer_info.buffer = m_ubo->handle();
         buffer_info.offset = 0;
-        buffer_info.range  = sizeof(glm::mat4);
+        buffer_info.range  = VK_WHOLE_SIZE;
 
         VkWriteDescriptorSet write_data;
         DW_ZERO_MEMORY(write_data);
@@ -283,7 +281,7 @@ private:
         dw::vk::PipelineLayout::Desc pl_desc;
 
         pl_desc.add_descriptor_set_layout(m_per_frame_ds_layout)
-            .add_descriptor_set_layout(dw::Material::pbr_descriptor_set_layout());
+            .add_descriptor_set_layout(dw::Material::descriptor_set_layout());
 
         m_pipeline_layout = dw::vk::PipelineLayout::create(m_vk_backend, pl_desc);
 
@@ -380,12 +378,14 @@ private:
         vkCmdBindVertexBuffers(cmd_buf->handle(), 0, 1, &m_mesh->vertex_buffer()->handle(), &offset);
         vkCmdBindIndexBuffer(cmd_buf->handle(), m_mesh->index_buffer()->handle(), 0, VK_INDEX_TYPE_UINT32);
 
-        for (uint32_t i = 0; i < m_mesh->sub_mesh_count(); i++)
+        const auto& submeshes = m_mesh->sub_meshes();
+
+        for (uint32_t i = 0; i < submeshes.size(); i++)
         {
-            auto& submesh = m_mesh->sub_meshes()[i];
+            auto& submesh = submeshes[i];
             auto& mat     = m_mesh->material(submesh.mat_idx);
 
-            vkCmdBindDescriptorSets(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline_layout->handle(), 1, 1, &mat->pbr_descriptor_set()->handle(), 0, nullptr);
+            vkCmdBindDescriptorSets(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline_layout->handle(), 1, 1, &mat->descriptor_set()->handle(), 0, nullptr);
 
             // Issue draw call.
             vkCmdDrawIndexed(cmd_buf->handle(), submesh.index_count, 1, submesh.base_index, submesh.base_vertex, 0);

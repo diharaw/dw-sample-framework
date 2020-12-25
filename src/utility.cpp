@@ -271,13 +271,13 @@ bool preprocess_shader(const std::string& path, const std::string& src, std::str
 
 #if !defined(DWSF_VULKAN)
 
-bool create_compute_program(const std::string& path, gl::Shader** shader, gl::Program** program, std::vector<std::string> defines)
+bool create_compute_program(const std::string& path, gl::Shader::Ptr& shader, gl::Program::Ptr& program, std::vector<std::string> defines)
 {
-    shader[0] = gl::Shader::create_from_file(GL_COMPUTE_SHADER, path, defines);
+    shader = gl::Shader::create_from_file(GL_COMPUTE_SHADER, path, defines);
 
-    if (shader[0] && shader[0]->compiled())
+    if (shader && shader->compiled())
     {
-        program[0] = new gl::Program(1, shader);
+        program = gl::Program::create({ shader });
         return true;
     }
     else

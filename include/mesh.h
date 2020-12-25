@@ -144,9 +144,9 @@ private:
     vk::Buffer::Ptr                      m_ibo;
     vk::VertexInputStateDesc             m_vertex_input_state_desc;
 #else
-    std::unique_ptr<gl::VertexArray>  m_vao = nullptr;
-    std::unique_ptr<gl::VertexBuffer> m_vbo = nullptr;
-    std::unique_ptr<gl::IndexBuffer>  m_ibo = nullptr;
+    gl::VertexArray::Ptr  m_vao = nullptr;
+    gl::VertexBuffer::Ptr m_vbo = nullptr;
+    gl::IndexBuffer::Ptr  m_ibo = nullptr;
 #endif
 };
 } // namespace dw

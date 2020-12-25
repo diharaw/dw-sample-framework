@@ -962,8 +962,8 @@ bool DebugDraw::init(
     return true;
 #else
     // Create shaders
-    m_line_vs = std::make_unique<gl::Shader>(GL_VERTEX_SHADER, g_vs_src);
-    m_line_fs = std::make_unique<gl::Shader>(GL_FRAGMENT_SHADER, g_fs_src);
+    m_line_vs = gl::Shader::create(GL_VERTEX_SHADER, g_vs_src);
+    m_line_fs = gl::Shader::create(GL_FRAGMENT_SHADER, g_fs_src);
 
     if (!m_line_vs || !m_line_fs)
     {
@@ -972,15 +972,13 @@ bool DebugDraw::init(
     }
 
     // Create shader program
-    gl::Shader* shaders[] = { m_line_vs.get(), m_line_fs.get() };
-    m_line_program        = std::make_unique<gl::Program>(2, shaders);
+    m_line_program = gl::Program::create({ m_line_vs, m_line_fs });
 
     // Bind uniform block index
     m_line_program->uniform_block_binding("CameraUniforms", 0);
 
     // Create vertex buffer
-    m_line_vbo = std::make_unique<gl::VertexBuffer>(
-        GL_DYNAMIC_DRAW, sizeof(VertexWorld) * MAX_VERTICES);
+    m_line_vbo = gl::VertexBuffer::create(GL_DYNAMIC_DRAW, sizeof(VertexWorld) * MAX_VERTICES);
 
     // Declare vertex attributes
     gl::VertexAttrib attribs[] = { { 3, GL_FLOAT, false, 0 },
@@ -988,7 +986,7 @@ bool DebugDraw::init(
                                    { 3, GL_FLOAT, false, sizeof(float) * 5 } };
 
     // Create vertex array
-    m_line_vao = std::make_unique<gl::VertexArray>(m_line_vbo.get(), nullptr, sizeof(float) * 8, 3, attribs);
+    m_line_vao = gl::VertexArray::create(m_line_vbo.get(), nullptr, sizeof(float) * 8, 3, attribs);
 
     if (!m_line_vao || !m_line_vbo)
     {
@@ -997,7 +995,7 @@ bool DebugDraw::init(
     }
 
     // Create uniform buffer for matrix data
-    m_ubo = std::make_unique<gl::UniformBuffer>(GL_DYNAMIC_DRAW, sizeof(CameraUniforms));
+    m_ubo = gl::UniformBuffer::create(GL_DYNAMIC_DRAW, sizeof(CameraUniforms));
 
     return true;
 #endif
@@ -1564,7 +1562,7 @@ void DebugDraw::render(vk::Backend::Ptr backend, vk::CommandBuffer::Ptr cmd_buff
     }
 }
 #else
-void DebugDraw::render(gl::Framebuffer* fbo, int width, int height, const glm::mat4& view_proj, const glm::vec3& view_pos)
+void DebugDraw::render(gl::Framebuffer::Ptr fbo, int width, int height, const glm::mat4& view_proj, const glm::vec3& view_pos)
 {
     if (m_world_vertices.size() > 0)
     {

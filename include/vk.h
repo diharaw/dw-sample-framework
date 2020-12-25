@@ -7,6 +7,8 @@
 #include <stack>
 #include <deque>
 
+#if defined(DWSF_VULKAN)
+
 struct GLFWwindow;
 struct VmaAllocator_T;
 struct VmaAllocation_T;
@@ -146,11 +148,11 @@ private:
     VkResult                 create_debug_utils_messenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
     void                     destroy_debug_utils_messenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
     bool                     create_surface(GLFWwindow* window);
-    bool                     find_physical_device(std::vector<const char*> extensions);
-    bool                     is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType type, QueueInfos& infos, SwapChainSupportDetails& details, std::vector<const char*> extensions);
+    bool                     find_physical_device(std::vector<const char*> extensions, bool require_ray_tracing);
+    bool                     is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType type, QueueInfos& infos, SwapChainSupportDetails& details, std::vector<const char*> extensions, bool require_ray_tracing);
     bool                     find_queues(VkPhysicalDevice device, QueueInfos& infos);
     bool                     is_queue_compatible(VkQueueFlags current_queue_flags, int32_t graphics, int32_t compute, int32_t transfer);
-    bool                     create_logical_device(std::vector<const char*> extensions);
+    bool                     create_logical_device(std::vector<const char*> extensions, bool require_ray_tracing);
     bool                     create_swapchain();
     void                     create_render_pass();
     VkSurfaceFormatKHR       choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats);
@@ -1076,3 +1078,5 @@ inline uint32_t aligned_size(uint32_t value, uint32_t alignment) { return (value
 
 } // namespace vk
 } // namespace dw
+
+#endif

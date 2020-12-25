@@ -95,7 +95,7 @@ public:
 #if defined(DWSF_VULKAN)
     void render(vk::Backend::Ptr backend, vk::CommandBuffer::Ptr cmd_buffer, int width, int height, const glm::mat4& view_proj, const glm::vec3& view_pos);
 #else
-    void                               render(gl::Framebuffer* fbo, int width, int height, const glm::mat4& view_proj, const glm::vec3& view_pos);
+    void                               render(gl::Framebuffer::Ptr fbo, int width, int height, const glm::mat4& view_proj, const glm::vec3& view_pos);
 #endif
 
 #if defined(DWSF_VULKAN)
@@ -144,12 +144,12 @@ private:
     vk::GraphicsPipeline::Ptr    m_line_strip_depth_pipeline;
     vk::GraphicsPipeline::Ptr    m_line_strip_no_depth_pipeline;
 #else
-    std::unique_ptr<gl::VertexArray>   m_line_vao;
-    std::unique_ptr<gl::VertexBuffer>  m_line_vbo;
-    std::unique_ptr<gl::Shader>        m_line_vs;
-    std::unique_ptr<gl::Shader>        m_line_fs;
-    std::unique_ptr<gl::Program>       m_line_program;
-    std::unique_ptr<gl::UniformBuffer> m_ubo;
+    gl::VertexArray::Ptr   m_line_vao;
+    gl::VertexBuffer::Ptr              m_line_vbo;
+    gl::Shader::Ptr        m_line_vs;
+    gl::Shader::Ptr        m_line_fs;
+    gl::Program::Ptr                   m_line_program;
+    gl::UniformBuffer::Ptr             m_ubo;
 #endif
 };
 } // namespace dw
