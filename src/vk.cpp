@@ -411,12 +411,8 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size,
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Image::generate_mipmaps(VkImageLayout src_layout, VkImageLayout dst_layout)
+void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayout src_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VkImageLayout dst_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 {
-    auto backend = m_vk_backend.lock();
-
-    CommandBuffer::Ptr cmd_buf = backend->allocate_graphics_command_buffer(true);
-
     VkImageSubresourceRange subresource_range;
     DW_ZERO_MEMORY(subresource_range);
 
@@ -486,6 +482,17 @@ void Image::generate_mipmaps(VkImageLayout src_layout, VkImageLayout dst_layout)
                                     dst_layout,
                                     subresource_range);
     }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Image::generate_mipmaps(VkImageLayout src_layout, VkImageLayout dst_layout)
+{
+    auto backend = m_vk_backend.lock();
+
+    CommandBuffer::Ptr cmd_buf = backend->allocate_graphics_command_buffer(true);
+
+    generate_mipmaps(cmd_buf, src_layout, dst_layout);
 
     vkEndCommandBuffer(cmd_buf->handle());
 

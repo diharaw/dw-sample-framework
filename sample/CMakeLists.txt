@@ -10,7 +10,15 @@ endif()
 if (USE_VULKAN)
     add_definitions(-DDWSF_VULKAN)
 
-    set(DWSFW_VK_SAMPLE_SOURCE main_vk.cpp)
+    set(DWSFW_VK_SAMPLE_SOURCE main_vk.cpp
+    ${PROJECT_SOURCE_DIR}/extras/brdf_preintegrate_lut.h
+    ${PROJECT_SOURCE_DIR}/extras/brdf_preintegrate_lut.cpp
+    ${PROJECT_SOURCE_DIR}/extras/cubemap_prefilter.h
+    ${PROJECT_SOURCE_DIR}/extras/cubemap_prefilter.cpp
+    ${PROJECT_SOURCE_DIR}/extras/cubemap_sh_projection.h
+    ${PROJECT_SOURCE_DIR}/extras/cubemap_sh_projection.cpp
+    ${PROJECT_SOURCE_DIR}/extras/hosek_wilkie_sky_model.h
+    ${PROJECT_SOURCE_DIR}/extras/hosek_wilkie_sky_model.cpp)
     set(DWSFW_VK_RAY_TRACING_SAMPLE_SOURCE main_vk_rt.cpp)
 
     if (${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "AMD64")
