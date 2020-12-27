@@ -986,7 +986,7 @@ bool DebugDraw::init(
                                    { 3, GL_FLOAT, false, sizeof(float) * 5 } };
 
     // Create vertex array
-    m_line_vao = gl::VertexArray::create(m_line_vbo.get(), nullptr, sizeof(float) * 8, 3, attribs);
+    m_line_vao = gl::VertexArray::create(m_line_vbo, nullptr, sizeof(float) * 8, 3, attribs);
 
     if (!m_line_vao || !m_line_vbo)
     {

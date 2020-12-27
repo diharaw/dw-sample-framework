@@ -5,6 +5,7 @@
 #include <glm.hpp>
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <logger.h>
 
 #define PREFILTER_MAP_SIZE 256
 #define PREFILTER_MIP_LEVELS 5
@@ -15,6 +16,7 @@ namespace dw
 {
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+#if defined(DWSF_VULKAN)
 static const unsigned int kPREFILTER_SPIRV_size           = 9304;
 static const unsigned int kPREFILTER_SPIRV_data[9304 / 4] = {
     0x07230203,
@@ -2344,6 +2346,188 @@ static const unsigned int kPREFILTER_SPIRV_data[9304 / 4] = {
     0x000000a8,
     0x00010038,
 };
+#else
+static const char* g_cs_src = R"(
+// ------------------------------------------------------------------
+// CONSTANTS --------------------------------------------------------
+// ------------------------------------------------------------------
+
+#define LOCAL_SIZE 8
+#define POS_X 0
+#define NEG_X 1
+#define POS_Y 2
+#define NEG_Y 3
+#define POS_Z 4
+#define NEG_Z 5
+#define PI 3.14159265359
+#define MAX_SAMPLES 64
+
+// ------------------------------------------------------------------
+// INPUTS -----------------------------------------------------------
+// ------------------------------------------------------------------
+
+layout(local_size_x = LOCAL_SIZE, local_size_y = LOCAL_SIZE, local_size_z = 1) in;
+
+// ------------------------------------------------------------------
+// OUTPUTS ----------------------------------------------------------
+// ------------------------------------------------------------------
+
+layout(binding = 0, rgba16f) uniform imageCube i_Prefiltered;
+
+// ------------------------------------------------------------------
+// UNIFORM BUFFERS --------------------------------------------------
+// ------------------------------------------------------------------
+
+layout(std140) uniform u_SampleDirections
+{
+    vec4 sample_directions[MAX_SAMPLES];
+};
+
+// ------------------------------------------------------------------
+// SAMPLERS ---------------------------------------------------------
+// ------------------------------------------------------------------
+
+uniform samplerCube s_EnvMap;
+uniform float       u_Roughness;
+uniform float       u_Width;
+uniform float       u_Height;
+uniform int         u_StartMipLevel;
+uniform int         u_SampleCount;
+
+// ------------------------------------------------------------------
+// FUNCTIONS --------------------------------------------------------
+// ------------------------------------------------------------------
+
+float unlerp(float val, float max_val)
+{
+    return (val + 0.5) / max_val;
+}
+
+// ------------------------------------------------------------------
+
+vec3 calculate_direction(uint face, uint face_x, uint face_y)
+{
+    float s = unlerp(float(face_x), u_Width) * 2.0 - 1.0;
+    float t = unlerp(float(face_y), u_Height) * 2.0 - 1.0;
+    float x, y, z;
+
+    switch (face)
+    {
+        case POS_Z:
+            x = s;
+            y = -t;
+            z = 1;
+            break;
+        case NEG_Z:
+            x = -s;
+            y = -t;
+            z = -1;
+            break;
+        case NEG_X:
+            x = -1;
+            y = -t;
+            z = s;
+            break;
+        case POS_X:
+            x = 1;
+            y = -t;
+            z = -s;
+            break;
+        case POS_Y:
+            x = s;
+            y = 1;
+            z = t;
+            break;
+        case NEG_Y:
+            x = s;
+            y = -1;
+            z = -t;
+            break;
+    }
+
+    vec3  d;
+    float inv_len = 1.0 / sqrt(x * x + y * y + z * z);
+    d.x           = x * inv_len;
+    d.y           = y * inv_len;
+    d.z           = z * inv_len;
+
+    return d;
+}
+
+// ----------------------------------------------------------------------------
+
+float distribution_ggx(vec3 N, vec3 H, float roughness)
+{
+    float a      = roughness * roughness;
+    float a2     = a * a;
+    float NdotH  = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH * NdotH;
+
+    float nom   = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom       = PI * denom * denom;
+
+    return nom / denom;
+}
+
+// ------------------------------------------------------------------
+// MAIN -------------------------------------------------------------
+// ------------------------------------------------------------------
+
+void main()
+{
+    vec3 N = calculate_direction(gl_GlobalInvocationID.z, gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
+
+    // make the simplyfying assumption that V equals R equals the normal
+    vec3  R          = N;
+    vec3  V          = R;
+    ivec2 size       = textureSize(s_EnvMap, u_StartMipLevel);
+    float resolution = float(size.x);
+
+    vec3  prefiltered_color = vec3(0.0);
+    float total_weight      = 0.0;
+
+    // Compute a matrix to rotate the samples
+    vec3 up        = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+    vec3 tangent   = normalize(cross(up, N));
+    vec3 bitangent = cross(N, tangent);
+
+    mat3 tangent_to_world = mat3(tangent, bitangent, N);
+
+    for (uint i = 0u; i < u_SampleCount; ++i)
+    {
+        // generates a sample vector that's biased towards the preferred alignment direction (importance sampling).
+        vec3 H = tangent_to_world * sample_directions[i].xyz;
+        vec3 L = normalize(2.0 * dot(V, H) * H - V);
+
+        float NdotL = max(dot(N, L), 0.0);
+
+        if (NdotL > 0.0)
+        {
+            // sample from the environment's mip level based on roughness/pdf
+            float D     = distribution_ggx(N, H, u_Roughness);
+            float NdotH = max(dot(N, H), 0.0);
+            float HdotV = max(dot(H, V), 0.0);
+            float pdf   = D * NdotH / (4.0 * HdotV) + 0.0001;
+
+            float sa_texel  = 4.0 * PI / (6.0 * resolution * resolution);
+            float sa_sample = 1.0 / (float(u_SampleCount) * pdf + 0.0001);
+
+            float mip_level = u_Roughness == 0.0 ? 0.0 : 0.5 * log2(sa_sample / sa_texel);
+
+            prefiltered_color += textureLod(s_EnvMap, L, u_StartMipLevel + mip_level).rgb * NdotL;
+            total_weight += NdotL;
+        }
+    }
+
+    prefiltered_color = prefiltered_color / total_weight;
+
+    imageStore(i_Prefiltered, ivec3(gl_GlobalInvocationID), vec4(prefiltered_color, 1.0));
+}
+
+// ------------------------------------------------------------------
+)";
+#endif
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -2380,12 +2564,17 @@ CubemapPrefiler::CubemapPrefiler(
 #if defined(DWSF_VULKAN)
     vk::Backend::Ptr backend,
     vk::Image::Ptr   cubemap
+#else
+    gl::TextureCube::Ptr cubemap
 #endif
-    )
+    ) 
+#if !defined(DWSF_VULKAN)
+    : m_cubemap(cubemap)
+#endif
 {
-#if defined(DWSF_VULKAN)
     m_size = cubemap->width();
 
+#if defined(DWSF_VULKAN)
     // Create images and image views
     m_cubemap_image_view = vk::ImageView::create(backend, cubemap, VK_IMAGE_VIEW_TYPE_CUBE, VK_IMAGE_ASPECT_COLOR_BIT, 0, cubemap->mip_levels(), 0, 6);
     m_cubemap_image_view->set_name("Prefiltered Src Image");
@@ -2498,10 +2687,33 @@ CubemapPrefiler::CubemapPrefiler(
     comp_desc.set_pipeline_layout(m_pipeline_layout);
     comp_desc.set_shader_stage(module, "main");
 
-    m_pipeline = dw::vk::ComputePipeline::create(backend, comp_desc);
+    m_pipeline = vk::ComputePipeline::create(backend, comp_desc);
 
 #else
+    m_texture = gl::TextureCube::create(PREFILTER_MAP_SIZE, PREFILTER_MAP_SIZE, 1, PREFILTER_MIP_LEVELS, GL_RGBA16F, GL_RGBA, GL_HALF_FLOAT);
 
+    m_sample_directions_ubos.resize(PREFILTER_MIP_LEVELS);
+
+    for (int i = 0; i < PREFILTER_MIP_LEVELS; i++)
+        m_sample_directions_ubos[i] = gl::UniformBuffer::create(GL_DYNAMIC_DRAW, sizeof(glm::vec4) * MAX_PREFILTER_SAMPLES);
+
+    precompute_prefilter_constants();
+
+    // Create general shaders
+    m_cs = gl::Shader::create(GL_COMPUTE_SHADER, g_cs_src);
+
+    if (!m_cs->compiled())
+        DW_LOG_FATAL("Failed to create Shaders");
+
+    // Create general shader program
+    m_program = gl::Program::create({ m_cs });
+
+    if (!m_program)
+        DW_LOG_FATAL("Failed to create Shader Program");
+
+    m_program->uniform_block_binding("u_SampleDirections", 0);
+
+    
 #endif
 }
 
@@ -2509,6 +2721,23 @@ CubemapPrefiler::CubemapPrefiler(
 
 CubemapPrefiler::~CubemapPrefiler()
 {
+#if defined(DWSF_VULKAN)
+    m_pipeline.reset();
+    m_pipeline_layout.reset();
+    m_ds_layout.reset();
+    m_ds.clear();
+    m_cubemap_image_view.reset();
+    m_image_view.reset();
+    m_mip_image_views.clear();
+    m_image.reset();
+    m_sample_directions_ubos.clear();
+#else
+    m_program.reset();
+    m_cs.reset();
+    m_cubemap.reset();
+    m_texture.reset();
+    m_sample_directions_ubos.clear();
+#endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2560,28 +2789,28 @@ void CubemapPrefiler::update(
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         subresource_range);
 #else
-    m_prefilter_program->use();
+    m_program->use();
 
-    if (m_prefilter_program->set_uniform("s_EnvMap", 1))
-        m_env_cubemap->bind(1);
+    if (m_program->set_uniform("s_EnvMap", 1))
+        m_cubemap->bind(1);
 
-    int32_t start_level = (ENVIRONMENT_MAP_SIZE / PREFILTER_MAP_SIZE) - 1;
-    m_prefilter_program->set_uniform("u_StartMipLevel", start_level);
+    int32_t start_level = (m_size / PREFILTER_MAP_SIZE) - 1;
+    m_program->set_uniform("u_StartMipLevel", start_level);
 
     for (int mip = 0; mip < PREFILTER_MIP_LEVELS; mip++)
     {
-        m_sample_directions[mip]->bind_base(0);
+        m_sample_directions_ubos[mip]->bind_base(0);
 
         uint32_t mip_width  = PREFILTER_MAP_SIZE * std::pow(0.5, mip);
         uint32_t mip_height = PREFILTER_MAP_SIZE * std::pow(0.5, mip);
 
         float roughness = (float)mip / (float)(PREFILTER_MIP_LEVELS - 1);
-        m_prefilter_program->set_uniform("u_Roughness", roughness);
-        m_prefilter_program->set_uniform("u_SampleCount", m_sample_count);
-        m_prefilter_program->set_uniform("u_Width", float(mip_width));
-        m_prefilter_program->set_uniform("u_Height", float(mip_height));
+        m_program->set_uniform("u_Roughness", roughness);
+        m_program->set_uniform("u_SampleCount", m_sample_count);
+        m_program->set_uniform("u_Width", float(mip_width));
+        m_program->set_uniform("u_Height", float(mip_height));
 
-        m_prefilter_cubemap->bind_image(0, mip, 0, GL_WRITE_ONLY, GL_RGBA16F);
+        m_texture->bind_image(0, mip, 0, GL_WRITE_ONLY, GL_RGBA16F);
 
         glDispatchCompute(mip_width / PREFILTER_WORK_GROUP_SIZE, mip_height / PREFILTER_WORK_GROUP_SIZE, 6);
     }
@@ -2642,9 +2871,14 @@ void CubemapPrefiler::precompute_prefilter_constants()
         }
 
 #if defined(DWSF_VULKAN)
-        memcpy(m_sample_directions_ubos[mip]->mapped_ptr(), samples.data(), sizeof(glm::vec4) * m_sample_count);
+        void* mapped_ptr = m_sample_directions_ubos[mip]->mapped_ptr();
 #else
+        void* mapped_ptr = m_sample_directions_ubos[mip]->map(GL_WRITE_ONLY);
+#endif
+        memcpy(mapped_ptr, samples.data(), sizeof(glm::vec4) * m_sample_count);
 
+#if !defined(DWSF_VULKAN)
+        m_sample_directions_ubos[mip]->unmap();
 #endif
     }
 }

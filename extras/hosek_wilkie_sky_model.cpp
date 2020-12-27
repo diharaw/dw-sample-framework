@@ -21,6 +21,7 @@ namespace dw
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+#if defined(DWSF_VULKAN)
 static const unsigned int kSKY_MODEL_VERT_SPIRV_size           = 1912;
 static const unsigned int kSKY_MODEL_VERT_SPIRV_data[1912 / 4] = {
     0x07230203,
@@ -1634,6 +1635,98 @@ static const unsigned int kSKY_MODEL_FRAG_SPIRV_data[4500 / 4] = {
     0x00010038,
 };
 
+#else
+static const char* g_vs_src = R"(
+// ------------------------------------------------------------------
+// INPUTS -----------------------------------------------------------
+// ------------------------------------------------------------------
+
+layout (location = 0) in vec3 VS_IN_Position;
+layout (location = 1) in vec3 VS_IN_Normal;
+layout (location = 2) in vec3 VS_IN_TexCoord;
+
+// ------------------------------------------------------------------
+// OUTPUTS ----------------------------------------------------------
+// ------------------------------------------------------------------
+
+out vec3 FS_IN_Position;
+
+// ------------------------------------------------------------------
+// UNIFORMS ---------------------------------------------------------
+// ------------------------------------------------------------------
+
+uniform mat4 u_ViewProj;
+
+// ------------------------------------------------------------------
+// MAIN -------------------------------------------------------------
+// ------------------------------------------------------------------
+
+void main()
+{
+    FS_IN_Position = VS_IN_Position;
+    gl_Position = u_ViewProj * vec4(VS_IN_Position, 1.0f);
+}
+
+// ------------------------------------------------------------------
+)";
+
+static const char* g_fs_src = R"(
+// ------------------------------------------------------------------
+// INPUTS -----------------------------------------------------------
+// ------------------------------------------------------------------
+
+in vec3 FS_IN_Position;
+
+// ------------------------------------------------------------------
+// OUTPUTS ----------------------------------------------------------
+// ------------------------------------------------------------------
+
+out vec4 FS_OUT_Color;
+
+// ------------------------------------------------------------------
+// PUSH CONSTANTS ---------------------------------------------------
+// ------------------------------------------------------------------
+
+uniform vec3 u_Direction;
+uniform vec3 A, B, C, D, E, F, G, H, I, Z;
+
+// ------------------------------------------------------------------
+// FUNCTIONS --------------------------------------------------------
+// ------------------------------------------------------------------
+
+vec3 hosek_wilkie(float cos_theta, float gamma, float cos_gamma)
+{
+	vec3 chi = (1 + cos_gamma * cos_gamma) / pow(1 + H.xyz * H.xyz - 2 * cos_gamma * H.xyz, vec3(1.5));
+    return (1 + A.xyz * exp(B.xyz / (cos_theta + 0.01))) * (C.xyz + D.xyz * exp(E.xyz * gamma) + F.xyz * (cos_gamma * cos_gamma) + G.xyz * chi + I.xyz * sqrt(cos_theta));
+}
+
+// ------------------------------------------------------------------
+
+vec3 hosek_wilkie_sky_rgb(vec3 v, vec3 sun_dir)
+{
+    float cos_theta = clamp(v.y, 0, 1);
+	float cos_gamma = clamp(dot(v, sun_dir), 0, 1);
+	float gamma_ = acos(cos_gamma);
+
+	vec3 R = Z.xyz * hosek_wilkie(cos_theta, gamma_, cos_gamma);
+    return R;
+}
+
+// ------------------------------------------------------------------
+// MAIN -------------------------------------------------------------
+// ------------------------------------------------------------------
+
+void main()
+{
+    vec3 direction = normalize(FS_IN_Position);
+
+    FS_OUT_Color = vec4(hosek_wilkie_sky_rgb(direction, u_Direction), 1.0f);
+}
+
+// ------------------------------------------------------------------
+)";
+#endif
+
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 struct HosekWilkieUBO
@@ -2270,6 +2363,42 @@ HosekWilkieSkyModel::HosekWilkieSkyModel(
     m_cubemap_pipeline = vk::GraphicsPipeline::create(backend, pso_desc);
 
 #else
+    m_cubemap = gl::TextureCube::create(SKY_CUBEMAP_SIZE, SKY_CUBEMAP_SIZE, 1, 1, GL_RGB16F, GL_RGB, GL_HALF_FLOAT);
+    m_depth   = gl::Texture2D::create(SKY_CUBEMAP_SIZE, SKY_CUBEMAP_SIZE, 1, 1, 1, GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT);
+
+    for (int i = 0; i < 6; i++)
+    {
+        m_fbos.push_back(gl::Framebuffer::create());
+        m_fbos[i]->attach_render_target(0, m_cubemap, i, 0, 0, true, true);
+        m_fbos[i]->attach_depth_stencil_target(m_depth, 0, 0);
+    }
+
+    m_vs = gl::Shader::create(GL_VERTEX_SHADER, g_vs_src);
+    m_fs = gl::Shader::create(GL_FRAGMENT_SHADER, g_fs_src);
+
+    if (!m_vs->compiled() || !m_fs->compiled())
+        DW_LOG_FATAL("Failed to create Shaders");
+
+    // Create general shader program
+    m_program = gl::Program::create({ m_vs, m_fs });
+
+    if (!m_program)
+        DW_LOG_FATAL("Failed to create Shader Program");
+
+    m_vbo = gl::VertexBuffer::create(GL_STATIC_DRAW, sizeof(cube_vertices), cube_vertices);
+
+    if (!m_vbo)
+        DW_LOG_ERROR("Failed to create Vertex Buffer");
+
+    // Declare vertex attributes.
+    gl::VertexAttrib attribs[] = {
+        { 3, GL_FLOAT, false, 0 },
+        { 3, GL_FLOAT, false, (3 * sizeof(float)) },
+        { 2, GL_FLOAT, false, (6 * sizeof(float)) }
+    };
+
+    // Create vertex array.
+    m_vao = gl::VertexArray::create(m_vbo, nullptr, (8 * sizeof(float)), 3, attribs);
 
 #endif
 }
@@ -2291,16 +2420,30 @@ HosekWilkieSkyModel::~HosekWilkieSkyModel()
     m_cubemap_image.reset();
 
 #else
-
-
+    m_program.reset();
+    m_vs.reset();
+    m_fs.reset();
+    m_fbos.clear();
+    m_cubemap.reset();
+    m_depth.reset();
+    m_vao.reset();
+    m_vbo.reset();
 #endif
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void HosekWilkieSkyModel::update(vk::CommandBuffer::Ptr cmd_buf, glm::vec3 direction)
+void HosekWilkieSkyModel::update(
+#if defined(DWSF_VULKAN)      
+    vk::CommandBuffer::Ptr cmd_buf, 
+#endif    
+    glm::vec3 direction)
 {
+#if defined(DWSF_VULKAN)   
     DW_SCOPED_SAMPLE("Procedural Sky", cmd_buf);
+#else
+    DW_SCOPED_SAMPLE("Procedural Sky");
+#endif
 
     const float sunTheta = std::acos(glm::clamp(direction.y, 0.f, 1.f));
 
@@ -2406,7 +2549,34 @@ void HosekWilkieSkyModel::update(vk::CommandBuffer::Ptr cmd_buf, glm::vec3 direc
         vkCmdEndRenderPass(cmd_buf->handle());
     }
 #else
+    m_program->use();
 
+    m_program->set_uniform("u_Direction", direction);
+    m_program->set_uniform("A", A);
+    m_program->set_uniform("B", B);
+    m_program->set_uniform("C", C);
+    m_program->set_uniform("D", D);
+    m_program->set_uniform("E", E);
+    m_program->set_uniform("F", F);
+    m_program->set_uniform("G", G);
+    m_program->set_uniform("H", H);
+    m_program->set_uniform("I", I);
+    m_program->set_uniform("Z", Z);
+
+    for (int i = 0; i < 6; i++)
+    {
+        m_program->set_uniform("u_ViewProj", m_view_projection_mats[i]);
+
+        m_fbos[i]->bind();
+        glViewport(0, 0, SKY_CUBEMAP_SIZE, SKY_CUBEMAP_SIZE);
+
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        m_vao->bind();
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
 #endif
 }
 

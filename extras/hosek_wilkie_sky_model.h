@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vk.h>
+#include <ogl.h>
 #include <glm.hpp>
 
 namespace dw
@@ -25,9 +26,8 @@ public:
 #if defined(DWSF_VULKAN)
     inline vk::Image::Ptr image() { return m_cubemap_image; }
     inline vk::ImageView::Ptr image_view() { return m_cubemap_image_view; }
-    inline vk::Buffer::Ptr    buffer() { return m_cube_vbo; }
 #else
-
+    inline gl::TextureCube::Ptr texture() { return m_cubemap; }
 #endif
 
 private:
@@ -43,10 +43,18 @@ private:
     vk::DescriptorSetLayout::Ptr      m_ds_layout;
     vk::DescriptorSet::Ptr            m_ds;
     vk::Buffer::Ptr                   m_ubo;
-    std::vector<glm::mat4>            m_view_projection_mats;
-#else
     
+#else
+    gl::TextureCube::Ptr              m_cubemap;
+    gl::Texture2D::Ptr                m_depth;
+    std::vector<gl::Framebuffer::Ptr> m_fbos;
+    gl::VertexBuffer::Ptr             m_vbo;
+    gl::VertexArray::Ptr              m_vao;
+    gl::Shader::Ptr                   m_vs;
+    gl::Shader::Ptr                   m_fs;
+    gl::Program::Ptr                  m_program;
 #endif
+    std::vector<glm::mat4>            m_view_projection_mats;
     float                             m_normalized_sun_y = 1.15f;
     float                             m_albedo           = 0.1f;
     float                             m_turbidity        = 4.0f;

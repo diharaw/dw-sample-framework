@@ -3,6 +3,7 @@
 #include <vk_mem_alloc.h>
 #include <profiler.h>
 #include <glm.hpp>
+#include <logger.h>
 
 #define IRRADIANCE_CUBEMAP_SIZE 128
 #define IRRADIANCE_WORK_GROUP_SIZE 8
@@ -12,6 +13,7 @@ namespace dw
 {
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+#if defined(DWSF_VULKAN)
 static const unsigned int kSH_PROJECTION_SPIRV_size            = 12604;
 static const unsigned int kSH_PROJECTION_SPIRV_data[12604 / 4] = {
     0x07230203,
@@ -4296,14 +4298,340 @@ static const unsigned int kSH_ADD_SPIRV_data[4492 / 4] = {
     0x00010038,
 };
 
+#else
+static const char* g_cs_projection_src = R"(
+// ------------------------------------------------------------------
+// CONSTANTS --------------------------------------------------------
+// ------------------------------------------------------------------
+
+#define LOCAL_SIZE 8
+#define ENVIRONMENT_MAP_SIZE 128
+#define SH_INTERMEDIATE_SIZE (ENVIRONMENT_MAP_SIZE / LOCAL_SIZE)
+#define CUBEMAP_MIP_LEVEL 2.0
+#define POS_X 0
+#define NEG_X 1
+#define POS_Y 2
+#define NEG_Y 3
+#define POS_Z 4
+#define NEG_Z 5
+
+// ------------------------------------------------------------------
+// INPUTS -----------------------------------------------------------
+// ------------------------------------------------------------------
+
+layout(local_size_x = LOCAL_SIZE, local_size_y = LOCAL_SIZE, local_size_z = 1) in;
+
+// ------------------------------------------------------------------
+// OUTPUTS ----------------------------------------------------------
+// ------------------------------------------------------------------
+
+layout(binding = 0, rgba32f) uniform image2DArray i_Cubemap;
+
+// ------------------------------------------------------------------
+// SAMPLERS ---------------------------------------------------------
+// ------------------------------------------------------------------
+
+uniform samplerCube s_Cubemap;
+uniform float       u_Width;
+uniform float       u_Height;
+
+// ------------------------------------------------------------------
+// STRUCTURES -------------------------------------------------------
+// ------------------------------------------------------------------
+
+struct SH9
+{
+    float c[9];
+};
+
+// ------------------------------------------------------------------
+
+struct SH9Color
+{
+    vec3 c[9];
+};
+
+// ------------------------------------------------------------------
+// FUNCTIONS --------------------------------------------------------
+// ------------------------------------------------------------------
+
+float area_integral(float x, float y)
+{
+    return atan(x * y, sqrt(x * x + y * y + 1));
+}
+
+// ------------------------------------------------------------------
+
+float unlerp(float val, float max_val)
+{
+    return (val + 0.5) / max_val;
+}
+
+// ------------------------------------------------------------------
+
+void project_onto_sh9(in vec3 dir, inout SH9 sh)
+{
+    // Band 0
+    sh.c[0] = 0.282095;
+
+    // Band 1
+    sh.c[1] = -0.488603 * dir.y;
+    sh.c[2] = 0.488603 * dir.z;
+    sh.c[3] = -0.488603 * dir.x;
+
+    // Band 2
+    sh.c[4] = 1.092548 * dir.x * dir.y;
+    sh.c[5] = -1.092548 * dir.y * dir.z;
+    sh.c[6] = 0.315392 * (3.0 * dir.z * dir.z - 1.0);
+    sh.c[7] = -1.092548 * dir.x * dir.z;
+    sh.c[8] = 0.546274 * (dir.x * dir.x - dir.y * dir.y);
+}
+
+// ------------------------------------------------------------------
+
+float calculate_solid_angle(uint x, uint y)
+{
+    float s = unlerp(float(x), u_Width) * 2.0 - 1.0;
+    float t = unlerp(float(y), u_Height) * 2.0 - 1.0;
+
+    // assumes square face
+    float half_texel_size = 1.0 / u_Width;
+    float x0              = s - half_texel_size;
+    float y0              = t - half_texel_size;
+    float x1              = s + half_texel_size;
+    float y1              = t + half_texel_size;
+
+    return area_integral(x0, y0) - area_integral(x0, y1) - area_integral(x1, y0) + area_integral(x1, y1);
+}
+
+// ------------------------------------------------------------------
+
+vec3 calculate_direction(uint face, uint face_x, uint face_y)
+{
+    float s = unlerp(float(face_x), u_Width) * 2.0 - 1.0;
+    float t = unlerp(float(face_y), u_Height) * 2.0 - 1.0;
+    float x, y, z;
+
+    switch (face)
+    {
+        case POS_Z:
+            x = s;
+            y = -t;
+            z = 1;
+            break;
+        case NEG_Z:
+            x = -s;
+            y = -t;
+            z = -1;
+            break;
+        case NEG_X:
+            x = -1;
+            y = -t;
+            z = s;
+            break;
+        case POS_X:
+            x = 1;
+            y = -t;
+            z = -s;
+            break;
+        case POS_Y:
+            x = s;
+            y = 1;
+            z = t;
+            break;
+        case NEG_Y:
+            x = s;
+            y = -1;
+            z = -t;
+            break;
+    }
+
+    vec3  d;
+    float inv_len = 1.0 / sqrt(x * x + y * y + z * z);
+    d.x           = x * inv_len;
+    d.y           = y * inv_len;
+    d.z           = z * inv_len;
+
+    return d;
+}
+
+// ------------------------------------------------------------------
+// SHARED -----------------------------------------------------------
+// ------------------------------------------------------------------
+
+shared SH9Color g_sh_coeffs[LOCAL_SIZE][LOCAL_SIZE];
+shared float    g_weights[LOCAL_SIZE][LOCAL_SIZE];
+
+// ------------------------------------------------------------------
+// MAIN -------------------------------------------------------------
+// ------------------------------------------------------------------
+
+void main()
+{
+    // Initialize shared memory
+    for (int i = 0; i < 9; i++)
+        g_sh_coeffs[gl_LocalInvocationID.x][gl_LocalInvocationID.y].c[i] = vec3(0.0);
+
+    barrier();
+
+    // Generate spherical harmonics basis
+    SH9 basis;
+
+    vec3  dir         = calculate_direction(gl_GlobalInvocationID.z, gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
+    float solid_angle = calculate_solid_angle(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
+    vec3  texel       = textureLod(s_Cubemap, dir, CUBEMAP_MIP_LEVEL).rgb;
+
+    project_onto_sh9(dir, basis);
+
+    g_weights[gl_LocalInvocationID.x][gl_LocalInvocationID.y] = solid_angle;
+
+    for (int i = 0; i < 9; i++)
+        g_sh_coeffs[gl_LocalInvocationID.x][gl_LocalInvocationID.y].c[i] += texel * basis.c[i] * solid_angle;
+
+    barrier();
+
+    // Add up the coefficients and weights along the X axis.
+    if (gl_LocalInvocationID.x == 0)
+    {
+        for (int shared_idx = 1; shared_idx < LOCAL_SIZE; shared_idx++)
+        {
+            g_weights[0][gl_LocalInvocationID.y] += g_weights[shared_idx][gl_LocalInvocationID.y];
+
+            for (int coef_idx = 0; coef_idx < 9; coef_idx++)
+                g_sh_coeffs[0][gl_LocalInvocationID.y].c[coef_idx] += g_sh_coeffs[shared_idx][gl_LocalInvocationID.y].c[coef_idx];
+        }
+    }
+
+    barrier();
+
+    // Add up the coefficients and weights along the Y axis.
+    if (gl_LocalInvocationID.x == 0 && gl_LocalInvocationID.y == 0)
+    {
+        for (int shared_idx = 1; shared_idx < LOCAL_SIZE; shared_idx++)
+        {
+            g_weights[0][0] += g_weights[0][shared_idx];
+
+            for (int coef_idx = 0; coef_idx < 9; coef_idx++)
+                g_sh_coeffs[0][0].c[coef_idx] += g_sh_coeffs[0][shared_idx].c[coef_idx];
+        }
+
+        // Write out the SH9 coefficients.
+        for (int coef_idx = 0; coef_idx < 9; coef_idx++)
+        {
+            ivec3 p = ivec3((SH_INTERMEDIATE_SIZE * coef_idx) + (gl_GlobalInvocationID.x / LOCAL_SIZE), gl_GlobalInvocationID.y / LOCAL_SIZE, gl_GlobalInvocationID.z);
+            imageStore(i_Cubemap, p, vec4(g_sh_coeffs[0][0].c[coef_idx], g_weights[0][0]));
+        }
+    }
+}
+
+// ------------------------------------------------------------------
+)";
+
+static const char* g_cs_add_src = R"(
+// ------------------------------------------------------------------
+// CONSTANTS ---------------------------------------------------------
+// ------------------------------------------------------------------
+
+#define LOCAL_SIZE 8
+#define ENVIRONMENT_MAP_SIZE 128
+#define SH_INTERMEDIATE_SIZE 16
+#define NUM_CUBEMAP_FACES 6
+
+const float Pi = 3.141592654;
+
+// ------------------------------------------------------------------
+// INPUTS -----------------------------------------------------------
+// ------------------------------------------------------------------
+
+layout(local_size_x = 1, local_size_y = SH_INTERMEDIATE_SIZE, local_size_z = NUM_CUBEMAP_FACES) in;
+
+// ------------------------------------------------------------------
+// OUTPUTS ----------------------------------------------------------
+// ------------------------------------------------------------------
+
+layout(binding = 0, rgba32f) uniform image2D i_SH;
+
+// ------------------------------------------------------------------
+// SAMPLERS ---------------------------------------------------------
+// ------------------------------------------------------------------
+
+uniform sampler2DArray s_SHIntermediate;
+
+// ------------------------------------------------------------------
+// SHARED -----------------------------------------------------------
+// ------------------------------------------------------------------
+
+shared vec3  g_sh_coeffs[SH_INTERMEDIATE_SIZE][NUM_CUBEMAP_FACES];
+shared float g_weights[SH_INTERMEDIATE_SIZE][NUM_CUBEMAP_FACES];
+
+// ------------------------------------------------------------------
+// MAIN -------------------------------------------------------------
+// ------------------------------------------------------------------
+
+void main()
+{
+    g_sh_coeffs[gl_GlobalInvocationID.y][gl_GlobalInvocationID.z] = vec3(0.0);
+    g_weights[gl_GlobalInvocationID.y][gl_GlobalInvocationID.z]   = 0.0;
+
+    barrier();
+
+    // Add up coefficients along X axis.
+    for (uint i = 0; i < SH_INTERMEDIATE_SIZE; i++)
+    {
+        ivec3 p   = ivec3(gl_GlobalInvocationID.x * SH_INTERMEDIATE_SIZE + i, gl_GlobalInvocationID.y, gl_GlobalInvocationID.z);
+        vec4  val = texelFetch(s_SHIntermediate, p, 0);
+
+        g_sh_coeffs[gl_GlobalInvocationID.y][gl_GlobalInvocationID.z] += val.rgb;
+        g_weights[gl_GlobalInvocationID.y][gl_GlobalInvocationID.z] += val.a;
+    }
+
+    barrier();
+
+    if (gl_GlobalInvocationID.z == 0)
+    {
+        // Add up coefficients along Z axis.
+        for (uint i = 1; i < NUM_CUBEMAP_FACES; i++)
+        {
+            g_sh_coeffs[gl_GlobalInvocationID.y][0] += g_sh_coeffs[gl_GlobalInvocationID.y][i];
+            g_weights[gl_GlobalInvocationID.y][0] += g_weights[gl_GlobalInvocationID.y][i];
+        }
+    }
+
+    barrier();
+
+    if (gl_GlobalInvocationID.y == 0 && gl_GlobalInvocationID.z == 0)
+    {
+        // Add up coefficients along Y axis.
+        for (uint i = 1; i < SH_INTERMEDIATE_SIZE; i++)
+        {
+            g_sh_coeffs[0][0] += g_sh_coeffs[i][0];
+            g_weights[0][0] += g_weights[i][0];
+        }
+
+        float scale = (4.0 * Pi) / g_weights[0][0];
+
+        // Write out the coefficents.
+        imageStore(i_SH, ivec2(gl_GlobalInvocationID.x, 0), vec4(g_sh_coeffs[0][0] * scale, g_weights[0][0]));
+    }
+}
+
+// ------------------------------------------------------------------
+)";
+#endif
+
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 CubemapSHProjection::CubemapSHProjection(
 #if defined(DWSF_VULKAN)
     vk::Backend::Ptr backend,
     vk::Image::Ptr   cubemap
+#else
+    gl::TextureCube::Ptr cubemap
 #endif
 )
+#if !defined(DWSF_VULKAN)
+    : m_cubemap(cubemap)
+#endif
 {
 #if defined(DWSF_VULKAN)
     m_size = float(cubemap->width()) / 4.0f;
@@ -4447,37 +4775,42 @@ CubemapSHProjection::CubemapSHProjection(
 
     m_add_pipeline = dw::vk::ComputePipeline::create(backend, add_comp_desc);
 #else
-    m_texture = gl::Texture2D::create(BRDF_LUT_SIZE, BRDF_LUT_SIZE, 1, 1, 1, GL_RG16F, GL_RG, GL_HALF_FLOAT);
-    m_texture->set_name("BRDF LUT");
+    m_texture_intermediate = gl::Texture2D::create(SH_INTERMEDIATE_SIZE * 9, SH_INTERMEDIATE_SIZE, 6, 1, 1, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    m_texture = gl::Texture2D::create(9, 1, 1, 1, 1, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+    
+    m_texture_intermediate->set_min_filter(GL_NEAREST);
+    m_texture_intermediate->set_mag_filter(GL_NEAREST);
 
     m_texture->set_min_filter(GL_NEAREST);
     m_texture->set_mag_filter(GL_NEAREST);
 
-    // Create general shaders
-    m_shader = gl::Shader::create_from_file(GL_COMPUTE_SHADER, "shader/brdf_cs.glsl");
-
-    if (!m_shader->compiled())
     {
-        DW_LOG_FATAL("Failed to create Shaders");
+        // Create general shaders
+        m_projection_cs = gl::Shader::create(GL_COMPUTE_SHADER, g_cs_projection_src);
+
+        if (!m_projection_cs->compiled())
+            DW_LOG_FATAL("Failed to create Shaders");
+
+        // Create general shader program
+        m_projection_program = gl::Program::create({ m_projection_cs });
+
+        if (!m_projection_program)
+            DW_LOG_FATAL("Failed to create Shader Program");
     }
 
-    // Create general shader program
-    m_program = gl::Program::create({ m_brdf_cs });
-
-    if (!m_program)
     {
-        DW_LOG_FATAL("Failed to create Shader Program");
+        // Create general shaders
+        m_add_cs = gl::Shader::create(GL_COMPUTE_SHADER, g_cs_add_src);
+
+        if (!m_add_cs->compiled())
+            DW_LOG_FATAL("Failed to create Shaders");
+
+        // Create general shader program
+        m_add_program = gl::Program::create({ m_add_cs });
+
+        if (!m_add_program)
+            DW_LOG_FATAL("Failed to create Shader Program");
     }
-
-    m_program->use();
-
-    m_texture->bind_image(0, 0, 0, GL_WRITE_ONLY, GL_RG16F);
-
-    glDispatchCompute(BRDF_LUT_SIZE / BRDF_WORK_GROUP_SIZE, BRDF_LUT_SIZE / BRDF_WORK_GROUP_SIZE, 1);
-
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-    glFinish();
 #endif
 }
 
@@ -4499,9 +4832,13 @@ CubemapSHProjection::~CubemapSHProjection()
     m_projection_ds.reset();
     m_add_ds.reset();
 #else
-    m_program.reset();
-    m_shader.reset();
+    m_add_program.reset();
+    m_projection_program.reset();
+    m_cubemap.reset();
     m_texture.reset();
+    m_texture_intermediate.reset();
+    m_projection_cs.reset();
+    m_add_cs.reset();
 #endif
 }
 
@@ -4559,26 +4896,28 @@ void CubemapSHProjection::update(
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         sh_subresource_range);
 #else
-    m_sh_projection_program->use();
+    DW_SCOPED_SAMPLE("Cubemap SH Projection");
 
-    m_sh_projection_program->set_uniform("u_Width", (float)m_env_cubemap->width() / 4.0f);
-    m_sh_projection_program->set_uniform("u_Height", (float)m_env_cubemap->height() / 4.0f);
+    m_projection_program->use();
 
-    if (m_sh_projection_program->set_uniform("s_Cubemap", 1))
-        m_env_cubemap->bind(1);
+    m_projection_program->set_uniform("u_Width", (float)m_cubemap->width() / 4.0f);
+    m_projection_program->set_uniform("u_Height", (float)m_cubemap->height() / 4.0f);
 
-    m_sh_intermediate->bind_image(0, 0, 0, GL_WRITE_ONLY, GL_RGBA32F);
+    if (m_projection_program->set_uniform("s_Cubemap", 1))
+        m_cubemap->bind(1);
+
+    m_texture_intermediate->bind_image(0, 0, 0, GL_WRITE_ONLY, GL_RGBA32F);
 
     glDispatchCompute(IRRADIANCE_CUBEMAP_SIZE / IRRADIANCE_WORK_GROUP_SIZE, IRRADIANCE_CUBEMAP_SIZE / IRRADIANCE_WORK_GROUP_SIZE, 6);
 
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-    m_sh_add_program->use();
+    m_add_program->use();
 
-    m_sh->bind_image(0, 0, 0, GL_WRITE_ONLY, GL_RGBA32F);
+    m_texture->bind_image(0, 0, 0, GL_WRITE_ONLY, GL_RGBA32F);
 
-    if (m_sh_add_program->set_uniform("s_SHIntermediate", 1))
-        m_sh_intermediate->bind(1);
+    if (m_add_program->set_uniform("s_SHIntermediate", 1))
+        m_texture_intermediate->bind(1);
 
     glDispatchCompute(9, 1, 1);
 

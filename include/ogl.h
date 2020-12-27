@@ -417,7 +417,7 @@ class VertexArray : public Object
 public:
     using Ptr = std::shared_ptr<VertexArray>;
 
-    static VertexArray::Ptr create(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[]);
+    static VertexArray::Ptr create(VertexBuffer::Ptr vbo, IndexBuffer::Ptr ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[]);
 
     ~VertexArray();
     void bind();
@@ -426,7 +426,7 @@ public:
     void set_name(const std::string& name);
 
 private:
-    VertexArray(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[]);
+    VertexArray(VertexBuffer::Ptr vbo, IndexBuffer::Ptr ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[]);
 
 private:
     GLuint m_gl_vao;

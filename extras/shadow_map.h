@@ -3,34 +3,52 @@
 #include <memory>
 #include <ogl.h>
 #include <glm.hpp>
+#include <vk.h>
 
 namespace dw
 {
 class ShadowMap
 {
 private:
-    std::unique_ptr<gl::Framebuffer> m_shadow_map_fbo;
-    std::unique_ptr<gl::Texture2D>   m_shadow_map;
-    glm::vec3                        m_light_target = glm::vec3(0.0f);
-    glm::vec3                        m_light_direction = glm::vec3(0.0f, -1.0f, 0.0f);
-    glm::vec3                        m_light_color = glm::vec3(1.0f);
-    glm::mat4                        m_view;
-    glm::mat4                        m_projection;
-    float                            m_near_plane = 1.0f;
-    float                            m_far_plane = 1000.0f;
-    float                            m_extents    = 75.0f;
-    float                            m_backoff_distance = 200.0f;
-    uint32_t                         m_size       = 1024;
+#if defined(DWSF_VULKAN)
+    vk::Image::Ptr       m_image;
+    vk::ImageView::Ptr   m_image_view;
+    vk::Framebuffer::Ptr m_framebuffer;
+    vk::RenderPass::Ptr  m_render_pass;
+#else
+    gl::Framebuffer::Ptr m_shadow_map_fbo;
+    gl::Texture2D::Ptr          m_shadow_map;
+#endif
+    glm::vec3 m_light_target = glm::vec3(0.0f);
+    glm::vec3 m_light_direction = glm::vec3(0.0f, -1.0f, 0.0f);
+    glm::vec3 m_light_color = glm::vec3(1.0f);
+    glm::mat4 m_view;
+    glm::mat4 m_projection;
+    float     m_near_plane = 1.0f;
+    float     m_far_plane = 1000.0f;
+    float     m_extents    = 75.0f;
+    float     m_backoff_distance = 200.0f;
+    uint32_t  m_size       = 1024;
 
 public:
-    ShadowMap();
+    ShadowMap(
+#if defined(DWSF_VULKAN) 
+        vk::Backend::Ptr backend,
+#endif    
+        uint32_t size
+    );
     ~ShadowMap();
 
-    bool initialize(uint32_t size);
-    void shutdown();
-
-    void begin_render();
-    void end_render();
+    void begin_render(
+#if defined(DWSF_VULKAN)         
+        vk::CommandBuffer::Ptr cmd_buf
+#endif    
+    );
+    void end_render(
+#if defined(DWSF_VULKAN)         
+        vk::CommandBuffer::Ptr cmd_buf
+#endif    
+    );
 
     void set_direction(const glm::vec3& d);
     void set_target(const glm::vec3& t);
@@ -40,8 +58,15 @@ public:
     void set_extents(const float& e);
     void set_backoff_distance(const float& d);
 
-    inline gl::Framebuffer* framebuffer() { return m_shadow_map_fbo.get(); }
-    inline gl::Texture2D*   texture() { return m_shadow_map.get(); }
+#if defined(DWSF_VULKAN)
+    inline vk::Image::Ptr image() { return m_image; };
+    inline vk::ImageView::Ptr image_view() { return m_image_view; };
+    inline vk::Framebuffer::Ptr framebuffer() { return m_framebuffer; };
+    inline vk::RenderPass::Ptr render_pass() { return m_render_pass; };
+#else
+    inline gl::Framebuffer::Ptr framebuffer() { return m_shadow_map_fbo; }
+    inline gl::Texture2D::Ptr texture() { return m_shadow_map; }
+#endif
     inline glm::vec3 direction() { return m_light_direction; }
     inline glm::vec3 target() { return m_light_target; }
     inline glm::vec3 color() { return m_light_color; }

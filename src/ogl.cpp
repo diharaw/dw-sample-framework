@@ -1827,14 +1827,14 @@ ShaderStorageBuffer::~ShaderStorageBuffer() {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-VertexArray::Ptr VertexArray::create(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[])
+VertexArray::Ptr VertexArray::create(VertexBuffer::Ptr vbo, IndexBuffer::Ptr ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[])
 {
     return std::shared_ptr<VertexArray>(new VertexArray(vbo, ibo, vertex_size, attrib_count, attribs));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-VertexArray::VertexArray(VertexBuffer* vbo, IndexBuffer* ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[]) :
+VertexArray::VertexArray(VertexBuffer::Ptr vbo, IndexBuffer::Ptr ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[]) :
     Object(GL_VERTEX_ARRAY)
 {
     GL_CHECK_ERROR(glGenVertexArrays(1, &m_gl_vao));

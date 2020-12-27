@@ -648,7 +648,7 @@ void Mesh::create_gpu_objects(
                                    { 4, GL_FLOAT, false, offsetof(Vertex, bitangent) } };
 
     // Create vertex array.
-    m_vao = gl::VertexArray::create(m_vbo.get(), m_ibo.get(), sizeof(Vertex), 5, attribs);
+    m_vao = gl::VertexArray::create(m_vbo, m_ibo, sizeof(Vertex), 5, attribs);
 
     if (!m_vao)
         DW_LOG_ERROR("Failed to create Vertex Array");
