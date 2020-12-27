@@ -24,6 +24,7 @@ public:
 
     void      build_tlas(vk::CommandBuffer::Ptr cmd_buffer);
     Instance& fetch_instance(const uint32_t& idx);
+    int32_t   material_index(const uint32_t& id);
 
     inline const std::vector<Instance>&   instances() { return m_instances; }
     inline vk::DescriptorSetLayout::Ptr   descriptor_set_layout() { return m_ds_layout; }
