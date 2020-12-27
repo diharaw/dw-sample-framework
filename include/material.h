@@ -45,9 +45,11 @@ public:
 
     inline int32_t    albedo_idx() { return m_albedo_idx; }
     inline int32_t    normal_idx() { return m_normal_idx; }
-    inline glm::ivec2 roughness_idx() { return m_roughness_idx; }
-    inline glm::ivec2 metallic_idx() { return m_metallic_idx; }
+    inline int32_t roughness_idx() { return m_roughness_idx; }
+    inline int32_t metallic_idx() { return m_metallic_idx; }
     inline int32_t    emissive_idx() { return m_emissive_idx; }
+    inline int32_t    roughness_channel() { return m_roughness_channel; }
+    inline int32_t    metallic_channel() { return m_metallic_channel; }
 
     inline void set_albedo_value(const glm::vec4& value) { m_albedo_color = value; }
     inline void set_roughness_value(const float& value) { m_roughness = value; }
@@ -62,14 +64,14 @@ public:
 
     // Rendering related getters.
     inline vk::ImageView::Ptr                  albedo_image_view() { return m_albedo_idx != -1 ? m_image_views[m_albedo_idx] : nullptr; }
-    inline vk::ImageView::Ptr                  normal_image_view() { return m_normal_idx != -1 ? m_image_views[m_albedo_idx] : nullptr; }
-    inline vk::ImageView::Ptr                  roughness_image_view() { return m_roughness_idx.x != -1 ? m_image_views[m_roughness_idx.x] : nullptr; }
-    inline vk::ImageView::Ptr                  metallic_image_view() { return m_metallic_idx.x != -1 ? m_image_views[m_metallic_idx.x] : nullptr; }
+    inline vk::ImageView::Ptr                  normal_image_view() { return m_normal_idx != -1 ? m_image_views[m_normal_idx] : nullptr; }
+    inline vk::ImageView::Ptr                  roughness_image_view() { return m_roughness_idx != -1 ? m_image_views[m_roughness_idx] : nullptr; }
+    inline vk::ImageView::Ptr                  metallic_image_view() { return m_metallic_idx != -1 ? m_image_views[m_metallic_idx] : nullptr; }
     inline vk::ImageView::Ptr                  emissive_image_view() { return m_emissive_idx != -1 ? m_image_views[m_emissive_idx] : nullptr; }
     inline vk::Image::Ptr                      albedo_image() { return m_albedo_idx != -1 ? m_images[m_albedo_idx] : nullptr; }
     inline vk::Image::Ptr                      normal_image() { return m_normal_idx != -1 ? m_images[m_normal_idx] : nullptr; }
-    inline vk::Image::Ptr                      roughness_image() { return m_roughness_idx.x != -1 ? m_images[m_roughness_idx.x] : nullptr; }
-    inline vk::Image::Ptr                      metallic_image() { return m_metallic_idx.x != -1 ? m_images[m_metallic_idx.x] : nullptr; }
+    inline vk::Image::Ptr                      roughness_image() { return m_roughness_idx != -1 ? m_images[m_roughness_idx] : nullptr; }
+    inline vk::Image::Ptr                      metallic_image() { return m_metallic_idx != -1 ? m_images[m_metallic_idx] : nullptr; }
     inline vk::Image::Ptr                      emissive_image() { return m_emissive_idx != -1 ? m_images[m_emissive_idx] : nullptr; }
     inline vk::DescriptorSet::Ptr              descriptor_set() { return m_descriptor_set; }
     static inline vk::Sampler::Ptr             common_sampler() { return m_common_sampler; }
@@ -114,9 +116,11 @@ private:
 
     int32_t    m_albedo_idx     = -1;
     int32_t    m_normal_idx     = -1;
-    glm::ivec2 m_roughness_idx  = glm::ivec2(-1);
-    glm::ivec2 m_metallic_idx   = glm::ivec2(-1);
+    int32_t m_roughness_idx  = -1;
+    int32_t m_metallic_idx   = -1;
     int32_t    m_emissive_idx   = -1;
+    int32_t    m_roughness_channel = -1;
+    int32_t    m_metallic_channel = -1;
     glm::vec4  m_albedo_color   = glm::vec4(1.0f);
     glm::vec3  m_emissive_color = glm::vec3(0.0f);
     float      m_roughness      = 1.0f;

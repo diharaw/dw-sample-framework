@@ -362,7 +362,7 @@ void RayTracedScene::create_gpu_resources()
                         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
                         material_data.texture_indices0.z = image_descriptors.size();
-                        material_data.texture_indices1.z = mat->roughness_idx().y;
+                        material_data.texture_indices1.z = mat->roughness_channel();
 
                         image_descriptors.push_back(image_info);
                     }
@@ -376,7 +376,7 @@ void RayTracedScene::create_gpu_resources()
                         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
                         material_data.texture_indices0.w = image_descriptors.size();
-                        material_data.texture_indices1.w = mat->metallic_idx().y;
+                        material_data.texture_indices1.w = mat->metallic_channel();
 
                         image_descriptors.push_back(image_info);
                     }

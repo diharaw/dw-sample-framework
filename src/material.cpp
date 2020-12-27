@@ -100,7 +100,7 @@ Material::~Material()
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& textures, const int32_t& albedo_idx, const int32_t& normal_idx, const glm::ivec2& roughness_idx, const glm::ivec2& metallic_idx, const int32_t& emissive_idx) :
-    m_albedo_idx(albedo_idx), m_normal_idx(normal_idx), m_roughness_idx(roughness_idx), m_metallic_idx(metallic_idx), m_emissive_idx(emissive_idx)
+    m_roughness_channel(roughness_idx.y), m_metallic_channel(metallic_idx.y)
 {
     m_id = g_last_mat_idx++;
 
@@ -108,6 +108,7 @@ Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& tex
     {
         auto image = load_image(backend, textures[albedo_idx], true);
 
+        m_albedo_idx = m_images.size();
         m_images.push_back(image);
 
         if (image)
@@ -115,12 +116,15 @@ Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& tex
             auto image_view = load_image_view(backend, textures[albedo_idx], image);
             m_image_views.push_back(image_view);
         }
+        else
+            DW_LOG_ERROR("Failed to load image: " + textures[albedo_idx]);
     }
 
     if (normal_idx != -1 && textures[normal_idx].size() > 0)
     {
         auto image = load_image(backend, textures[normal_idx]);
 
+        m_normal_idx = m_images.size();
         m_images.push_back(image);
 
         if (image)
@@ -128,12 +132,15 @@ Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& tex
             auto image_view = load_image_view(backend, textures[normal_idx], image);
             m_image_views.push_back(image_view);
         }
+        else
+            DW_LOG_ERROR("Failed to load image: " + textures[normal_idx]);
     }
 
     if (roughness_idx.x != -1 && textures[roughness_idx.x].size() > 0)
     {
         auto image = load_image(backend, textures[roughness_idx.x]);
 
+        m_roughness_idx = m_images.size();
         m_images.push_back(image);
 
         if (image)
@@ -141,12 +148,15 @@ Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& tex
             auto image_view = load_image_view(backend, textures[roughness_idx.x], image);
             m_image_views.push_back(image_view);
         }
+        else
+            DW_LOG_ERROR("Failed to load image: " + textures[roughness_idx.x]);
     }
 
     if (metallic_idx.x != -1 && textures[metallic_idx.x].size() > 0)
     {
         auto image = load_image(backend, textures[metallic_idx.x]);
 
+        m_metallic_idx = m_images.size();
         m_images.push_back(image);
 
         if (image)
@@ -154,12 +164,15 @@ Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& tex
             auto image_view = load_image_view(backend, textures[metallic_idx.x], image);
             m_image_views.push_back(image_view);
         }
+        else
+            DW_LOG_ERROR("Failed to load image: " + textures[metallic_idx.x]);
     }
 
     if (emissive_idx != -1 && textures[emissive_idx].size() > 0)
     {
         auto image = load_image(backend, textures[emissive_idx]);
 
+        m_emissive_idx = m_images.size();
         m_images.push_back(image);
 
         if (image)
@@ -167,6 +180,8 @@ Material::Material(vk::Backend::Ptr backend, const std::vector<std::string>& tex
             auto image_view = load_image_view(backend, textures[emissive_idx], image);
             m_image_views.push_back(image_view);
         }
+        else
+            DW_LOG_ERROR("Failed to load image: " + textures[emissive_idx]);
     }
 
     // Create descriptor set
@@ -268,11 +283,11 @@ vk::DescriptorSet::Ptr Material::create_descriptor_set(vk::Backend::Ptr backend)
     image_info[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     image_info[2].sampler     = m_common_sampler->handle();
-    image_info[2].imageView   = m_roughness_idx.x != -1 ? m_image_views[m_roughness_idx.x]->handle() : m_default_image_view->handle();
+    image_info[2].imageView   = m_roughness_idx != -1 ? m_image_views[m_roughness_idx]->handle() : m_default_image_view->handle();
     image_info[2].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     image_info[3].sampler     = m_common_sampler->handle();
-    image_info[3].imageView   = m_metallic_idx.x != -1 ? m_image_views[m_metallic_idx.x]->handle() : m_default_image_view->handle();
+    image_info[3].imageView   = m_metallic_idx != -1 ? m_image_views[m_metallic_idx]->handle() : m_default_image_view->handle();
     image_info[3].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     image_info[4].sampler     = m_common_sampler->handle();
