@@ -11,7 +11,7 @@ if (USE_VULKAN)
     add_definitions(-DDWSF_VULKAN)
 
     set(DWSFW_VK_SAMPLE_SOURCE main_vk.cpp)
-    set(DWSFW_VK_RAY_TRACING_SAMPLE_SOURCE main_vk_rt.cpp)
+    set(DWSFW_VK_RAY_TRACING_SAMPLE_SOURCE main_vk_rt.cpp ${PROJECT_SOURCE_DIR}/extras/ray_traced_scene.cpp)
 
     if (${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "AMD64")
         set(GLSL_VALIDATOR "$ENV{VULKAN_SDK}/Bin/glslangValidator.exe")

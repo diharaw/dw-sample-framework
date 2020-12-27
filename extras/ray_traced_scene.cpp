@@ -1,4 +1,4 @@
-#include <ray_traced_scene.h>
+#include "ray_traced_scene.h"
 #include <macros.h>
 #if defined(DWSF_VULKAN)
 #    include <vk_mem_alloc.h>

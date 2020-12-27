@@ -25,6 +25,7 @@ public:
     void      build_tlas(vk::CommandBuffer::Ptr cmd_buffer);
     Instance& fetch_instance(const uint32_t& idx);
 
+    inline const std::vector<Instance>&   instances() { return m_instances; }
     inline vk::DescriptorSetLayout::Ptr   descriptor_set_layout() { return m_ds_layout; }
     inline vk::DescriptorSet::Ptr         descriptor_set() { return m_ds; }
     inline vk::AccelerationStructure::Ptr acceleration_structure() { return m_tlas; }

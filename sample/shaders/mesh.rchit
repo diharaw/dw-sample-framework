@@ -89,9 +89,9 @@ Vertex get_vertex(uint mesh_idx, uint vertex_idx)
 
 // ------------------------------------------------------------------------
 
-HitInfo fetch_hit_info()
+HitInfo fetch_hit_info(in Instance instance)
 {
-    uvec2 primitive_offset_mat_idx = SubmeshInfo[nonuniformEXT(gl_InstanceCustomIndexEXT)].data[gl_GeometryIndexEXT];
+    uvec2 primitive_offset_mat_idx = SubmeshInfo[nonuniformEXT(instance.mesh_idx)].data[gl_GeometryIndexEXT];
 
     HitInfo hit_info;
 
@@ -220,7 +220,7 @@ vec3 fetch_emissive(in Material material, in vec2 texcoord)
 void main()
 {
     const Instance instance = Instances.data[gl_InstanceCustomIndexEXT];
-    const HitInfo hit_info = fetch_hit_info();
+    const HitInfo hit_info = fetch_hit_info(instance);
     const Triangle triangle = fetch_triangle(instance, hit_info);
     const Material material = Materials.data[hit_info.mat_idx];
 
