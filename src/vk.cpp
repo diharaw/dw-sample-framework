@@ -411,8 +411,23 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size,
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayout src_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VkImageLayout dst_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayout src_layout, VkImageLayout dst_layout)
 {
+    VkImageSubresourceRange initial_subresource_range;
+    DW_ZERO_MEMORY(initial_subresource_range);
+
+    initial_subresource_range.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    initial_subresource_range.levelCount     = m_mip_levels - 1;
+    initial_subresource_range.layerCount     = m_array_size;
+    initial_subresource_range.baseArrayLayer = 0;
+    initial_subresource_range.baseMipLevel   = 1;
+
+    utilities::set_image_layout(cmd_buf->handle(),
+                                m_vk_image,
+                                VK_IMAGE_LAYOUT_UNDEFINED,
+                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                initial_subresource_range);
+
     VkImageSubresourceRange subresource_range;
     DW_ZERO_MEMORY(subresource_range);
 
@@ -420,11 +435,11 @@ void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayo
     subresource_range.levelCount = 1;
     subresource_range.layerCount = 1;
 
-    int32_t mip_width  = m_width;
-    int32_t mip_height = m_height;
-
     for (int arr_idx = 0; arr_idx < m_array_size; arr_idx++)
     {
+        int32_t mip_width  = m_width;
+        int32_t mip_height = m_height;
+
         for (int mip_idx = 1; mip_idx < m_mip_levels; mip_idx++)
         {
             subresource_range.baseMipLevel   = mip_idx - 1;

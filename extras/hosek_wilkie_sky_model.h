@@ -23,7 +23,9 @@ public:
         glm::vec3 direction);
 
 #if defined(DWSF_VULKAN)
-    inline vk::ImageView::Ptr cubemap() { return m_cubemap_image_view; }
+    inline vk::Image::Ptr image() { return m_cubemap_image; }
+    inline vk::ImageView::Ptr image_view() { return m_cubemap_image_view; }
+    inline vk::Buffer::Ptr    buffer() { return m_cube_vbo; }
 #else
 
 #endif

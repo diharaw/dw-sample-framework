@@ -9,10 +9,17 @@ class CubemapSHProjection
 public:
     CubemapSHProjection(
 #if defined(DWSF_VULKAN)
-        vk::Backend::Ptr backend
+        vk::Backend::Ptr backend,
+        vk::Image::Ptr cubemap
 #endif
     );
     ~CubemapSHProjection();
+
+    void update(
+#if defined(DWSF_VULKAN)
+        vk::CommandBuffer::Ptr cmd_buf
+#endif
+    );
 
 #if defined(DWSF_VULKAN)
     inline vk::Image::Ptr image()
@@ -29,6 +36,7 @@ public:
 
 private:
 #if defined(DWSF_VULKAN)
+    vk::ImageView::Ptr           m_cubemap_image_view;
     vk::Image::Ptr               m_image;
     vk::ImageView::Ptr           m_image_view;
     vk::Image::Ptr               m_intermediate_image;
@@ -37,10 +45,10 @@ private:
     vk::ComputePipeline::Ptr     m_add_pipeline;
     vk::PipelineLayout::Ptr      m_projection_pipeline_layout;
     vk::PipelineLayout::Ptr      m_add_pipeline_layout;
-    vk::DescriptorSetLayout::Ptr m_projection_ds_layout;
+    vk::DescriptorSetLayout::Ptr m_ds_layout;
     vk::DescriptorSet::Ptr       m_projection_ds;
-    vk::DescriptorSetLayout::Ptr m_add_ds_layout;
     vk::DescriptorSet::Ptr       m_add_ds;
+    float                        m_size;
 #else
     gl::Texture2D::Ptr m_texture;
     gl::Texture2D::Ptr m_texture_intermediate;

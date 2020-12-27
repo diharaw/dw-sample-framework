@@ -16,6 +16,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
 set(DWSFW_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/include")
+set(DWSFW_EXTRAS_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/extras")
 set(GLFW_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/glfw/include")
 set(GLM_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/glm/glm")
 set(STB_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/stb")
@@ -31,6 +32,7 @@ else()
 endif()
 
 set(DW_SAMPLE_FRAMEWORK_INCLUDES ${DWSFW_INCLUDE_DIRS}
+                                 ${DWSFW_EXTRAS_INCLUDE_DIRS}
                                  ${GLFW_INCLUDE_DIRS}
                                  ${GLM_INCLUDE_DIRS}
                                  ${STB_INCLUDE_DIRS}
@@ -42,6 +44,7 @@ set(DW_SAMPLE_FRAMEWORK_INCLUDES ${DWSFW_INCLUDE_DIRS}
                                  PARENT_SCOPE)
 
 include_directories(${DWSFW_INCLUDE_DIRS}
+                    ${DWSFW_EXTRAS_INCLUDE_DIRS}
                     ${GLFW_INCLUDE_DIRS}
                     ${GLM_INCLUDE_DIRS}
                     ${STB_INCLUDE_DIRS}
