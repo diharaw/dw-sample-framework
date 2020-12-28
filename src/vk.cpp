@@ -3569,9 +3569,9 @@ void Backend::initialize()
     sampler_desc.mag_filter        = VK_FILTER_LINEAR;
     sampler_desc.min_filter        = VK_FILTER_LINEAR;
     sampler_desc.mipmap_mode       = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-    sampler_desc.address_mode_u    = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    sampler_desc.address_mode_v    = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    sampler_desc.address_mode_w    = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_desc.address_mode_u    = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_desc.address_mode_v    = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_desc.address_mode_w    = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     sampler_desc.mip_lod_bias      = 0.0f;
     sampler_desc.anisotropy_enable = VK_FALSE;
     sampler_desc.max_anisotropy    = 1.0f;
