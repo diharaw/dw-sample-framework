@@ -1,7 +1,6 @@
 #pragma once
 
 #include <ogl.h>
-#include <timer.h>
 #include <memory>
 #include <string>
 

@@ -5,6 +5,7 @@
 #endif
 #include <unordered_map>
 #include <material.h>
+#include <profiler.h>
 #include <assimp/scene.h>
 
 #define MAX_MATERIAL_COUNT 1024
@@ -164,6 +165,8 @@ RayTracedScene::~RayTracedScene()
 
 void RayTracedScene::build_tlas(vk::CommandBuffer::Ptr cmd_buf)
 {
+    DW_SCOPED_SAMPLE("Build TLAS", cmd_buf);
+
     copy_tlas_data();
 
     if (m_instances.size() > 0)
