@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <ogl.h>
 #include <utility.h>
+#include <filesystem>
 #include <assimp/pbrmaterial.h>
 #if defined(DWSF_VULKAN)
 #    include <vk_mem_alloc.h>
@@ -84,21 +85,28 @@ Mesh::Ptr Mesh::load(
     bool               load_materials,
     bool               is_orca_mesh)
 {
-    if (m_cache.find(path) == m_cache.end() || m_cache[path].expired())
+    std::filesystem::path absolute_file_path = std::filesystem::path(path);
+
+    if (!absolute_file_path.is_absolute())
+        absolute_file_path = std::filesystem::path(std::filesystem::current_path().string() + "/" + path);
+
+    std::string absolute_file_path_str = absolute_file_path.string();
+
+    if (m_cache.find(absolute_file_path_str) == m_cache.end() || m_cache[absolute_file_path_str].expired())
     {
         Mesh::Ptr mesh = std::shared_ptr<Mesh>(new Mesh(
 #if defined(DWSF_VULKAN)
             backend,
 #endif
-            path,
+            absolute_file_path_str,
             load_materials,
             is_orca_mesh));
-        m_cache[path] = mesh;
+        m_cache[absolute_file_path_str] = mesh;
         return mesh;
     }
     else
     {
-        auto ptr = m_cache[path];
+        auto ptr = m_cache[absolute_file_path_str];
         return ptr.lock();
     }
 }
@@ -296,23 +304,27 @@ void Mesh::load_from_disk(
                 // If this is a GLTF, try to find the base color texture path
                 if (is_gltf)
                 {
-                    std::string path = get_gltf_base_color_texture_path(temp_material);
-                    albedo_idx       = texture_paths.size();
-                    texture_paths.push_back(path);
+                    std::string texture_path = get_gltf_base_color_texture_path(temp_material);
+                    
+                    if (!texture_path.empty())
+                    {
+                        albedo_idx = texture_paths.size();
+                        texture_paths.push_back(texture_path);
+                    }
                 }
                 else
                 {
                     // If not, try to find the Diffuse texture path
-                    std::string path = assimp_get_texture_path(temp_material, aiTextureType_DIFFUSE);
+                    std::string texture_path = assimp_get_texture_path(temp_material, aiTextureType_DIFFUSE);
 
                     // If that doesn't exist, try to find Diffuse texture
-                    if (path.empty())
-                        path = assimp_get_texture_path(temp_material, aiTextureType_BASE_COLOR);
+                    if (texture_path.empty())
+                        texture_path = assimp_get_texture_path(temp_material, aiTextureType_BASE_COLOR);
 
-                    if (!path.empty())
+                    if (!texture_path.empty())
                     {
                         albedo_idx = texture_paths.size();
-                        texture_paths.push_back(path);
+                        texture_paths.push_back(texture_path);
                     }
                 }
 
@@ -337,11 +349,11 @@ void Mesh::load_from_disk(
 #if defined(MATERIAL_LOG)
                     printf("Albedo Path: %s \n", albedo_path.c_str());
 #endif
-                    std::string path = texture_paths[albedo_idx];
+                    std::string texture_path = texture_paths[albedo_idx];
 
-                    std::replace(path.begin(), path.end(), '\\', '/');
+                    std::replace(texture_path.begin(), texture_path.end(), '\\', '/');
 
-                    texture_paths[albedo_idx] = path;
+                    texture_paths[albedo_idx] = texture_path;
                 }
 
                 if (is_orca_mesh)

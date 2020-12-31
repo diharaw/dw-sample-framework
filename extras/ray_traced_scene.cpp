@@ -327,6 +327,8 @@ void RayTracedScene::create_gpu_resources()
                     MaterialData material_data;
 
                     material_data.albedo             = mat->albedo_value();
+                    // Covert from sRGB to Linear
+                    glm::vec4(glm::pow(glm::vec3(material_data.albedo[0], material_data.albedo[1], material_data.albedo[2]), glm::vec3(2.2f)), material_data.albedo.a);
                     material_data.roughness_metallic = glm::vec4(mat->roughness_value(), mat->metallic_value(), 0.0f, 0.0f);
                     material_data.emissive           = glm::vec4(mat->emissive_value(), 0.0f);
 

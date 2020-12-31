@@ -39,8 +39,13 @@ Material::Ptr Material::load(
 {
     std::string mat_id;
 
-    for (auto path : textures)
-        mat_id += path;
+    if (textures.empty())
+        mat_id = "Untextured_Material_" + std::to_string(rand());
+    else
+    {
+        for (auto path : textures)
+            mat_id += path;
+    }
 
     if (m_cache.find(mat_id) == m_cache.end() || m_cache[mat_id].expired())
     {

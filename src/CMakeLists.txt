@@ -9,7 +9,7 @@ if (USE_VULKAN)
     add_definitions(-DDWSF_VULKAN)
 endif()
 
-set (CMAKE_CXX_STANDARD 14)
+set (CMAKE_CXX_STANDARD 17)
 
 set(DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/external/imgui/imgui.cpp
 			     ${PROJECT_SOURCE_DIR}/external/imgui/imgui_demo.cpp
