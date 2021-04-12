@@ -1,13 +1,13 @@
 #pragma once
 
+#if defined(DWSF_VULKAN)
+
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <string>
 #include <memory>
 #include <stack>
 #include <deque>
-
-#if defined(DWSF_VULKAN)
 
 struct GLFWwindow;
 struct VmaAllocator_T;

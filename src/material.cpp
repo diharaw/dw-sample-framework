@@ -356,7 +356,7 @@ vk::DescriptorSet::Ptr Material::create_descriptor_set(vk::Backend::Ptr backend)
 #else
 
 Material::Material(const std::vector<std::string>& textures, const int32_t& albedo_idx, const int32_t& normal_idx, const glm::ivec2& roughness_idx, const glm::ivec2& metallic_idx, const int32_t& emissive_idx) :
-    m_albedo_idx(albedo_idx), m_normal_idx(normal_idx), m_roughness_idx(roughness_idx), m_metallic_idx(metallic_idx), m_emissive_idx(emissive_idx)
+    m_albedo_idx(albedo_idx), m_normal_idx(normal_idx), m_roughness_idx(roughness_idx.x), m_metallic_idx(metallic_idx.x), m_emissive_idx(emissive_idx), m_roughness_channel(roughness_idx.y), m_metallic_channel(metallic_idx.y)
 {
     m_id = g_last_mat_idx++;
 

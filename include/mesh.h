@@ -93,7 +93,7 @@ public:
     inline const std::vector<SubMesh>&                   sub_meshes() { return m_sub_meshes; }
     inline const std::vector<uint32_t>&                  indices() { return m_indices; }
     inline const std::vector<Vertex>&                    vertices() { return m_vertices; }
-    inline std::shared_ptr<Material>                     material(uint32_t idx) { return m_materials[idx]; }
+    inline std::shared_ptr<Material>&                    material(uint32_t idx) { return m_materials[idx]; }
     inline const glm::vec3&                              max_extents() { return m_max_extents; }
     inline const glm::vec3&                              min_extents() { return m_min_extents; }
     ~Mesh();
