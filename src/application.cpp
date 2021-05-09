@@ -317,7 +317,7 @@ bool Application::init_base(int argc, const char* argv[])
     float xscale, yscale;
     glfwGetMonitorContentScale(primary, &xscale, &yscale);
 
-#if defined(DWSF_IMGUI)
+#if defined(DWSF_IMGUI) && !defined(__APPLE__)
     ImGuiStyle* style = &ImGui::GetStyle();
 
     style->ScaleAllSizes(xscale > yscale ? xscale : yscale);

@@ -80,8 +80,8 @@ public:
     // Rendering related getters.
     inline gl::Texture2D::Ptr       albedo_texture() { return m_albedo_idx != -1 ? m_textures[m_albedo_idx] : nullptr; }
     inline gl::Texture2D::Ptr       normal_texture() { return m_normal_idx != -1 ? m_textures[m_normal_idx] : nullptr; }
-    inline gl::Texture2D::Ptr       roughness_texture() { return m_roughness_idx.x != -1 ? m_textures[m_roughness_idx.x] : nullptr; }
-    inline gl::Texture2D::Ptr       metallic_texture() { return m_metallic_idx.x != -1 ? m_textures[m_metallic_idx.x] : nullptr; }
+    inline gl::Texture2D::Ptr       roughness_texture() { return m_roughness_idx != -1 ? m_textures[m_roughness_idx] : nullptr; }
+    inline gl::Texture2D::Ptr       metallic_texture() { return m_metallic_idx != -1 ? m_textures[m_metallic_idx] : nullptr; }
     inline gl::Texture2D::Ptr       emissive_texture() { return m_emissive_idx != -1 ? m_textures[m_emissive_idx] : nullptr; }
 
 #endif
