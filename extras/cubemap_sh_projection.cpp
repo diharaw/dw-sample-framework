@@ -4628,9 +4628,10 @@ CubemapSHProjection::CubemapSHProjection(
 #else
     gl::TextureCube::Ptr cubemap
 #endif
-)
+    )
 #if !defined(DWSF_VULKAN)
-    : m_cubemap(cubemap)
+    :
+    m_cubemap(cubemap)
 #endif
 {
 #if defined(DWSF_VULKAN)
@@ -4776,8 +4777,8 @@ CubemapSHProjection::CubemapSHProjection(
     m_add_pipeline = dw::vk::ComputePipeline::create(backend, add_comp_desc);
 #else
     m_texture_intermediate = gl::Texture2D::create(SH_INTERMEDIATE_SIZE * 9, SH_INTERMEDIATE_SIZE, 6, 1, 1, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    m_texture = gl::Texture2D::create(9, 1, 1, 1, 1, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    
+    m_texture              = gl::Texture2D::create(9, 1, 1, 1, 1, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+
     m_texture_intermediate->set_min_filter(GL_NEAREST);
     m_texture_intermediate->set_mag_filter(GL_NEAREST);
 

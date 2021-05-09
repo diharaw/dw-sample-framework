@@ -2567,9 +2567,10 @@ CubemapPrefiler::CubemapPrefiler(
 #else
     gl::TextureCube::Ptr cubemap
 #endif
-    ) 
+    )
 #if !defined(DWSF_VULKAN)
-    : m_cubemap(cubemap)
+    :
+    m_cubemap(cubemap)
 #endif
 {
     m_size = cubemap->width();
@@ -2713,7 +2714,6 @@ CubemapPrefiler::CubemapPrefiler(
 
     m_program->uniform_block_binding("u_SampleDirections", 0);
 
-    
 #endif
 }
 
@@ -2771,10 +2771,10 @@ void CubemapPrefiler::update(
 
         PushConstants push_constants;
 
-        push_constants.roughness = (float)mip / (float)(PREFILTER_MIP_LEVELS - 1);
+        push_constants.roughness       = (float)mip / (float)(PREFILTER_MIP_LEVELS - 1);
         push_constants.size            = mip_height;
         push_constants.start_mip_level = start_level;
-        push_constants.sample_count = m_sample_count;
+        push_constants.sample_count    = m_sample_count;
 
         vkCmdPushConstants(cmd_buf->handle(), m_pipeline_layout->handle(), VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants), &push_constants);
         vkCmdBindDescriptorSets(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline_layout->handle(), 0, 1, &m_ds[mip]->handle(), 0, nullptr);

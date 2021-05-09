@@ -2432,7 +2432,7 @@ BRDFIntegrateLUT::BRDFIntegrateLUT(
     ds_layout_desc.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
 
     m_ds_layout = vk::DescriptorSetLayout::create(backend, ds_layout_desc);
-    
+
     m_ds = backend->allocate_descriptor_set(m_ds_layout);
 
     m_image = vk::Image::create(backend, VK_IMAGE_TYPE_2D, BRDF_LUT_SIZE, BRDF_LUT_SIZE, 1, 1, 1, VK_FORMAT_R16G16_SFLOAT, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED);

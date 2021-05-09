@@ -1790,7 +1790,7 @@ glm::vec3 hosek_wilkie(float cos_theta, float gamma, float cos_gamma, glm::vec3 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 HosekWilkieSkyModel::HosekWilkieSkyModel(
-#if defined(DWSF_VULKAN)   
+#if defined(DWSF_VULKAN)
     vk::Backend::Ptr backend
 #endif
 )
@@ -2107,7 +2107,7 @@ HosekWilkieSkyModel::HosekWilkieSkyModel(
         0.0f // bottom-left
     };
 
-#if defined(DWSF_VULKAN)  
+#if defined(DWSF_VULKAN)
     m_cubemap_image = vk::Image::create(backend, VK_IMAGE_TYPE_2D, SKY_CUBEMAP_SIZE, SKY_CUBEMAP_SIZE, 1, 5, 6, VK_FORMAT_R32G32B32A32_SFLOAT, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, 0, nullptr, VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT);
     m_cubemap_image->set_name("Procedural Sky");
 
@@ -2407,7 +2407,7 @@ HosekWilkieSkyModel::HosekWilkieSkyModel(
 
 HosekWilkieSkyModel::~HosekWilkieSkyModel()
 {
-#if defined(DWSF_VULKAN)  
+#if defined(DWSF_VULKAN)
     m_ds.reset();
     m_ds_layout.reset();
     m_ubo.reset();
@@ -2434,12 +2434,12 @@ HosekWilkieSkyModel::~HosekWilkieSkyModel()
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void HosekWilkieSkyModel::update(
-#if defined(DWSF_VULKAN)      
-    vk::CommandBuffer::Ptr cmd_buf, 
-#endif    
+#if defined(DWSF_VULKAN)
+    vk::CommandBuffer::Ptr cmd_buf,
+#endif
     glm::vec3 direction)
 {
-#if defined(DWSF_VULKAN)   
+#if defined(DWSF_VULKAN)
     DW_SCOPED_SAMPLE("Procedural Sky", cmd_buf);
 #else
     DW_SCOPED_SAMPLE("Procedural Sky");
@@ -2484,7 +2484,7 @@ void HosekWilkieSkyModel::update(
     ubo.I = glm::vec4(I, 0.0f);
     ubo.Z = glm::vec4(Z, 0.0f);
 
-#if defined(DWSF_VULKAN)   
+#if defined(DWSF_VULKAN)
     memcpy(m_ubo->mapped_ptr(), &ubo, sizeof(HosekWilkieUBO));
 
     vkCmdBindPipeline(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_cubemap_pipeline->handle());
@@ -2581,4 +2581,4 @@ void HosekWilkieSkyModel::update(
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
-} // namespace helios
+} // namespace dw

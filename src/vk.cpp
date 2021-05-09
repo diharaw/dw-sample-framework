@@ -3417,6 +3417,7 @@ Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require
     {
         device_extensions.push_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
         device_extensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+        device_extensions.push_back(VK_KHR_RAY_QUERY_EXTENSION_NAME);
         device_extensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
         device_extensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
         device_extensions.push_back(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
@@ -4515,12 +4516,19 @@ bool Backend::is_queue_compatible(VkQueueFlags current_queue_flags, int32_t grap
 
 bool Backend::create_logical_device(std::vector<const char*> extensions, bool require_ray_tracing)
 {
+    VkPhysicalDeviceRayQueryFeaturesKHR device_ray_query_features;
+    DW_ZERO_MEMORY(device_ray_query_features);
+
+    device_ray_query_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+    device_ray_query_features.pNext    = nullptr;
+    device_ray_query_features.rayQuery = VK_TRUE;
+
     // Acceleration Structure Features
     VkPhysicalDeviceAccelerationStructureFeaturesKHR device_acceleration_structure_features;
     DW_ZERO_MEMORY(device_acceleration_structure_features);
 
     device_acceleration_structure_features.sType                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
-    device_acceleration_structure_features.pNext                 = nullptr;
+    device_acceleration_structure_features.pNext                 = &device_ray_query_features;
     device_acceleration_structure_features.accelerationStructure = VK_TRUE;
 
     // Ray Tracing Features
