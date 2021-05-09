@@ -1,11 +1,11 @@
 #include <application.h>
 
-#include <examples/imgui_impl_glfw.h>
+#include <backends/imgui_impl_glfw.h>
 
 #if defined(DWSF_VULKAN)
-#    include <examples/imgui_impl_vulkan.h>
+#    include <backends/imgui_impl_vulkan.h>
 #else
-#    include <examples/imgui_impl_opengl3.h>
+#    include <backends/imgui_impl_opengl3.h>
 #endif
 #include <profiler.h>
 #include <iostream>

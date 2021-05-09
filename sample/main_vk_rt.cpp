@@ -233,7 +233,7 @@ private:
 
             buffer_info.buffer = m_ubo->handle();
             buffer_info.offset = 0;
-            buffer_info.range  = m_ubo_size;
+            buffer_info.range  = sizeof(Transforms);
 
             write_data[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             write_data[1].descriptorCount = 1;
@@ -359,7 +359,7 @@ private:
         const VkStridedDeviceAddressRegionKHR raygen_sbt   = { m_raytracing_pipeline->shader_binding_table_buffer()->device_address(), group_stride, group_size };
         const VkStridedDeviceAddressRegionKHR miss_sbt     = { m_raytracing_pipeline->shader_binding_table_buffer()->device_address() + m_sbt->miss_group_offset(), group_stride, group_size * 2 };
         const VkStridedDeviceAddressRegionKHR hit_sbt      = { m_raytracing_pipeline->shader_binding_table_buffer()->device_address() + m_sbt->hit_group_offset(), group_stride, group_size * 2 };
-        const VkStridedDeviceAddressRegionKHR callable_sbt = { VK_NULL_HANDLE, 0, 0 };
+        const VkStridedDeviceAddressRegionKHR callable_sbt = { 0, 0, 0 };
 
         vkCmdTraceRaysKHR(cmd_buf->handle(), &raygen_sbt, &miss_sbt, &hit_sbt, &callable_sbt, m_width, m_height, 1);
 

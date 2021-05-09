@@ -162,7 +162,7 @@ private:
 
         buffer_info.buffer = m_ubo->handle();
         buffer_info.offset = 0;
-        buffer_info.range  = VK_WHOLE_SIZE;
+        buffer_info.range  = sizeof(Transforms);
 
         VkWriteDescriptorSet write_data;
         DW_ZERO_MEMORY(write_data);
