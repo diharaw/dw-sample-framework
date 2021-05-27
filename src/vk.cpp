@@ -411,12 +411,12 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size,
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayout src_layout, VkImageLayout dst_layout)
+void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayout src_layout, VkImageLayout dst_layout, VkImageAspectFlags aspect_flags, VkFilter filter)
 {
     VkImageSubresourceRange initial_subresource_range;
     DW_ZERO_MEMORY(initial_subresource_range);
 
-    initial_subresource_range.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    initial_subresource_range.aspectMask     = aspect_flags;
     initial_subresource_range.levelCount     = m_mip_levels - 1;
     initial_subresource_range.layerCount     = m_array_size;
     initial_subresource_range.baseArrayLayer = 0;
@@ -431,7 +431,7 @@ void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayo
     VkImageSubresourceRange subresource_range;
     DW_ZERO_MEMORY(subresource_range);
 
-    subresource_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresource_range.aspectMask = aspect_flags;
     subresource_range.levelCount = 1;
     subresource_range.layerCount = 1;
 
@@ -450,22 +450,25 @@ void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayo
             if (mip_idx == 1)
                 layout = src_layout;
 
-            utilities::set_image_layout(cmd_buf->handle(),
-                                        m_vk_image,
-                                        layout,
-                                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                        subresource_range);
+            if (layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+            {
+                utilities::set_image_layout(cmd_buf->handle(),
+                                            m_vk_image,
+                                            layout,
+                                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                            subresource_range);
+            }
 
             VkImageBlit blit                   = {};
             blit.srcOffsets[0]                 = { 0, 0, 0 };
             blit.srcOffsets[1]                 = { mip_width, mip_height, 1 };
-            blit.srcSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.srcSubresource.aspectMask     = aspect_flags;
             blit.srcSubresource.mipLevel       = mip_idx - 1;
             blit.srcSubresource.baseArrayLayer = arr_idx;
             blit.srcSubresource.layerCount     = 1;
             blit.dstOffsets[0]                 = { 0, 0, 0 };
             blit.dstOffsets[1]                 = { mip_width > 1 ? mip_width / 2 : 1, mip_height > 1 ? mip_height / 2 : 1, 1 };
-            blit.dstSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.dstSubresource.aspectMask     = aspect_flags;
             blit.dstSubresource.mipLevel       = mip_idx;
             blit.dstSubresource.baseArrayLayer = arr_idx;
             blit.dstSubresource.layerCount     = 1;
@@ -477,7 +480,7 @@ void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayo
                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                            1,
                            &blit,
-                           VK_FILTER_LINEAR);
+                           filter);
 
             utilities::set_image_layout(cmd_buf->handle(),
                                         m_vk_image,
@@ -501,13 +504,13 @@ void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayo
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Image::generate_mipmaps(VkImageLayout src_layout, VkImageLayout dst_layout)
+void Image::generate_mipmaps(VkImageLayout src_layout, VkImageLayout dst_layout, VkImageAspectFlags aspect_flags, VkFilter filter)
 {
     auto backend = m_vk_backend.lock();
 
     CommandBuffer::Ptr cmd_buf = backend->allocate_graphics_command_buffer(true);
 
-    generate_mipmaps(cmd_buf, src_layout, dst_layout);
+    generate_mipmaps(cmd_buf, src_layout, dst_layout, aspect_flags, filter);
 
     vkEndCommandBuffer(cmd_buf->handle());
 
