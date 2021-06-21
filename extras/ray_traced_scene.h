@@ -25,7 +25,10 @@ public:
     void      build_tlas(vk::CommandBuffer::Ptr cmd_buffer);
     Instance& fetch_instance(const uint32_t& idx);
     int32_t   material_index(const uint32_t& id);
-
+    
+    inline uint32_t id() { return m_id; }
+    inline glm::vec3 min_extents() { return m_min_extents; }
+    inline glm::vec3 max_extents() { return m_max_extents; }
     inline const std::vector<Instance>&   instances() { return m_instances; }
     inline vk::DescriptorSetLayout::Ptr   descriptor_set_layout() { return m_ds_layout; }
     inline vk::DescriptorSet::Ptr         descriptor_set() { return m_ds; }
@@ -38,6 +41,9 @@ private:
 
 private:
     std::weak_ptr<vk::Backend>             m_backend;
+    uint32_t                               m_id = 0;
+    glm::vec3                              m_min_extents;
+    glm::vec3                              m_max_extents;
     vk::DescriptorPool::Ptr                m_descriptor_pool;
     vk::DescriptorSetLayout::Ptr           m_ds_layout;
     vk::DescriptorSet::Ptr                 m_ds;

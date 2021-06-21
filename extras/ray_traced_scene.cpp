@@ -36,6 +36,19 @@ struct MaterialData
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+static uint32_t g_last_scene_idx = 0;
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void transformed_aabb(const RayTracedScene::Instance& instance, glm::vec3& min_extents, glm::vec3& max_extents) {
+    auto mesh = instance.mesh.lock();
+
+    min_extents = instance.transform * glm::vec4(mesh->min_extents(), 1.0f);
+    max_extents = instance.transform * glm::vec4(mesh->max_extents(), 1.0f);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 RayTracedScene::Ptr RayTracedScene::create(vk::Backend::Ptr backend, std::vector<Instance> instances)
 {
     return std::shared_ptr<RayTracedScene>(new RayTracedScene(backend, instances));
@@ -44,7 +57,7 @@ RayTracedScene::Ptr RayTracedScene::create(vk::Backend::Ptr backend, std::vector
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 RayTracedScene::RayTracedScene(vk::Backend::Ptr backend, std::vector<Instance> instances) :
-    m_backend(backend), m_instances(instances)
+    m_backend(backend), m_instances(instances), m_id(g_last_scene_idx++)
 {
     // Allocate device instance buffer
     m_tlas_instance_buffer_device = vk::Buffer::create(backend, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, sizeof(VkAccelerationStructureInstanceKHR) * MAX_INSTANCES, VMA_MEMORY_USAGE_GPU_ONLY, 0);
@@ -143,6 +156,33 @@ RayTracedScene::RayTracedScene(vk::Backend::Ptr backend, std::vector<Instance> i
     m_ds->set_name("Scene Descriptor Set");
 
     create_gpu_resources();
+
+    // Compute scene bounds
+    if (m_instances.size() > 0)
+    {
+        transformed_aabb(m_instances[0], m_min_extents, m_max_extents);
+
+        for (auto instance : m_instances)
+        {
+            glm::vec3 min_extents, max_extents;
+
+            transformed_aabb(instance, min_extents, max_extents);
+
+            if (max_extents.x > m_max_extents.x)
+                m_max_extents.x = max_extents.x;
+            if (max_extents.y > m_max_extents.y)
+                m_max_extents.y = max_extents.y;
+            if (max_extents.z > m_max_extents.z)
+                m_max_extents.z = max_extents.z;
+
+            if (min_extents.x < m_min_extents.x)
+                m_min_extents.x = min_extents.x;
+            if (min_extents.y < m_min_extents.y)
+                m_min_extents.y = min_extents.y;
+            if (min_extents.z < m_min_extents.z)
+                m_min_extents.z = min_extents.z;
+        }
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
