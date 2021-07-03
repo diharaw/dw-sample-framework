@@ -40,7 +40,8 @@ static uint32_t g_last_scene_idx = 0;
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void transformed_aabb(const RayTracedScene::Instance& instance, glm::vec3& min_extents, glm::vec3& max_extents) {
+void transformed_aabb(const RayTracedScene::Instance& instance, glm::vec3& min_extents, glm::vec3& max_extents)
+{
     auto mesh = instance.mesh.lock();
 
     min_extents = instance.transform * glm::vec4(mesh->min_extents(), 1.0f);

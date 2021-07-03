@@ -2748,8 +2748,6 @@ void CubemapPrefiler::update(
 #endif
 )
 {
-    DW_SCOPED_SAMPLE("Cubemap Prefilter", cmd_buf);
-
 #if defined(DWSF_VULKAN)
     VkImageSubresourceRange subresource_range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, PREFILTER_MIP_LEVELS, 0, 6 };
 

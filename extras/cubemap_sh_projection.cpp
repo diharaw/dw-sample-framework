@@ -4852,8 +4852,6 @@ void CubemapSHProjection::update(
 )
 {
 #if defined(DWSF_VULKAN)
-    DW_SCOPED_SAMPLE("Cubemap SH Projection", cmd_buf);
-
     VkImageSubresourceRange intermediate_subresource_range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 6 };
 
     dw::vk::utilities::set_image_layout(
@@ -4897,8 +4895,6 @@ void CubemapSHProjection::update(
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         sh_subresource_range);
 #else
-    DW_SCOPED_SAMPLE("Cubemap SH Projection");
-
     m_projection_program->use();
 
     m_projection_program->set_uniform("u_Width", (float)m_cubemap->width() / 4.0f);
