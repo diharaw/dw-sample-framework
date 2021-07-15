@@ -1070,7 +1070,15 @@ extern void set_image_layout(VkCommandBuffer         cmdbuffer,
                              VkImageSubresourceRange subresourceRange,
                              VkPipelineStageFlags    srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                              VkPipelineStageFlags    dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-
+extern void blitt_image(vk::CommandBuffer::Ptr cmd_buf,
+                        vk::Image::Ptr         src,
+                        vk::Image::Ptr         dst,
+                        VkImageLayout          src_img_src_layout,
+                        VkImageLayout          src_img_dst_layout,
+                        VkImageLayout          dst_img_src_layout,
+                        VkImageLayout          dst_img_dst_layout,
+                        VkImageAspectFlags     aspect_flags,
+                        VkFilter               filter);
 extern uint32_t get_memory_type(VkPhysicalDevice device, uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound = nullptr);
 extern void     set_object_name(VkDevice device, uint64_t object, std::string name, VkObjectType type);
 

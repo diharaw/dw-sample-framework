@@ -5005,6 +5005,76 @@ void set_image_layout(VkCommandBuffer         cmdbuffer,
         &image_memory_barrier);
 }
 
+void blitt_image(vk::CommandBuffer::Ptr cmd_buf,
+                 vk::Image::Ptr         src,
+                 vk::Image::Ptr         dst,
+                 VkImageLayout              src_img_src_layout,
+                 VkImageLayout              src_img_dst_layout,
+                 VkImageLayout              dst_img_src_layout,
+                 VkImageLayout              dst_img_dst_layout,
+                 VkImageAspectFlags         aspect_flags,
+                 VkFilter                   filter)
+{
+    VkImageSubresourceRange initial_subresource_range;
+    DW_ZERO_MEMORY(initial_subresource_range);
+
+    initial_subresource_range.aspectMask     = aspect_flags;
+    initial_subresource_range.levelCount     = 1;
+    initial_subresource_range.layerCount     = 1;
+    initial_subresource_range.baseArrayLayer = 0;
+    initial_subresource_range.baseMipLevel   = 0;
+
+    if (src_img_src_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+    {
+        vk::utilities::set_image_layout(cmd_buf->handle(),
+                                            src->handle(),
+                                            src_img_src_layout,
+                                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                            initial_subresource_range);
+    }
+
+    vk::utilities::set_image_layout(cmd_buf->handle(),
+                                        dst->handle(),
+                                        dst_img_src_layout,
+                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                        initial_subresource_range);
+
+    VkImageBlit blit                   = {};
+    blit.srcOffsets[0]                 = { 0, 0, 0 };
+    blit.srcOffsets[1]                 = { static_cast<int32_t>(src->width()), static_cast<int32_t>(src->height()), 1 };
+    blit.srcSubresource.aspectMask     = aspect_flags;
+    blit.srcSubresource.mipLevel       = 0;
+    blit.srcSubresource.baseArrayLayer = 0;
+    blit.srcSubresource.layerCount     = 1;
+    blit.dstOffsets[0]                 = { 0, 0, 0 };
+    blit.dstOffsets[1]                 = { static_cast<int32_t>(dst->width()), static_cast<int32_t>(dst->height()), 1 };
+    blit.dstSubresource.aspectMask     = aspect_flags;
+    blit.dstSubresource.mipLevel       = 0;
+    blit.dstSubresource.baseArrayLayer = 0;
+    blit.dstSubresource.layerCount     = 1;
+
+    vkCmdBlitImage(cmd_buf->handle(),
+                   src->handle(),
+                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                   dst->handle(),
+                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                   1,
+                   &blit,
+                   filter);
+
+    vk::utilities::set_image_layout(cmd_buf->handle(),
+                                        src->handle(),
+                                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                        src_img_dst_layout,
+                                        initial_subresource_range);
+
+    vk::utilities::set_image_layout(cmd_buf->handle(),
+                                        dst->handle(),
+                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                        dst_img_dst_layout,
+                                        initial_subresource_range);
+}
+
 uint32_t get_memory_type(VkPhysicalDevice device, uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound)
 {
     VkPhysicalDeviceMemoryProperties prop;
