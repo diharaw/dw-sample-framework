@@ -7,7 +7,7 @@
 #include <extensions_vk.h>
 
 #define BUFFER_COUNT 3
-#define MAX_SAMPLES 100
+#define MAX_SAMPLES 256
 
 namespace dw
 {
