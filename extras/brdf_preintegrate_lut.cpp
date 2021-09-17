@@ -21,7 +21,7 @@ BRDFIntegrateLUT::BRDFIntegrateLUT(
     size_t                size = BRDF_LUT_SIZE * BRDF_LUT_SIZE * sizeof(uint16_t) * 2;
     std::vector<uint16_t> buffer(size);
 
-    std::fstream f("brdf_lut.bin", std::ios::in | std::ios::binary);
+    std::fstream f("textures/brdf_lut.bin", std::ios::in | std::ios::binary);
 
     f.seekp(0);
     f.read((char*)buffer.data(), size);
