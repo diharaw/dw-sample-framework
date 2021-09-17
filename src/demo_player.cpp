@@ -55,6 +55,13 @@ void CubicSpline::add_point(glm::vec3 p)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+void CubicSpline::add_points(const std::vector<glm::vec3>& points)
+{
+    m_points = points;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 glm::vec3 CubicSpline::spline_at_time(float t)
 {
     if (t > m_points.size())
@@ -239,6 +246,13 @@ void LerpSpline::add_point(glm::vec3 p)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+void LerpSpline::add_points(const std::vector<glm::vec3>& points)
+{
+    m_points = points;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 glm::vec3 LerpSpline::value_at_time(float t)
 {
     float frame      = float(m_points.size() - 1) * t;
@@ -252,6 +266,21 @@ glm::vec3 LerpSpline::value_at_time(float t)
 
 DemoPlayer::DemoPlayer()
 {
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+DemoPlayer::DemoPlayer(const std::vector<glm::vec3>& position_frames, const std::vector<glm::vec3>& forward_frames, const std::vector<glm::vec3>& right_frames)
+{
+    m_position_spline.add_points(position_frames);
+    m_forward_spline.add_points(forward_frames);
+    m_right_spline.add_points(right_frames);
+
+    if (m_position_spline.m_points.size() > 4)
+    {
+        m_position_spline.initialize();
+        initialize_debug();
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -408,6 +437,13 @@ void DemoPlayer::debug_visualization(DebugDraw& debug_draw)
 float DemoPlayer::speed()
 {
     return m_speed;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void DemoPlayer::set_speed(float speed)
+{
+    m_speed = speed;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

@@ -46,7 +46,7 @@ static const unsigned int kCONVERT_VERT_SPIRV_data[1280 / 4] = {
     0x00000013,
     0x00030003,
     0x00000002,
-    0x000001cc,
+    0x000001c2,
     0x000a0004,
     0x475f4c47,
     0x4c474f4f,
@@ -374,7 +374,7 @@ static const unsigned int kCONVERT_FRAG_SPIRV_data[1544 / 4] = {
     0x00000007,
     0x00030003,
     0x00000002,
-    0x000001cc,
+    0x000001c2,
     0x000a0004,
     0x475f4c47,
     0x4c474f4f,
@@ -841,296 +841,151 @@ EquirectangularToCubemap::EquirectangularToCubemap(
         -1.0f,
         -1.0f,
         -1.0f,
-        0.0f,
-        0.0f,
-        -1.0f,
-        0.0f,
-        0.0f, // bottom-left
+        // bottom-left
         1.0f,
         1.0f,
         -1.0f,
-        0.0f,
-        0.0f,
-        -1.0f,
-        1.0f,
-        1.0f, // top-right
+        // top-right
         1.0f,
         -1.0f,
         -1.0f,
-        0.0f,
-        0.0f,
-        -1.0f,
-        1.0f,
-        0.0f, // bottom-right
+        // bottom-right
         1.0f,
         1.0f,
         -1.0f,
-        0.0f,
-        0.0f,
-        -1.0f,
-        1.0f,
-        1.0f, // top-right
+        // top-right
         -1.0f,
         -1.0f,
         -1.0f,
-        0.0f,
-        0.0f,
-        -1.0f,
-        0.0f,
-        0.0f, // bottom-left
+        // bottom-left
         -1.0f,
         1.0f,
         -1.0f,
-        0.0f,
-        0.0f,
-        -1.0f,
-        0.0f,
-        1.0f, // top-left
+        // top-left
         // front face
         -1.0f,
         -1.0f,
         1.0f,
-        0.0f,
-        0.0f,
-        1.0f,
-        0.0f,
-        0.0f, // bottom-left
+        // bottom-left
         1.0f,
         -1.0f,
         1.0f,
-        0.0f,
-        0.0f,
-        1.0f,
-        1.0f,
-        0.0f, // bottom-right
+        // bottom-right
         1.0f,
         1.0f,
         1.0f,
-        0.0f,
-        0.0f,
-        1.0f,
-        1.0f,
-        1.0f, // top-right
+        // top-right
         1.0f,
         1.0f,
         1.0f,
-        0.0f,
-        0.0f,
-        1.0f,
-        1.0f,
-        1.0f, // top-right
+        // top-right
         -1.0f,
         1.0f,
         1.0f,
-        0.0f,
-        0.0f,
-        1.0f,
-        0.0f,
-        1.0f, // top-left
+        // top-left
         -1.0f,
         -1.0f,
         1.0f,
-        0.0f,
-        0.0f,
-        1.0f,
-        0.0f,
-        0.0f, // bottom-left
+        // bottom-left
         // left face
         -1.0f,
         1.0f,
         1.0f,
-        -1.0f,
-        0.0f,
-        0.0f,
-        1.0f,
-        0.0f, // top-right
+        // top-right
         -1.0f,
         1.0f,
         -1.0f,
-        -1.0f,
-        0.0f,
-        0.0f,
-        1.0f,
-        1.0f, // top-left
+        // top-left
         -1.0f,
         -1.0f,
         -1.0f,
-        -1.0f,
-        0.0f,
-        0.0f,
-        0.0f,
-        1.0f, // bottom-left
+        // bottom-left
         -1.0f,
         -1.0f,
         -1.0f,
-        -1.0f,
-        0.0f,
-        0.0f,
-        0.0f,
-        1.0f, // bottom-left
+        // bottom-left
         -1.0f,
         -1.0f,
         1.0f,
-        -1.0f,
-        0.0f,
-        0.0f,
-        0.0f,
-        0.0f, // bottom-right
+        // bottom-right
         -1.0f,
         1.0f,
         1.0f,
-        -1.0f,
-        0.0f,
-        0.0f,
-        1.0f,
-        0.0f, // top-right
+        // top-right
         // right face
         1.0f,
         1.0f,
         1.0f,
-        1.0f,
-        0.0f,
-        0.0f,
-        1.0f,
-        0.0f, // top-left
+        // top-left
         1.0f,
         -1.0f,
         -1.0f,
-        1.0f,
-        0.0f,
-        0.0f,
-        0.0f,
-        1.0f, // bottom-right
+        // bottom-right
         1.0f,
         1.0f,
         -1.0f,
-        1.0f,
-        0.0f,
-        0.0f,
-        1.0f,
-        1.0f, // top-right
+        // top-right
         1.0f,
         -1.0f,
         -1.0f,
-        1.0f,
-        0.0f,
-        0.0f,
-        0.0f,
-        1.0f, // bottom-right
+        // bottom-right
         1.0f,
         1.0f,
         1.0f,
-        1.0f,
-        0.0f,
-        0.0f,
-        1.0f,
-        0.0f, // top-left
+        // top-left
         1.0f,
         -1.0f,
         1.0f,
-        1.0f,
-        0.0f,
-        0.0f,
-        0.0f,
-        0.0f, // bottom-left
+        // bottom-left
         // bottom face
         -1.0f,
         -1.0f,
         -1.0f,
-        0.0f,
-        -1.0f,
-        0.0f,
-        0.0f,
-        1.0f, // top-right
+        // top-right
         1.0f,
         -1.0f,
         -1.0f,
-        0.0f,
-        -1.0f,
-        0.0f,
-        1.0f,
-        1.0f, // top-left
+        // top-left
         1.0f,
         -1.0f,
         1.0f,
-        0.0f,
-        -1.0f,
-        0.0f,
-        1.0f,
-        0.0f, // bottom-left
+        // bottom-left
         1.0f,
         -1.0f,
         1.0f,
-        0.0f,
-        -1.0f,
-        0.0f,
-        1.0f,
-        0.0f, // bottom-left
+        // bottom-left
         -1.0f,
         -1.0f,
         1.0f,
-        0.0f,
-        -1.0f,
-        0.0f,
-        0.0f,
-        0.0f, // bottom-right
+        // bottom-right
         -1.0f,
         -1.0f,
         -1.0f,
-        0.0f,
-        -1.0f,
-        0.0f,
-        0.0f,
-        1.0f, // top-right
+        // top-right
         // top face
         -1.0f,
         1.0f,
         -1.0f,
-        0.0f,
-        1.0f,
-        0.0f,
-        0.0f,
-        1.0f, // top-left
+        // top-left
         1.0f,
         1.0f,
         1.0f,
-        0.0f,
-        1.0f,
-        0.0f,
-        1.0f,
-        0.0f, // bottom-right
+        // bottom-right
         1.0f,
         1.0f,
         -1.0f,
-        0.0f,
-        1.0f,
-        0.0f,
-        1.0f,
-        1.0f, // top-right
+        // top-right
         1.0f,
         1.0f,
         1.0f,
-        0.0f,
-        1.0f,
-        0.0f,
-        1.0f,
-        0.0f, // bottom-right
+        // bottom-right
         -1.0f,
         1.0f,
         -1.0f,
-        0.0f,
-        1.0f,
-        0.0f,
-        0.0f,
-        1.0f, // top-left
+        // top-left
         -1.0f,
         1.0f,
-        1.0f,
-        0.0f,
-        1.0f,
-        0.0f,
-        0.0f,
-        0.0f // bottom-left
+        1.0f // bottom-left
     };
 
 #if defined(DWSF_VULKAN)
@@ -1221,18 +1076,8 @@ EquirectangularToCubemap::EquirectangularToCubemap(
 
     vk::VertexInputStateDesc vertex_input_state_desc;
 
-    struct SkyboxVertex
-    {
-        glm::vec3 position;
-        glm::vec3 normal;
-        glm::vec2 texcoord;
-    };
-
-    vertex_input_state_desc.add_binding_desc(0, sizeof(SkyboxVertex), VK_VERTEX_INPUT_RATE_VERTEX);
-
+    vertex_input_state_desc.add_binding_desc(0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX);
     vertex_input_state_desc.add_attribute_desc(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0);
-    vertex_input_state_desc.add_attribute_desc(1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(SkyboxVertex, normal));
-    vertex_input_state_desc.add_attribute_desc(2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(SkyboxVertex, texcoord));
 
     pso_desc.set_vertex_input_state(vertex_input_state_desc);
 

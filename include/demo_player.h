@@ -20,6 +20,7 @@ struct CubicSpline
     // Spline construction, Burden & Faires - Numerical Analysis 9th, algorithm 3.4
     void      initialize();
     void      add_point(glm::vec3 p);
+    void      add_points(const std::vector<glm::vec3>& points);
     glm::vec3 spline_at_time(float t);
     float     arc_length_integrand_single_spline(int spline, float t);
     float     arc_length_integrand(float t);
@@ -37,6 +38,7 @@ public:
     std::vector<glm::vec3> m_points;
 
     void      add_point(glm::vec3 p);
+    void      add_points(const std::vector<glm::vec3>& points);
     glm::vec3 value_at_time(float t);
 };
 
@@ -58,11 +60,13 @@ private:
 
 public:
     DemoPlayer();
+    DemoPlayer(const std::vector<glm::vec3>& position_frames, const std::vector<glm::vec3>& forward_frames, const std::vector<glm::vec3>& right_frames);
     ~DemoPlayer();
     bool      load_from_file();
     void      edit_ui(Camera* camera);
     void      debug_visualization(DebugDraw& debug_draw);
     float     speed();
+    void      set_speed(float speed);
     void      play();
     void      stop();
     bool      is_playing();
