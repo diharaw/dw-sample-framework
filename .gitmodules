@@ -16,3 +16,6 @@
 [submodule "external/VulkanMemoryAllocator"]
 	path = external/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "external/json"]
+	path = external/json
+	url = https://github.com/nlohmann/json.git
