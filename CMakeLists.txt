@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
 project("dwSampleFramework")
 
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
-
 # Options
 set(BUILD_SAMPLES true CACHE BOOL "Build example projects.")
 set(BUILD_SHARED_LIBRARY false CACHE BOOL "Build shared library.")
@@ -26,7 +24,7 @@ set(JSON_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/json/single_include/nlohma
 set(VMA_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/VulkanMemoryAllocator/src")
 
 if (USE_VULKAN)
-    find_package(Vulkan REQUIRED)
+    find_package(Vulkan)
 else()
     find_package(OpenGL REQUIRED)
 endif()
@@ -40,7 +38,7 @@ set(DW_SAMPLE_FRAMEWORK_INCLUDES ${DWSFW_INCLUDE_DIRS}
                                  ${ASSIMP_INCLUDE_DIRS}
                                  ${JSON_INCLUDE_DIRS}
                                  ${VMA_INCLUDE_DIRS}
-                                 ${VULKAN_INCLUDE_DIR}
+                                 ${Vulkan_INCLUDE_DIR}
                                  PARENT_SCOPE)
 
 include_directories(${DWSFW_INCLUDE_DIRS}
@@ -51,7 +49,7 @@ include_directories(${DWSFW_INCLUDE_DIRS}
                     ${IMGUI_INCLUDE_DIRS}
                     ${ASSIMP_INCLUDE_DIRS}
                     ${VMA_INCLUDE_DIRS}
-                    ${VULKAN_INCLUDE_DIR}
+                    ${Vulkan_INCLUDE_DIR}
                     ${JSON_INCLUDE_DIRS})
 
 if (NOT EMSCRIPTEN)

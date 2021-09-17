@@ -814,12 +814,11 @@ void main()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-
 EquirectangularToCubemap::EquirectangularToCubemap(
-#if defined(DWSF_VULKAN)  
-        vk::Backend::Ptr backend,
-        VkFormat image_format
-#endif 
+#if defined(DWSF_VULKAN)
+    vk::Backend::Ptr backend,
+    VkFormat         image_format
+#endif
 )
 {
     glm::mat4 capture_projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
@@ -1186,7 +1185,7 @@ EquirectangularToCubemap::EquirectangularToCubemap(
     dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
     m_cubemap_renderpass = vk::RenderPass::create(backend, { attachment }, subpass_description, dependencies);
-    m_cube_vbo = vk::Buffer::create(backend, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(cube_vertices), VMA_MEMORY_USAGE_GPU_ONLY, 0, cube_vertices);
+    m_cube_vbo           = vk::Buffer::create(backend, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(cube_vertices), VMA_MEMORY_USAGE_GPU_ONLY, 0, cube_vertices);
 
     vk::DescriptorSetLayout::Desc ds_layout_desc;
 
@@ -1387,25 +1386,24 @@ EquirectangularToCubemap::EquirectangularToCubemap(
 
 EquirectangularToCubemap::~EquirectangularToCubemap()
 {
-
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void EquirectangularToCubemap::convert(
-#if defined(DWSF_VULKAN)  
-        vk::Image::Ptr input_image,
-        vk::Image::Ptr output_image
+#if defined(DWSF_VULKAN)
+    vk::Image::Ptr input_image,
+    vk::Image::Ptr output_image
 #else
-        gl::Texture2D::Ptr input_image,
-        gl::Texture2D::Ptr output_image
-#endif  
+    gl::Texture2D::Ptr input_image,
+    gl::Texture2D::Ptr output_image
+#endif
 )
 {
-#if defined(DWSF_VULKAN)  
+#if defined(DWSF_VULKAN)
     auto backend = m_backend.lock();
 
-    auto ds        = backend->allocate_descriptor_set(m_ds_layout);
+    auto ds               = backend->allocate_descriptor_set(m_ds_layout);
     auto input_image_view = vk::ImageView::create(backend, input_image, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1);
 
     VkDescriptorImageInfo image_info;
@@ -1432,7 +1430,7 @@ void EquirectangularToCubemap::convert(
 
     for (int i = 0; i < 6; i++)
     {
-        face_image_views[i] = vk::ImageView::create(backend, output_image, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, i, 1);
+        face_image_views[i]  = vk::ImageView::create(backend, output_image, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, i, 1);
         face_framebuffers[i] = vk::Framebuffer::create(backend, m_cubemap_renderpass, { face_image_views[i] }, output_image->width(), output_image->height(), 1);
     }
 

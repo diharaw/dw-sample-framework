@@ -333,7 +333,7 @@ void DemoPlayer::edit_ui(Camera* camera)
         }
     }
 
-    ImGui::SliderFloat("Camera Speed", &m_speed, 0.1f, 20.0f);
+    ImGui::SliderFloat("Camera Speed", &m_speed, 0.1f, 200.0f);
 
     ImGui::Checkbox("Debug Visualization", &m_debug_visualization);
 

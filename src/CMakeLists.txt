@@ -76,7 +76,7 @@ else()
 	target_link_libraries(dwSampleFramework glfw)
 
 	if (USE_VULKAN)
-		target_link_libraries(dwSampleFramework ${VULKAN_LIBRARY})
+		target_link_libraries(dwSampleFramework ${Vulkan_LIBRARY})
 	else()
 		target_link_libraries(dwSampleFramework ${OPENGL_LIBRARIES})
 	endif()
