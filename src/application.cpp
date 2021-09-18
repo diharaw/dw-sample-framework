@@ -1,5 +1,6 @@
 #include <application.h>
-
+#include <fstream>
+#include <json.hpp>
 #include <backends/imgui_impl_glfw.h>
 
 #if defined(DWSF_VULKAN)
@@ -158,10 +159,10 @@ bool Application::init_base(int argc, const char* argv[])
     logger::open_console_stream();
     logger::open_file_stream();
 
-    std::string config;
-
     // Defaults
     AppSettings settings = intial_app_settings();
+
+    load_initial_settings_from_file(settings);
 
     bool resizable    = settings.resizable;
     bool maximized    = settings.maximized;
@@ -511,6 +512,25 @@ bool Application::exit_requested() const
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 AppSettings Application::intial_app_settings() { return AppSettings(); }
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Application::load_initial_settings_from_file(AppSettings& settings)
+{
+    std::ifstream i("config.json");
+
+    if (!i.is_open())
+        return;
+
+    nlohmann::json j;
+    i >> j;
+
+    if (j.find("width") != j.end())
+        settings.width = j["width"];
+
+    if (j.find("height") != j.end())
+        settings.height = j["height"];
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 

@@ -115,6 +115,9 @@ private:
     void update_base(double delta);
     void shutdown_base();
 
+    // Load config from file method 
+    void load_initial_settings_from_file(AppSettings& settings);
+
 protected:
     uint32_t                            m_width;
     uint32_t                            m_height;
