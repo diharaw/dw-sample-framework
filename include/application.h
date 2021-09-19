@@ -32,10 +32,9 @@ namespace dw
 {
 struct AppSettings
 {
-    bool        resizable    = true;
     bool        maximized    = false;
-    int         refresh_rate = 60;
-    int         major_ver    = 4;
+    bool        fullscreen   = false;
+    bool        vsync        = false;
     int         width        = 800;
     int         height       = 600;
     std::string title        = "dwSampleFramwork";
@@ -44,6 +43,7 @@ struct AppSettings
     std::vector<const char*> device_extensions;
     bool                     ray_tracing = false;
 #else
+    int  major_ver             = 4;
     bool enable_debug_callback = false;
 #endif
 };
@@ -138,6 +138,7 @@ protected:
 
 #if defined(DWSF_VULKAN)
     bool                            m_should_recreate_swap_chain = false;
+    bool                            m_vsync                      = false;
     vk::Backend::Ptr                m_vk_backend;
     std::vector<vk::Semaphore::Ptr> m_image_available_semaphores;
     std::vector<vk::Semaphore::Ptr> m_render_finished_semaphores;

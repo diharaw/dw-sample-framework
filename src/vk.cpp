@@ -3329,9 +3329,9 @@ void BatchUploader::add_staging_buffer(const size_t& size)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Backend::Ptr Backend::create(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions)
+Backend::Ptr Backend::create(GLFWwindow* window, bool vsync, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions)
 {
-    std::shared_ptr<Backend> backend = std::shared_ptr<Backend>(new Backend(window, enable_validation_layers, require_ray_tracing, additional_device_extensions));
+    std::shared_ptr<Backend> backend = std::shared_ptr<Backend>(new Backend(window, vsync, enable_validation_layers, require_ray_tracing, additional_device_extensions));
     backend->initialize();
 
     return backend;
@@ -3339,8 +3339,8 @@ Backend::Ptr Backend::create(GLFWwindow* window, bool enable_validation_layers, 
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Backend::Backend(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions) :
-    m_window(window)
+Backend::Backend(GLFWwindow* window, bool vsync, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions) :
+    m_vsync(vsync), m_window(window)
 {
     m_ray_tracing_enabled = require_ray_tracing;
 
@@ -3848,7 +3848,7 @@ void Backend::acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& se
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
-        recreate_swapchain();
+        recreate_swapchain(m_vsync);
         return;
     }
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
@@ -4632,7 +4632,7 @@ bool Backend::create_swapchain()
 {
     m_current_frame                   = 0;
     VkSurfaceFormatKHR surface_format = choose_swap_surface_format(m_swapchain_details.format);
-    VkPresentModeKHR   present_mode   = choose_swap_present_mode(m_swapchain_details.present_modes);
+    VkPresentModeKHR   present_mode   = m_vsync ? VK_PRESENT_MODE_FIFO_KHR : choose_swap_present_mode(m_swapchain_details.present_modes);
     VkExtent2D         extent         = choose_swap_extent(m_swapchain_details.capabilities);
 
     uint32_t image_count = m_swapchain_details.capabilities.minImageCount + 1;
@@ -4732,9 +4732,11 @@ bool Backend::create_swapchain()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Backend::recreate_swapchain()
+void Backend::recreate_swapchain(bool vsync)
 {
     vkDeviceWaitIdle(m_vk_device);
+
+    m_vsync = vsync;
 
     // Destroy existing swap chain resources
     for (int i = 0; i < m_swap_chain_images.size(); i++)

@@ -69,7 +69,7 @@ public:
 
     using Ptr = std::shared_ptr<Backend>;
 
-    static Backend::Ptr create(GLFWwindow* window, bool enable_validation_layers = false, bool require_ray_tracing = false, std::vector<const char*> additional_device_extensions = std::vector<const char*>());
+    static Backend::Ptr create(GLFWwindow* window, bool vsync, bool enable_validation_layers = false, bool require_ray_tracing = false, std::vector<const char*> additional_device_extensions = std::vector<const char*>());
 
     ~Backend();
 
@@ -107,7 +107,7 @@ public:
     std::shared_ptr<ImageView>              swapchain_depth_image_view();
     std::shared_ptr<Framebuffer>            swapchain_framebuffer();
     std::shared_ptr<RenderPass>             swapchain_render_pass();
-    void                                    recreate_swapchain();
+    void                                    recreate_swapchain(bool vsync);
 
     void             wait_idle();
     uint32_t         swap_image_count();
@@ -138,7 +138,7 @@ public:
     inline std::shared_ptr<ImageView>                         default_cubemap() { return m_default_cubemap_image_view; }
 
 private:
-    Backend(GLFWwindow* window, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions);
+    Backend(GLFWwindow* window, bool vsync, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions);
     void                     initialize();
     VkFormat                 find_depth_format();
     bool                     check_validation_layer_support(std::vector<const char*> layers);
@@ -201,6 +201,7 @@ private:
     std::shared_ptr<ImageView>                               m_swap_chain_depth_view = nullptr;
     VkPhysicalDeviceProperties                               m_device_properties;
     bool                                                     m_ray_tracing_enabled = false;
+    bool                                                     m_vsync               = false;
     std::deque<std::pair<std::shared_ptr<Object>, uint32_t>> m_deletion_queue;
 };
 

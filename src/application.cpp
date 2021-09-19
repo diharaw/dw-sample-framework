@@ -164,9 +164,9 @@ bool Application::init_base(int argc, const char* argv[])
 
     load_initial_settings_from_file(settings);
 
-    bool resizable    = settings.resizable;
     bool maximized    = settings.maximized;
-    int  refresh_rate = settings.refresh_rate;
+    bool fullscreen   = settings.fullscreen;
+    m_vsync           = settings.vsync;
     m_width           = settings.width;
     m_height          = settings.height;
     m_title           = settings.title;
@@ -206,13 +206,12 @@ bool Application::init_base(int argc, const char* argv[])
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, major_ver);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, minor_ver);
-
+    glfwSwapInterval(m_vsync ? 1 : 0);
 #endif
-    glfwWindowHint(GLFW_RESIZABLE, resizable);
+    glfwWindowHint(GLFW_RESIZABLE, false);
     glfwWindowHint(GLFW_MAXIMIZED, maximized);
-    glfwWindowHint(GLFW_REFRESH_RATE, refresh_rate);
 
-    m_window = glfwCreateWindow(m_width, m_height, m_title.c_str(), nullptr, nullptr);
+    m_window = glfwCreateWindow(m_width, m_height, m_title.c_str(), fullscreen ? glfwGetPrimaryMonitor() : nullptr, nullptr);
 
     if (!m_window)
     {
@@ -234,6 +233,7 @@ bool Application::init_base(int argc, const char* argv[])
 
 #if defined(DWSF_VULKAN)
     m_vk_backend = vk::Backend::create(m_window,
+                                       m_vsync,
 #    if defined(_DEBUG)
                                        true
 #    else
@@ -447,7 +447,7 @@ void Application::begin_frame()
 #if defined(DWSF_VULKAN)
     if (m_should_recreate_swap_chain)
     {
-        m_vk_backend->recreate_swapchain();
+        m_vk_backend->recreate_swapchain(m_vsync);
         m_should_recreate_swap_chain = false;
     }
 
@@ -530,6 +530,15 @@ void Application::load_initial_settings_from_file(AppSettings& settings)
 
     if (j.find("height") != j.end())
         settings.height = j["height"];
+
+    if (j.find("maximized") != j.end())
+        settings.maximized = j["maximized"];
+
+    if (j.find("fullscreen") != j.end())
+        settings.fullscreen = j["fullscreen"];
+
+    if (j.find("vsync") != j.end())
+        settings.vsync = j["vsync"];
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
