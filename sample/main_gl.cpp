@@ -190,9 +190,7 @@ private:
     bool create_uniform_buffer()
     {
         // Create uniform buffer for matrix data
-        m_ubo = dw::gl::UniformBuffer::create(GL_DYNAMIC_DRAW,
-                                              sizeof(Transforms),
-                                              nullptr);
+        m_ubo = dw::gl::Buffer::create(GL_UNIFORM_BUFFER, GL_MAP_WRITE_BIT, sizeof(Transforms), nullptr);
 
         return true;
     }
@@ -278,10 +276,10 @@ private:
 
 private:
     // GPU resources.
-    dw::gl::Shader::Ptr        m_vs;
-    dw::gl::Shader::Ptr        m_fs;
-    dw::gl::Program::Ptr       m_program;
-    dw::gl::UniformBuffer::Ptr m_ubo;
+    dw::gl::Shader::Ptr  m_vs;
+    dw::gl::Shader::Ptr  m_fs;
+    dw::gl::Program::Ptr m_program;
+    dw::gl::Buffer::Ptr  m_ubo;
 
     // Camera.
     std::unique_ptr<dw::Camera> m_main_camera;

@@ -313,7 +313,7 @@ void Mesh::load_from_disk(
                 if (is_gltf)
                 {
                     std::string texture_path = get_gltf_base_color_texture_path(temp_material);
-                    
+
                     if (!texture_path.empty())
                     {
                         albedo_idx = texture_paths.size();
@@ -647,15 +647,13 @@ void Mesh::create_gpu_objects(
     m_vertex_input_state_desc.add_attribute_desc(4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex, bitangent));
 #else
     // Create vertex buffer.
-    m_vbo = gl::VertexBuffer::create(
-        GL_STATIC_DRAW, sizeof(Vertex) * m_vertices.size(), m_vertices.data());
+    m_vbo = gl::Buffer::create(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * m_vertices.size(), m_vertices.data());
 
     if (!m_vbo)
         DW_LOG_ERROR("Failed to create Vertex Buffer");
 
     // Create index buffer.
-    m_ibo = gl::IndexBuffer::create(
-        GL_STATIC_DRAW, sizeof(uint32_t) * m_indices.size(), m_indices.data());
+    m_ibo = gl::Buffer::create(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(uint32_t) * m_indices.size(), m_indices.data());
 
     if (!m_ibo)
         DW_LOG_ERROR("Failed to create Index Buffer");

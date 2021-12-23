@@ -71,10 +71,7 @@ public:
     void initialize_for_ray_tracing(vk::Backend::Ptr backend);
 
     // Rendering-related getters.
-    inline vk::Buffer::Ptr vertex_buffer()
-    {
-        return m_vbo;
-    }
+    inline vk::Buffer::Ptr                 vertex_buffer() { return m_vbo; }
     inline vk::Buffer::Ptr                 index_buffer() { return m_ibo; }
     inline const vk::VertexInputStateDesc& vertex_input_state_desc() { return m_vertex_input_state_desc; }
     inline vk::AccelerationStructure::Ptr  acceleration_structure() { return m_blas; }
@@ -89,6 +86,8 @@ public:
     {
         return m_id;
     }
+    inline gl::Buffer::Ptr                               vertex_buffer() { return m_vbo; }
+    inline gl::Buffer::Ptr                               index_buffer() { return m_ibo; }
     inline const std::vector<std::shared_ptr<Material>>& materials() { return m_materials; }
     inline const std::vector<SubMesh>&                   sub_meshes() { return m_sub_meshes; }
     inline const std::vector<uint32_t>&                  indices() { return m_indices; }
@@ -145,9 +144,9 @@ private:
     vk::Buffer::Ptr                      m_ibo;
     vk::VertexInputStateDesc             m_vertex_input_state_desc;
 #else
-    gl::VertexArray::Ptr  m_vao = nullptr;
-    gl::VertexBuffer::Ptr m_vbo = nullptr;
-    gl::IndexBuffer::Ptr  m_ibo = nullptr;
+    gl::VertexArray::Ptr m_vao = nullptr;
+    gl::Buffer::Ptr      m_vbo = nullptr;
+    gl::Buffer::Ptr      m_ibo = nullptr;
 #endif
 };
 } // namespace dw

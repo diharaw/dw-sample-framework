@@ -4,7 +4,9 @@
 #include <timer.h>
 #include <stack>
 #include <vector>
-#include <extensions_vk.h>
+#if defined(DWSF_VULKAN)
+#    include <extensions_vk.h>
+#endif
 
 #define BUFFER_COUNT 3
 #define MAX_SAMPLES 256
@@ -105,16 +107,16 @@ struct Profiler
 #if defined(DWSF_VULKAN)
         sample->query_index = m_sample_buffers[m_write_buffer_idx].query_index++;
         vkCmdWriteTimestamp(cmd_buf->handle(), VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_sample_buffers[m_write_buffer_idx].query_pool->handle(), sample->query_index);
-        
+
         VkDebugUtilsLabelEXT debug_label;
 
-        debug_label.sType       = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        debug_label.pNext       = nullptr;
-        debug_label.pLabelName  = name.c_str();
-        debug_label.color[0]    = 0.0f;
-        debug_label.color[1]    = 1.0f;
-        debug_label.color[2]    = 0.0f;
-        debug_label.color[3]    = 1.0f;
+        debug_label.sType      = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+        debug_label.pNext      = nullptr;
+        debug_label.pLabelName = name.c_str();
+        debug_label.color[0]   = 0.0f;
+        debug_label.color[1]   = 1.0f;
+        debug_label.color[2]   = 0.0f;
+        debug_label.color[3]   = 1.0f;
 
         vkCmdBeginDebugUtilsLabelEXT(cmd_buf->handle(), &debug_label);
 #else

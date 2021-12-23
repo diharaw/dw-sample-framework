@@ -43,13 +43,13 @@ public:
     inline glm::vec3 emissive_value() { return m_emissive_color; }
     inline bool      alpha_test() { return m_alpha_test; }
 
-    inline int32_t    albedo_idx() { return m_albedo_idx; }
-    inline int32_t    normal_idx() { return m_normal_idx; }
+    inline int32_t albedo_idx() { return m_albedo_idx; }
+    inline int32_t normal_idx() { return m_normal_idx; }
     inline int32_t roughness_idx() { return m_roughness_idx; }
     inline int32_t metallic_idx() { return m_metallic_idx; }
-    inline int32_t    emissive_idx() { return m_emissive_idx; }
-    inline int32_t    roughness_channel() { return m_roughness_channel; }
-    inline int32_t    metallic_channel() { return m_metallic_channel; }
+    inline int32_t emissive_idx() { return m_emissive_idx; }
+    inline int32_t roughness_channel() { return m_roughness_channel; }
+    inline int32_t metallic_channel() { return m_metallic_channel; }
 
     inline void set_albedo_value(const glm::vec4& value) { m_albedo_color = value; }
     inline void set_roughness_value(const float& value) { m_roughness = value; }
@@ -114,18 +114,18 @@ private:
     // Material cache.
     static std::unordered_map<std::string, std::weak_ptr<Material>> m_cache;
 
-    int32_t    m_albedo_idx     = -1;
-    int32_t    m_normal_idx     = -1;
-    int32_t m_roughness_idx  = -1;
-    int32_t m_metallic_idx   = -1;
-    int32_t    m_emissive_idx   = -1;
-    int32_t    m_roughness_channel = -1;
-    int32_t    m_metallic_channel = -1;
-    glm::vec4  m_albedo_color   = glm::vec4(1.0f);
-    glm::vec3  m_emissive_color = glm::vec3(0.0f);
-    float      m_roughness      = 1.0f;
-    float      m_metallic       = 0.0f;
-    bool       m_alpha_test     = false;
+    int32_t   m_albedo_idx        = -1;
+    int32_t   m_normal_idx        = -1;
+    int32_t   m_roughness_idx     = -1;
+    int32_t   m_metallic_idx      = -1;
+    int32_t   m_emissive_idx      = -1;
+    int32_t   m_roughness_channel = -1;
+    int32_t   m_metallic_channel  = -1;
+    glm::vec4 m_albedo_color      = glm::vec4(1.0f);
+    glm::vec3 m_emissive_color    = glm::vec3(0.0f);
+    float     m_roughness         = 1.0f;
+    float     m_metallic          = 0.0f;
+    bool      m_alpha_test        = false;
 
     uint32_t m_id = 0;
 

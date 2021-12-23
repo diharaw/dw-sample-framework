@@ -15,6 +15,36 @@ namespace gl
 {
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+int num_channels_from_internal_format(GLenum fmt)
+{
+    if (fmt == GL_R8 || fmt == GL_R16F || fmt == GL_R32F)
+        return 1;
+    else if (fmt == GL_RG8 || fmt == GL_RG16F || fmt == GL_RG32F)
+        return 2;
+    else if (fmt == GL_RGB8 || fmt == GL_RGB16F || fmt == GL_RGB32F)
+        return 3;
+    else if (fmt == GL_RGBA8 || fmt == GL_RGBA16F || fmt == GL_RGBA32F)
+        return 4;
+    else
+        return 0;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+size_t pixel_size_from_type(GLenum type)
+{
+    if (type == GL_UNSIGNED_BYTE || type == GL_BYTE)
+        return sizeof(uint8_t);
+    else if (type == GL_HALF_FLOAT)
+        return sizeof(uint16_t);
+    else if (type == GL_FLOAT)
+        return sizeof(float);
+    else
+        return 0;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 Object::Object(const GLenum& identifier) :
     m_identifier(identifier)
 {
@@ -37,114 +67,110 @@ void Object::set_name(const GLuint& name, const std::string& label)
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Texture::Texture() :
-    Object(GL_TEXTURE) { GL_CHECK_ERROR(glGenTextures(1, &m_gl_tex)); }
+    Object(GL_TEXTURE)
+{
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Texture::~Texture() { GL_CHECK_ERROR(glDeleteTextures(1, &m_gl_tex)); }
+Texture::~Texture()
+{
+    make_texture_handle_non_resident();
+    make_image_handle_non_resident();
+    glDeleteTextures(1, &m_gl_tex);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Texture::bind(uint32_t unit)
 {
-    GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0 + unit));
-    GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
+    glActiveTexture(GL_TEXTURE0 + unit);
+    glBindTexture(m_target, m_gl_tex);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Texture::unbind(uint32_t unit)
 {
-    GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0 + unit));
-    GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    glActiveTexture(GL_TEXTURE0 + unit);
+    glBindTexture(m_target, 0);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Texture::generate_mipmaps()
 {
-    GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-    GL_CHECK_ERROR(glGenerateMipmap(m_target));
-    GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    glGenerateTextureMipmap(m_gl_tex);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GLuint Texture::id() { return m_gl_tex; }
+GLuint Texture::id()
+{
+    return m_gl_tex;
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GLenum Texture::target() { return m_target; }
+GLenum Texture::target()
+{
+    return m_target;
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GLenum Texture::internal_format() { return m_internal_format; }
+uint32_t Texture::array_size()
+{
+    return m_array_size;
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GLenum Texture::format() { return m_format; }
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-GLenum Texture::type() { return m_type; }
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-uint32_t Texture::array_size() { return m_array_size; }
+uint32_t Texture::version()
+{
+    return m_version;
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Texture::set_wrapping(GLenum s, GLenum t, GLenum r)
 {
-    GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-    GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_WRAP_S, s));
-    GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_WRAP_T, t));
-    GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_WRAP_R, r));
-    GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    glTextureParameteri(m_gl_tex, GL_TEXTURE_WRAP_S, s);
+    glTextureParameteri(m_gl_tex, GL_TEXTURE_WRAP_T, t);
+    glTextureParameteri(m_gl_tex, GL_TEXTURE_WRAP_R, r);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Texture::set_border_color(float r, float g, float b, float a)
 {
-#    if !defined(__EMSCRIPTEN__)
     float border_color[] = { r, g, b, a };
-    GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-    GL_CHECK_ERROR(
-        glTexParameterfv(m_target, GL_TEXTURE_BORDER_COLOR, border_color));
-    GL_CHECK_ERROR(glBindTexture(m_target, 0));
-#    endif
+    glTextureParameterfv(m_gl_tex, GL_TEXTURE_BORDER_COLOR, border_color);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Texture::set_min_filter(GLenum filter)
 {
-    GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-    GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_MIN_FILTER, filter));
-    GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    glTextureParameteri(m_gl_tex, GL_TEXTURE_MIN_FILTER, filter);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Texture::set_mag_filter(GLenum filter)
 {
-    GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-    GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_MAG_FILTER, filter));
-    GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    glTextureParameteri(m_gl_tex, GL_TEXTURE_MAG_FILTER, filter);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-#    if !defined(__EMSCRIPTEN__)
 void Texture::bind_image(uint32_t unit, uint32_t mip_level, uint32_t layer, GLenum access, GLenum format)
 {
     bind(unit);
 
+    // GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format
     if (m_array_size > 1)
         glBindImageTexture(unit, m_gl_tex, mip_level, GL_TRUE, layer, access, format);
-    else if (m_target == GL_TEXTURE_CUBE_MAP)
-        glBindImageTexture(unit, m_gl_tex, mip_level, GL_TRUE, 0, access, format);
     else
         glBindImageTexture(unit, m_gl_tex, mip_level, GL_FALSE, 0, access, format);
 }
@@ -153,18 +179,81 @@ void Texture::bind_image(uint32_t unit, uint32_t mip_level, uint32_t layer, GLen
 
 void Texture::set_compare_mode(GLenum mode)
 {
-    GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-    GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_COMPARE_MODE, mode));
-    GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    glTextureParameteri(m_gl_tex, GL_TEXTURE_COMPARE_MODE, mode);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Texture::set_compare_func(GLenum func)
 {
-    GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-    GL_CHECK_ERROR(glTexParameteri(m_target, GL_TEXTURE_COMPARE_FUNC, func));
-    GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    glTextureParameteri(m_gl_tex, GL_TEXTURE_COMPARE_FUNC, func);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+bool Texture::is_compressed(int mip_level)
+{
+    GLint param = 0;
+    glGetTextureLevelParameteriv(m_gl_tex, mip_level, GL_TEXTURE_COMPRESSED, &param);
+
+    return param == 1;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+int Texture::compressed_size(int mip_level)
+{
+    GLint param = 0;
+    glGetTextureLevelParameteriv(m_gl_tex, mip_level, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &param);
+
+    return param;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+GLuint64 Texture::make_texture_handle_resident()
+{
+    m_texture_handle = glGetTextureHandleARB(m_gl_tex);
+    glMakeTextureHandleResidentARB(m_texture_handle);
+    return m_texture_handle;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Texture::make_texture_handle_non_resident()
+{
+    if (m_texture_handle != 0)
+    {
+        glMakeTextureHandleNonResidentARB(m_texture_handle);
+        m_texture_handle = 0;
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+GLuint64 Texture::make_image_handle_resident(GLenum access, GLint level, GLboolean layered, GLint layer)
+{
+    m_image_handle = glGetImageHandleARB(m_gl_tex, level, layered, layer, m_format);
+    glMakeImageHandleResidentARB(m_gl_tex, access);
+    return m_image_handle;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Texture::make_image_handle_non_resident()
+{
+    if (m_image_handle != 0)
+    {
+        glMakeImageHandleNonResidentARB(m_image_handle);
+        m_image_handle = 0;
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+uint32_t Texture::mip_levels()
+{
+    return m_mip_levels;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -174,11 +263,8 @@ void Texture::set_name(const std::string& name)
     Object::set_name(m_gl_tex, name);
 }
 
-#    endif
-
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-#    if !defined(__EMSCRIPTEN__)
 Texture1D::Ptr Texture1D::create(uint32_t w, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type)
 {
     return std::shared_ptr<Texture1D>(new Texture1D(w, array_size, mip_levels, internal_format, format, type));
@@ -211,44 +297,23 @@ Texture1D::Texture1D(uint32_t w, uint32_t array_size, int32_t mip_levels, GLenum
     else
         m_mip_levels = mip_levels;
 
-    // Allocate memory for mip levels.
-    if (array_size > 1)
-    {
-        m_target = GL_TEXTURE_1D_ARRAY;
-
-        int width = m_width;
-
-        GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-
-        for (int i = 0; i < m_mip_levels; i++)
-        {
-            GL_CHECK_ERROR(glTexImage2D(m_target, i, m_internal_format, width, m_array_size, 0, m_format, m_type, NULL));
-            width = std::max(1, (width / 2));
-        }
-
-        GL_CHECK_ERROR(glBindTexture(m_target, 0));
-    }
-    else
-    {
-        m_target = GL_TEXTURE_1D;
-
-        int width = m_width;
-
-        GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-
-        for (int i = 0; i < m_mip_levels; i++)
-        {
-            GL_CHECK_ERROR(glTexImage1D(m_target, i, m_internal_format, width, 0, m_format, m_type, NULL));
-            width = std::max(1, (width / 2));
-        }
-
-        GL_CHECK_ERROR(glBindTexture(m_target, 0));
-    }
+    allocate();
 
     // Default sampling options.
     set_wrapping(GL_REPEAT, GL_REPEAT, GL_REPEAT);
-    set_min_filter(GL_LINEAR_MIPMAP_LINEAR);
     set_mag_filter(GL_LINEAR);
+
+    if (m_mip_levels > 1)
+        set_min_filter(GL_LINEAR_MIPMAP_LINEAR);
+    else
+        set_min_filter(GL_LINEAR);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture1D::Texture1D() :
+    Texture()
+{
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -257,38 +322,110 @@ Texture1D::~Texture1D() {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Texture1D::set_data(int array_index, int mip_level, void* data)
+void Texture1D::allocate()
+{
+    // Allocate memory for mip levels.
+    if (m_array_size > 1)
+    {
+        m_target = GL_TEXTURE_1D_ARRAY;
+        glCreateTextures(m_target, 1, &m_gl_tex);
+        glTextureStorage2D(m_gl_tex, m_mip_levels, m_internal_format, m_width, m_array_size);
+    }
+    else
+    {
+        m_target = GL_TEXTURE_1D;
+        glCreateTextures(m_target, 1, &m_gl_tex);
+        glTextureStorage1D(m_gl_tex, m_mip_levels, m_internal_format, m_width);
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Texture1D::write_data(int array_index, int mip_level, void* data)
 {
     int width = m_width;
 
     for (int i = 0; i < mip_level; i++)
         width = std::max(1, width / 2);
 
-    GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-
-    if (m_array_size > 1)
-    {
-        GL_CHECK_ERROR(glTexImage2D(m_target, mip_level, m_internal_format, width, array_index, 0, m_format, m_type, data));
-    }
-    else
-    {
-        GL_CHECK_ERROR(glTexImage1D(m_target, mip_level, m_internal_format, width, 0, m_format, m_type, data));
-    }
-
-    GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    write_sub_data(array_index, mip_level, 0, width, data);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-uint32_t Texture1D::width() { return m_width; }
+void Texture1D::write_sub_data(int array_index, int mip_level, int x_offset, int width, void* data)
+{
+    if (m_array_size > 1)
+        glTextureSubImage2D(m_gl_tex, mip_level, x_offset, array_index, width, 1, m_format, m_type, data);
+    else
+        glTextureSubImage1D(m_gl_tex, mip_level, x_offset, width, m_format, m_type, data);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-uint32_t Texture1D::mip_levels() { return m_mip_levels; }
-#    endif
+void Texture1D::write_compressed_data(int array_index, int mip_level, int size, void* data)
+{
+    int width = m_width;
+
+    for (int i = 0; i < mip_level; i++)
+        width = std::max(1, width / 2);
+
+    write_compressed_sub_data(array_index, mip_level, 0, width, size, data);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+void Texture1D::write_compressed_sub_data(int array_index, int mip_level, int x_offset, int width, int size, void* data)
+{
+    if (m_array_size > 1)
+        glCompressedTextureSubImage2D(m_gl_tex, mip_level, x_offset, array_index, width, 1, m_internal_format, size, data);
+    else
+        glCompressedTextureSubImage1D(m_gl_tex, mip_level, x_offset, width, m_internal_format, size, data);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Texture1D::resize(uint32_t w)
+{
+    if (m_gl_tex != UINT32_MAX)
+        glDeleteTextures(1, &m_gl_tex);
+
+    m_version++;
+    m_width = w;
+
+    // Check if the max number of mip-levels possible with the current size is less than
+    // the earlier number, if so use the smaller number.
+    int mip_levels = 1;
+
+    int width = m_width;
+
+    while (width > 1)
+    {
+        width = std::max(1, (width / 2));
+        mip_levels++;
+    }
+
+    if (mip_levels < m_mip_levels)
+        m_mip_levels = mip_levels;
+
+    allocate();
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+uint32_t Texture1D::width()
+{
+    return m_width;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture2D::Ptr Texture2D::create(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, uint32_t num_samples, GLenum internal_format, GLenum format, GLenum type)
+{
+    return std::shared_ptr<Texture2D>(new Texture2D(w, h, array_size, mip_levels, num_samples, internal_format, format, type));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
 Texture2D::Ptr Texture2D::create_from_files(std::string path, bool flip_vertical, bool srgb)
 {
     int x, y, n;
@@ -304,7 +441,7 @@ Texture2D::Ptr Texture2D::create_from_files(std::string path, bool flip_vertical
             return nullptr;
 
         Texture2D::Ptr texture = Texture2D::create(x, y, 1, -1, 1, GL_RGB32F, GL_RGB, GL_FLOAT);
-        texture->set_data(0, 0, data);
+        texture->write_data(0, 0, data);
         texture->generate_mipmaps();
 
         stbi_image_free(data);
@@ -356,20 +493,13 @@ Texture2D::Ptr Texture2D::create_from_files(std::string path, bool flip_vertical
         }
 
         Texture2D::Ptr texture = Texture2D::create(x, y, 1, -1, 1, internal_format, format, GL_UNSIGNED_BYTE);
-        texture->set_data(0, 0, data);
+        texture->write_data(0, 0, data);
         texture->generate_mipmaps();
 
         stbi_image_free(data);
 
         return texture;
     }
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-Texture2D::Ptr Texture2D::create(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, uint32_t num_samples, GLenum internal_format, GLenum format, GLenum type)
-{
-    return std::shared_ptr<Texture2D>(new Texture2D(w, h, array_size, mip_levels, num_samples, internal_format, format, type));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -381,123 +511,44 @@ Texture2D::Texture2D(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_le
     m_internal_format = internal_format;
     m_format          = format;
     m_type            = type;
+    m_num_samples     = num_samples;
+    m_mip_levels      = mip_levels;
     m_width           = w;
     m_height          = h;
-    m_num_samples     = num_samples;
 
     // If mip levels is -1, calculate mip levels
-    if (mip_levels == -1)
+    if (m_mip_levels == -1)
     {
         m_mip_levels = 1;
 
         int width  = m_width;
         int height = m_height;
 
-        while (width > 1 && height > 1)
+        while (width > 1 || height > 1)
         {
             width  = std::max(1, (width / 2));
             height = std::max(1, (height / 2));
             m_mip_levels++;
         }
     }
-    else
-        m_mip_levels = mip_levels;
 
-    // Allocate memory for mip levels.
-    if (array_size > 1)
-    {
-        if (m_num_samples > 1)
-        {
-#    if defined(__EMSCRIPTEN__)
-            assert(false);
-            DW_LOG_FATAL("WEBGL: GL_TEXTURE_2D_MULTISAMPLE_ARRAY Not Supported!");
-#    else
-            m_target = GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
-#    endif
-        }
-        else
-            m_target = GL_TEXTURE_2D_ARRAY;
-
-        int width  = m_width;
-        int height = m_height;
-
-        GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-
-        if (m_num_samples > 1)
-        {
-#    if defined(__EMSCRIPTEN__)
-            DW_LOG_FATAL("WEBGL: glTexImage3DMultisample unsupported on WebGL!");
-#    else
-            if (m_mip_levels > 1)
-                DW_LOG_WARNING("OPENGL: Multisampled textures cannot have mipmaps. "
-                               "Setting mip levels to 1...");
-
-            m_mip_levels = 1;
-            GL_CHECK_ERROR(glTexImage3DMultisample(m_target, m_num_samples, m_internal_format, width, height, m_array_size, true));
-#    endif
-        }
-        else
-        {
-            for (int i = 0; i < m_mip_levels; i++)
-            {
-                GL_CHECK_ERROR(glTexImage3D(m_target, i, m_internal_format, width, height, m_array_size, 0, m_format, m_type, NULL));
-
-                width  = std::max(1, (width / 2));
-                height = std::max(1, (height / 2));
-            }
-        }
-
-        GL_CHECK_ERROR(glBindTexture(m_target, 0));
-    }
-    else
-    {
-        if (m_num_samples > 1)
-            m_target = GL_TEXTURE_2D_MULTISAMPLE;
-        else
-            m_target = GL_TEXTURE_2D;
-
-        int width  = m_width;
-        int height = m_height;
-
-        GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-
-        if (m_num_samples > 1)
-        {
-#    if defined(__EMSCRIPTEN__)
-            DW_LOG_FATAL("WEBGL: glTexImage2DMultisample unsupported on WebGL!");
-#    else
-            if (m_mip_levels > 1)
-                DW_LOG_WARNING("OPENGL: Multisampled textures cannot have mipmaps. "
-                               "Setting mip levels to 1...");
-
-            m_mip_levels = 1;
-            GL_CHECK_ERROR(glTexImage2DMultisample(
-                m_target, m_num_samples, m_internal_format, width, height, true));
-#    endif
-        }
-        else
-        {
-            for (int i = 0; i < m_mip_levels; i++)
-            {
-                GL_CHECK_ERROR(glTexImage2D(m_target, i, m_internal_format, width, height, 0, m_format, m_type, NULL));
-
-                width  = std::max(1, (width / 2));
-                height = std::max(1, (height / 2));
-            }
-        }
-
-        GL_CHECK_ERROR(glBindTexture(m_target, 0));
-    }
+    allocate();
 
     // Default sampling options.
     set_wrapping(GL_REPEAT, GL_REPEAT, GL_REPEAT);
+    set_mag_filter(GL_LINEAR);
 
     if (m_mip_levels > 1)
         set_min_filter(GL_LINEAR_MIPMAP_LINEAR);
     else
         set_min_filter(GL_LINEAR);
+}
 
-    set_mag_filter(GL_LINEAR);
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture2D::Texture2D() :
+    Texture()
+{
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -506,13 +557,57 @@ Texture2D::~Texture2D() {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Texture2D::set_data(int32_t array_index, int32_t mip_level, void* data)
+void Texture2D::allocate()
+{
+    // Allocate memory for mip levels.
+    if (m_array_size > 1)
+    {
+        if (m_num_samples > 1)
+            m_target = GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
+        else
+            m_target = GL_TEXTURE_2D_ARRAY;
+
+        glCreateTextures(m_target, 1, &m_gl_tex);
+
+        if (m_num_samples > 1)
+        {
+            if (m_mip_levels > 1)
+                DW_LOG_WARNING("OPENGL: Multisampled textures cannot have mipmaps. Setting mip levels to 1...");
+
+            m_mip_levels = 1;
+            glTextureStorage3DMultisample(m_gl_tex, m_num_samples, m_internal_format, m_width, m_height, m_array_size, true);
+        }
+        else
+            glTextureStorage3D(m_gl_tex, m_mip_levels, m_internal_format, m_width, m_height, m_array_size);
+    }
+    else
+    {
+        if (m_num_samples > 1)
+            m_target = GL_TEXTURE_2D_MULTISAMPLE;
+        else
+            m_target = GL_TEXTURE_2D;
+
+        glCreateTextures(m_target, 1, &m_gl_tex);
+
+        if (m_num_samples > 1)
+        {
+            if (m_mip_levels > 1)
+                DW_LOG_WARNING("OPENGL: Multisampled textures cannot have mipmaps. Setting mip levels to 1...");
+
+            m_mip_levels = 1;
+            glTextureStorage2DMultisample(m_gl_tex, m_num_samples, m_internal_format, m_width, m_height, true);
+        }
+        else
+            glTextureStorage2D(m_gl_tex, m_mip_levels, m_internal_format, m_width, m_height);
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Texture2D::write_data(int array_index, int mip_level, void* data)
 {
     if (m_num_samples > 1)
-    {
-        DW_LOG_ERROR("OPENGL: Multisampled texture data can only be assigned "
-                     "through Shaders or FBOs");
-    }
+        DW_LOG_ERROR("OPENGL: Multisampled texture data can only be assigned through Shaders or FBOs");
     else
     {
         int width  = m_width;
@@ -524,107 +619,125 @@ void Texture2D::set_data(int32_t array_index, int32_t mip_level, void* data)
             height = std::max(1, (height / 2));
         }
 
-        GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-
-        if (m_array_size > 1)
-        {
-            GL_CHECK_ERROR(glTexImage3D(m_target, mip_level, m_internal_format, width, height, array_index, 0, m_format, m_type, data));
-        }
-        else
-        {
-            GL_CHECK_ERROR(glTexImage2D(m_target, mip_level, m_internal_format, width, height, 0, m_format, m_type, data));
-        }
-
-        GL_CHECK_ERROR(glBindTexture(m_target, 0));
+        write_sub_data(array_index, mip_level, 0, 0, width, height, data);
     }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-uint32_t Texture2D::width() { return m_width; }
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-uint32_t Texture2D::height() { return m_height; }
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-uint32_t Texture2D::mip_levels() { return m_mip_levels; }
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-uint32_t Texture2D::num_samples() { return m_num_samples; }
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Texture2D::save_to_disk(std::string path, int32_t array_index, int32_t mip_level)
+void Texture2D::write_sub_data(int array_index, int mip_level, int x_offset, int y_offset, int width, int height, void* data)
 {
-#    if defined(__APPLE__)
-    if (array_index > 0)
-        DW_LOG_WARNING("Saving specific slice of texture not supported on macOS, saving entire texture instead...");
+    if (m_array_size > 1)
+        glTextureSubImage3D(m_gl_tex, mip_level, x_offset, y_offset, array_index, width, height, 1, m_format, m_type, data);
+    else
+        glTextureSubImage2D(m_gl_tex, mip_level, x_offset, y_offset, width, height, m_format, m_type, data);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Texture2D::write_compressed_data(int array_index, int mip_level, size_t size, void* data)
+{
+    if (m_num_samples > 1)
+        DW_LOG_ERROR("OPENGL: Multisampled texture data can only be assigned through Shaders or FBOs");
+    else
+    {
+        int width  = m_width;
+        int height = m_height;
+
+        for (int i = 0; i < mip_level; i++)
+        {
+            width  = std::max(1, width / 2);
+            height = std::max(1, (height / 2));
+        }
+
+        write_compressed_sub_data(array_index, mip_level, 0, 0, width, height, size, data);
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Texture2D::write_compressed_sub_data(int array_index, int mip_level, int x_offset, int y_offset, int width, int height, size_t size, void* data)
+{
+    if (m_array_size > 1)
+        glCompressedTextureSubImage3D(m_gl_tex, mip_level, x_offset, y_offset, array_index, width, height, 1, m_internal_format, size, data);
+    else
+        glCompressedTextureSubImage2D(m_gl_tex, mip_level, x_offset, y_offset, width, height, m_internal_format, size, data);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Texture2D::read_data(int mip_level, std::vector<uint8_t>& buffer)
+{
+    int w, h;
+    extents(mip_level, w, h);
+
+    size_t size = is_compressed(mip_level) ? compressed_size(mip_level) : w * h * m_array_size * pixel_size_from_type(m_type) * num_channels_from_internal_format(m_format);
+    buffer.resize(size);
+
+    if (is_compressed(mip_level))
+        glGetCompressedTextureImage(m_gl_tex, mip_level, size, &buffer[0]);
+    else
+        glGetTextureImage(m_gl_tex, mip_level, m_format, m_type, size, &buffer[0]);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Texture2D::extents(int mip_level, int& width, int& height)
+{
+    glGetTextureLevelParameteriv(m_gl_tex, mip_level, GL_TEXTURE_WIDTH, &width);
+    glGetTextureLevelParameteriv(m_gl_tex, mip_level, GL_TEXTURE_HEIGHT, &height);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Texture2D::resize(uint32_t w, uint32_t h)
+{
+    if (m_gl_tex != UINT32_MAX)
+        glDeleteTextures(1, &m_gl_tex);
+
+    m_version++;
+    m_width  = w;
+    m_height = h;
+
+    // Check if the max number of mip-levels possible with the current size is less than
+    // the earlier number, if so use the smaller number.
+    int mip_levels = 1;
 
     int width  = m_width;
     int height = m_height;
 
-    for (int i = 0; i < mip_level; i++)
+    while (width > 1 || height > 1)
     {
-        width  = std::max(1, width / 2);
+        width  = std::max(1, (width / 2));
         height = std::max(1, (height / 2));
+        mip_levels++;
     }
 
-    int pixel_size = 1;
+    if (mip_levels < m_mip_levels)
+        m_mip_levels = mip_levels;
 
-    if (m_type == GL_FLOAT)
-        pixel_size = 4;
-    else if (m_type == GL_HALF_FLOAT)
-        pixel_size = 2;
+    allocate();
+}
 
-    int num_comp = 1;
+// -----------------------------------------------------------------------------------------------------------------------------------
 
-    if (m_format == GL_RG)
-        num_comp = 2;
-    else if (m_format == GL_RGB)
-        num_comp = 3;
-    else if (m_format == GL_RGBA)
-        num_comp = 4;
+uint32_t Texture2D::width()
+{
+    return m_width;
+}
 
-    void* data = malloc(width * height * num_comp * m_array_size * pixel_size);
+// -----------------------------------------------------------------------------------------------------------------------------------
 
-    GL_CHECK_ERROR(glActiveTexture(GL_TEXTURE0));
-    GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-    GL_CHECK_ERROR(glGetTexImage(m_target, mip_level, m_format, m_type, data));
-    GL_CHECK_ERROR(glBindTexture(m_target, 0));
+uint32_t Texture2D::height()
+{
+    return m_height;
+}
 
-    if (m_type == GL_FLOAT)
-    {
-        std::string full_path = path + ".hdr";
-        stbi_write_hdr(full_path.c_str(), width, height, num_comp, (float*)data);
-    }
-    else if (m_type == GL_HALF_FLOAT)
-    {
-        int pixel_count = width * height * num_comp * m_array_size;
+// -----------------------------------------------------------------------------------------------------------------------------------
 
-        int16_t* pixels     = (int16_t*)data;
-        float*   new_pixels = (float*)malloc(pixel_count * sizeof(float));
-
-        for (int i = 0; i < pixel_count; i++)
-            new_pixels[i] = pixels[i];
-
-        std::string full_path = path + ".hdr";
-        stbi_write_hdr(full_path.c_str(), width, height, num_comp, new_pixels);
-
-        free(new_pixels);
-    }
-    else
-    {
-        std::string full_path = path + ".tga";
-        stbi_write_tga(full_path.c_str(), width, height, num_comp, data);
-    }
-
-    free(data);
-#    else
-
-#    endif
+uint32_t Texture2D::num_samples()
+{
+    return m_num_samples;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -670,26 +783,23 @@ Texture3D::Texture3D(uint32_t w, uint32_t h, uint32_t d, int mip_levels, GLenum 
     // Allocate memory for mip levels.
     m_target = GL_TEXTURE_3D;
 
-    int width  = m_width;
-    int height = m_height;
-    int depth  = m_depth;
-
-    GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-
-    for (int i = 0; i < m_mip_levels; i++)
-    {
-        GL_CHECK_ERROR(glTexImage3D(m_target, i, m_internal_format, width, height, depth, 0, m_format, m_type, NULL));
-        width  = std::max(1, (width / 2));
-        height = std::max(1, (height / 2));
-        depth  = std::max(1, (depth / 2));
-    }
-
-    GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    allocate();
 
     // Default sampling options.
     set_wrapping(GL_REPEAT, GL_REPEAT, GL_REPEAT);
-    set_min_filter(GL_LINEAR_MIPMAP_LINEAR);
     set_mag_filter(GL_LINEAR);
+
+    if (m_mip_levels > 1)
+        set_min_filter(GL_LINEAR_MIPMAP_LINEAR);
+    else
+        set_min_filter(GL_LINEAR);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture3D::Texture3D() :
+    Texture()
+{
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -698,42 +808,147 @@ Texture3D::~Texture3D() {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Texture3D::set_data(int mip_level, void* data)
+void Texture3D::allocate()
+{
+    glCreateTextures(m_target, 1, &m_gl_tex);
+
+    glTextureStorage3D(m_gl_tex, m_mip_levels, m_internal_format, m_width, m_height, m_depth);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Texture3D::write_data(int slice, int mip_level, void* data)
 {
     int width  = m_width;
     int height = m_height;
-    int depth  = m_depth;
 
     for (int i = 0; i < mip_level; i++)
     {
         width  = std::max(1, width / 2);
         height = std::max(1, (height / 2));
-        depth  = std::max(1, (depth / 2));
     }
 
-    GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-    GL_CHECK_ERROR(glTexImage3D(m_target, mip_level, m_internal_format, width, height, depth, 0, m_format, m_type, data));
-    GL_CHECK_ERROR(glBindTexture(m_target, 0));
+    write_sub_data(slice, mip_level, 0, 0, width, height, data);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-uint32_t Texture3D::width() { return m_width; }
+void Texture3D::write_sub_data(int slice, int mip_level, int x_offset, int y_offset, int width, int height, void* data)
+{
+    glTextureSubImage3D(m_gl_tex, mip_level, x_offset, y_offset, slice, width, height, 1, m_format, m_type, data);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-uint32_t Texture3D::height() { return m_height; }
+void Texture3D::write_compressed_data(int slice, int mip_level, size_t size, void* data)
+{
+    int width  = m_width;
+    int height = m_height;
+
+    for (int i = 0; i < mip_level; i++)
+    {
+        width  = std::max(1, width / 2);
+        height = std::max(1, (height / 2));
+    }
+
+    write_compressed_sub_data(slice, mip_level, 0, 0, width, height, size, data);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-uint32_t Texture3D::depth() { return m_depth; }
+void Texture3D::write_compressed_sub_data(int slice, int mip_level, int x_offset, int y_offset, int width, int height, size_t size, void* data)
+{
+    glCompressedTextureSubImage3D(m_gl_tex, mip_level, x_offset, y_offset, slice, width, height, 1, m_internal_format, size, data);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-uint32_t Texture3D::mip_levels() { return m_mip_levels; }
+void Texture3D::read_data(int mip_level, std::vector<uint8_t>& buffer)
+{
+    int w, h, d;
+    extents(mip_level, w, h, d);
+
+    size_t size = is_compressed(mip_level) ? compressed_size(mip_level) : w * h * d * pixel_size_from_type(m_type) * num_channels_from_internal_format(m_format);
+    buffer.resize(size);
+
+    if (is_compressed(mip_level))
+        glGetCompressedTextureImage(m_gl_tex, mip_level, size, &buffer[0]);
+    else
+        glGetTextureImage(m_gl_tex, mip_level, m_format, m_type, size, &buffer[0]);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+void Texture3D::extents(int mip_level, int& width, int& height, int& depth)
+{
+    glGetTextureLevelParameteriv(m_gl_tex, mip_level, GL_TEXTURE_WIDTH, &width);
+    glGetTextureLevelParameteriv(m_gl_tex, mip_level, GL_TEXTURE_HEIGHT, &height);
+    glGetTextureLevelParameteriv(m_gl_tex, mip_level, GL_TEXTURE_DEPTH, &depth);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Texture3D::resize(uint32_t w, uint32_t h, uint32_t d)
+{
+    if (m_gl_tex != UINT32_MAX)
+        glDeleteTextures(1, &m_gl_tex);
+
+    m_version++;
+    m_width  = w;
+    m_height = h;
+    m_depth  = d;
+
+    // Check if the max number of mip-levels possible with the current size is less than
+    // the earlier number, if so use the smaller number.
+    int mip_levels = 1;
+
+    int width  = m_width;
+    int height = m_height;
+    int depth  = m_depth;
+
+    while (width > 1 || height > 1 || depth > 1)
+    {
+        width  = std::max(1, (width / 2));
+        height = std::max(1, (height / 2));
+        depth  = std::max(1, (depth / 2));
+        mip_levels++;
+    }
+
+    if (mip_levels < m_mip_levels)
+        m_mip_levels = mip_levels;
+
+    allocate();
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+uint32_t Texture3D::width()
+{
+    return m_width;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+uint32_t Texture3D::height()
+{
+    return m_height;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+uint32_t Texture3D::depth()
+{
+    return m_depth;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+TextureCube::Ptr TextureCube::create(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type)
+{
+    return std::shared_ptr<TextureCube>(new TextureCube(w, h, array_size, mip_levels, internal_format, format, type));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
 TextureCube::Ptr TextureCube::create_from_files(std::string path[], bool srgb)
 {
     if (utility::file_extension(path[0]) == "hdr")
@@ -754,7 +969,7 @@ TextureCube::Ptr TextureCube::create_from_files(std::string path[], bool srgb)
 
         TextureCube::Ptr cube = TextureCube::create(x, y, 1, -1, internal_format, format, GL_FLOAT);
 
-        cube->set_data(0, 0, 0, data);
+        cube->write_data(0, 0, 0, data);
         stbi_image_free(data);
 
         for (int i = 1; i < 6; i++)
@@ -765,7 +980,7 @@ TextureCube::Ptr TextureCube::create_from_files(std::string path[], bool srgb)
             if (!data)
                 return nullptr;
 
-            cube->set_data(i, 0, 0, data);
+            cube->write_data(i, 0, 0, data);
             stbi_image_free(data);
         }
 
@@ -797,7 +1012,7 @@ TextureCube::Ptr TextureCube::create_from_files(std::string path[], bool srgb)
 
         TextureCube::Ptr cube = TextureCube::create(x, y, 1, -1, internal_format, format, GL_UNSIGNED_BYTE);
 
-        cube->set_data(0, 0, 0, data);
+        cube->write_data(0, 0, 0, data);
         stbi_image_free(data);
 
         for (int i = 1; i < 6; i++)
@@ -808,19 +1023,12 @@ TextureCube::Ptr TextureCube::create_from_files(std::string path[], bool srgb)
             if (!data)
                 return nullptr;
 
-            cube->set_data(i, 0, 0, data);
+            cube->write_data(i, 0, 0, data);
             stbi_image_free(data);
         }
 
         return cube;
     }
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-TextureCube::Ptr TextureCube::create(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, GLenum internal_format, GLenum format, GLenum type)
-{
-    return std::shared_ptr<TextureCube>(new TextureCube(w, h, array_size, mip_levels, internal_format, format, type));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -852,53 +1060,29 @@ TextureCube::TextureCube(uint32_t w, uint32_t h, uint32_t array_size, int32_t mi
     else
         m_mip_levels = mip_levels;
 
-#    if !defined(__EMSCRIPTEN__)
     // Allocate memory for mip levels.
     if (array_size > 1)
-    {
         m_target = GL_TEXTURE_CUBE_MAP_ARRAY;
-
-        int width  = m_width;
-        int height = m_height;
-
-        GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-
-        for (int i = 0; i < m_mip_levels; i++)
-        {
-            GL_CHECK_ERROR(glTexImage3D(m_target, i, m_internal_format, width, height, m_array_size * 6, 0, m_format, m_type, NULL));
-            width  = std::max(1, (width / 2));
-            height = std::max(1, (height / 2));
-        }
-
-        GL_CHECK_ERROR(glBindTexture(m_target, 0));
-    }
     else
-#    endif
-    {
         m_target = GL_TEXTURE_CUBE_MAP;
 
-        int width  = m_width;
-        int height = m_height;
-
-        GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-
-        for (int face = 0; face < 6; face++)
-        {
-            GL_CHECK_ERROR(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, m_internal_format, width, height, 0, m_format, m_type, NULL));
-        }
-
-        if (m_mip_levels > 1)
-        {
-            GL_CHECK_ERROR(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
-        }
-
-        GL_CHECK_ERROR(glBindTexture(m_target, 0));
-    }
+    allocate();
 
     // Default sampling options.
     set_wrapping(GL_REPEAT, GL_REPEAT, GL_REPEAT);
-    set_min_filter(GL_LINEAR_MIPMAP_LINEAR);
     set_mag_filter(GL_LINEAR);
+
+    if (m_mip_levels > 1)
+        set_min_filter(GL_LINEAR_MIPMAP_LINEAR);
+    else
+        set_min_filter(GL_LINEAR);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+TextureCube::TextureCube() :
+    Texture()
+{
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -907,7 +1091,19 @@ TextureCube::~TextureCube() {}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void TextureCube::set_data(int face_index, int layer_index, int mip_level, void* data)
+void TextureCube::allocate()
+{
+    glCreateTextures(m_target, 1, &m_gl_tex);
+
+    if (m_array_size > 1)
+        glTextureStorage3D(m_gl_tex, m_mip_levels, m_internal_format, m_width, m_height, m_array_size);
+    else
+        glTextureStorage2D(m_gl_tex, m_mip_levels, m_internal_format, m_width, m_height);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void TextureCube::write_data(int face_index, int array_index, int mip_level, void* data)
 {
     int width  = m_width;
     int height = m_height;
@@ -918,272 +1114,288 @@ void TextureCube::set_data(int face_index, int layer_index, int mip_level, void*
         height = std::max(1, (height / 2));
     }
 
-#    if !defined(__EMSCRIPTEN__)
-    if (m_array_size > 1)
-    {
-        GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-        GL_CHECK_ERROR(glTexSubImage3D(GL_TEXTURE_CUBE_MAP_ARRAY, mip_level, 0, 0, layer_index * 6 + face_index, width, height, 1, m_format, m_type, data));
-        GL_CHECK_ERROR(glBindTexture(m_target, 0));
-    }
-    else
-#    endif
-    {
-        GL_CHECK_ERROR(glBindTexture(m_target, m_gl_tex));
-        GL_CHECK_ERROR(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face_index,
-                                    mip_level,
-                                    m_internal_format,
-                                    width,
-                                    height,
-                                    0,
-                                    m_format,
-                                    m_type,
-                                    data));
-        GL_CHECK_ERROR(glBindTexture(m_target, 0));
-    }
+    if (m_array_size == 1)
+        array_index = 0;
+
+    write_sub_data(face_index, array_index, mip_level, 0, 0, width, height, data);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-uint32_t TextureCube::width() { return m_width; }
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-uint32_t TextureCube::height() { return m_height; }
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-uint32_t TextureCube::mip_levels() { return m_mip_levels; }
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-Framebuffer::Ptr Framebuffer::create()
+void TextureCube::write_sub_data(int face_index, int array_index, int mip_level, int x_offset, int y_offset, int width, int height, void* data)
 {
-    return std::shared_ptr<Framebuffer>(new Framebuffer());
+    glTextureSubImage3D(m_gl_tex, mip_level, x_offset, y_offset, array_index * 6 + face_index, width, height, 1, m_format, m_type, data);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Framebuffer::Framebuffer() :
-    Object(GL_FRAMEBUFFER) { GL_CHECK_ERROR(glGenFramebuffers(1, &m_gl_fbo)); }
+void TextureCube::write_compressed_data(int face_index, int array_index, int mip_level, size_t size, void* data)
+{
+    int width  = m_width;
+    int height = m_height;
+
+    for (int i = 0; i < mip_level; i++)
+    {
+        width  = std::max(1, (width / 2));
+        height = std::max(1, (height / 2));
+    }
+
+    if (m_array_size == 1)
+        array_index = 0;
+
+    write_compressed_sub_data(face_index, array_index, mip_level, 0, 0, width, height, size, data);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void TextureCube::write_compressed_sub_data(int face_index, int array_index, int mip_level, int x_offset, int y_offset, int width, int height, size_t size, void* data)
+{
+    glCompressedTextureSubImage3D(m_gl_tex, mip_level, x_offset, y_offset, array_index * 6 + face_index, width, height, m_internal_format, size, m_type, data);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void TextureCube::read_data(int mip_level, std::vector<uint8_t>& buffer)
+{
+    int w, h;
+    extents(mip_level, w, h);
+
+    size_t size = is_compressed(mip_level) ? compressed_size(mip_level) : w * h * 6 * m_array_size * pixel_size_from_type(m_type) * num_channels_from_internal_format(m_format);
+    buffer.resize(size);
+
+    if (is_compressed(mip_level))
+        glGetCompressedTextureImage(m_gl_tex, mip_level, size, &buffer[0]);
+    else
+        glGetTextureImage(m_gl_tex, mip_level, m_format, m_type, size, &buffer[0]);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void TextureCube::extents(int mip_level, int& width, int& height)
+{
+    glGetTextureLevelParameteriv(m_gl_tex, mip_level, GL_TEXTURE_WIDTH, &width);
+    glGetTextureLevelParameteriv(m_gl_tex, mip_level, GL_TEXTURE_HEIGHT, &height);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void TextureCube::resize(uint32_t w, uint32_t h)
+{
+    if (m_gl_tex != UINT32_MAX)
+        glDeleteTextures(1, &m_gl_tex);
+
+    glCreateTextures(m_target, 1, &m_gl_tex);
+
+    m_version++;
+    m_width  = w;
+    m_height = h;
+
+    // Check if the max number of mip-levels possible with the current size is less than
+    // the earlier number, if so use the smaller number.
+    int mip_levels = 1;
+
+    int width  = m_width;
+    int height = m_height;
+
+    while (width > 1 || height > 1)
+    {
+        width  = std::max(1, (width / 2));
+        height = std::max(1, (height / 2));
+        mip_levels++;
+    }
+
+    if (mip_levels < m_mip_levels)
+        m_mip_levels = mip_levels;
+
+    allocate();
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+uint32_t TextureCube::width()
+{
+    return m_width;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+uint32_t TextureCube::height()
+{
+    return m_height;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture1DView::Ptr Texture1DView::create(Texture1D::Ptr origin_texture, GLenum new_target, int min_level, int num_levels, int min_layer, int num_layers)
+{
+    return std::shared_ptr<Texture1DView>(new Texture1DView(origin_texture, new_target, min_level, num_levels, min_layer, num_layers));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture1DView::Texture1DView(Texture1D::Ptr origin_texture, GLenum new_target, int min_level, int num_levels, int min_layer, int num_layers) :
+    Texture1D()
+{
+    m_target          = new_target;
+    m_array_size      = num_layers;
+    m_internal_format = origin_texture->internal_format();
+    m_format          = origin_texture->format();
+    m_type            = origin_texture->type();
+    m_width           = origin_texture->width();
+
+    glGenTextures(1, &m_gl_tex);
+    glTextureView(m_gl_tex, m_target, origin_texture->id(), m_internal_format, min_level, num_levels, min_layer, num_layers);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture1DView::~Texture1DView()
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture2DView::Ptr Texture2DView::create(Texture2D::Ptr origin_texture, GLenum new_target, int min_level, int num_levels, int min_layer, int num_layers)
+{
+    return std::shared_ptr<Texture2DView>(new Texture2DView(origin_texture, new_target, min_level, num_levels, min_layer, num_layers));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture2DView::Texture2DView(Texture2D::Ptr origin_texture, GLenum new_target, int min_level, int num_levels, int min_layer, int num_layers) :
+    Texture2D()
+{
+    m_target          = new_target;
+    m_mip_levels      = num_levels;
+    m_array_size      = num_layers;
+    m_internal_format = origin_texture->internal_format();
+    m_format          = origin_texture->format();
+    m_type            = origin_texture->type();
+    m_width           = origin_texture->width();
+    m_height          = origin_texture->height();
+
+    glGenTextures(1, &m_gl_tex);
+    glTextureView(m_gl_tex, m_target, origin_texture->id(), m_internal_format, min_level, num_levels, min_layer, num_layers);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture2DView::~Texture2DView()
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture3DView::Ptr Texture3DView::create(Texture3D::Ptr origin_texture, GLenum new_target, int min_level, int num_levels, int min_layer, int num_layers)
+{
+    return std::shared_ptr<Texture3DView>(new Texture3DView(origin_texture, new_target, min_level, num_levels, min_layer, num_layers));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture3DView::Texture3DView(Texture3D::Ptr origin_texture, GLenum new_target, int min_level, int num_levels, int min_layer, int num_layers) :
+    Texture3D()
+{
+    m_target          = new_target;
+    m_mip_levels      = num_levels;
+    m_array_size      = num_layers;
+    m_internal_format = origin_texture->internal_format();
+    m_format          = origin_texture->format();
+    m_type            = origin_texture->type();
+    m_width           = origin_texture->width();
+    m_height          = origin_texture->height();
+    m_depth           = origin_texture->depth();
+
+    glGenTextures(1, &m_gl_tex);
+    glTextureView(m_gl_tex, m_target, origin_texture->id(), m_internal_format, min_level, num_levels, min_layer, num_layers);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Texture3DView::~Texture3DView()
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+TextureCubeView::Ptr TextureCubeView::create(TextureCube::Ptr origin_texture, GLenum new_target, int min_level, int num_levels, int min_layer, int num_layers)
+{
+    return std::shared_ptr<TextureCubeView>(new TextureCubeView(origin_texture, new_target, min_level, num_levels, min_layer, num_layers));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+TextureCubeView::TextureCubeView(TextureCube::Ptr origin_texture, GLenum new_target, int min_level, int num_levels, int min_layer, int num_layers) :
+    TextureCube()
+{
+    m_target          = new_target;
+    m_mip_levels      = num_levels;
+    m_array_size      = num_layers;
+    m_internal_format = origin_texture->internal_format();
+    m_format          = origin_texture->format();
+    m_type            = origin_texture->type();
+    m_width           = origin_texture->width();
+    m_height          = origin_texture->height();
+
+    glGenTextures(1, &m_gl_tex);
+    glTextureView(m_gl_tex, m_target, origin_texture->id(), m_internal_format, min_level, num_levels, min_layer, num_layers);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+TextureCubeView::~TextureCubeView()
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Framebuffer::Ptr Framebuffer::create(std::vector<Texture::Ptr> color_attachments, Texture::Ptr depth_stencil_attachment)
+{
+    return std::shared_ptr<Framebuffer>(new Framebuffer(color_attachments, depth_stencil_attachment));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Framebuffer::Framebuffer(std::vector<Texture::Ptr> color_attachments, Texture::Ptr depth_stencil_attachment) :
+    Object(GL_FRAMEBUFFER)
+{
+    glCreateFramebuffers(1, &m_gl_fbo);
+
+    GLuint attachments[16];
+
+    for (int i = 0; i < color_attachments.size(); i++)
+    {
+        glNamedFramebufferTexture(m_gl_fbo, GL_COLOR_ATTACHMENT0 + i, color_attachments[i]->id(), 0);
+        attachments[i] = GL_COLOR_ATTACHMENT0 + i;
+    }
+
+    glNamedFramebufferDrawBuffers(m_gl_fbo, color_attachments.size(), attachments);
+
+    if (depth_stencil_attachment)
+        glNamedFramebufferTexture(m_gl_fbo, GL_DEPTH_ATTACHMENT, depth_stencil_attachment->id(), 0);
+
+    check_status();
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Framebuffer::~Framebuffer()
 {
-    GL_CHECK_ERROR(glDeleteFramebuffers(1, &m_gl_fbo));
+    glDeleteFramebuffers(1, &m_gl_fbo);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Framebuffer::bind()
 {
-    GL_CHECK_ERROR(glBindFramebuffer(GL_FRAMEBUFFER, m_gl_fbo));
+    glBindFramebuffer(GL_FRAMEBUFFER, m_gl_fbo);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Framebuffer::unbind()
 {
-    GL_CHECK_ERROR(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Framebuffer::attach_render_target(uint32_t attachment, Texture::Ptr texture, uint32_t layer, uint32_t mip_level, bool draw, bool read)
-{
-    glBindTexture(texture->target(), texture->id());
-    bind();
-
-    if (texture->array_size() > 1)
-    {
-        GL_CHECK_ERROR(glFramebufferTextureLayer(GL_FRAMEBUFFER,
-                                                 GL_COLOR_ATTACHMENT0 + attachment,
-                                                 texture->id(),
-                                                 mip_level,
-                                                 layer));
-    }
-    else
-    {
-        GL_CHECK_ERROR(glFramebufferTexture2D(
-            GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment, texture->target(), texture->id(), mip_level));
-    }
-
-#    if defined(__EMSCRIPTEN__)
-    if (draw)
-        m_attachments[m_render_target_count++] = GL_COLOR_ATTACHMENT0 + attachment;
-
-    glDrawBuffers(m_render_target_count, m_attachments);
-#    else
-    if (draw)
-    {
-        GL_CHECK_ERROR(glDrawBuffer(GL_COLOR_ATTACHMENT0 + attachment));
-    }
-    else
-    {
-        GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
-    }
-#    endif
-
-    if (read)
-    {
-        GL_CHECK_ERROR(glReadBuffer(GL_COLOR_ATTACHMENT0 + attachment));
-    }
-    else
-    {
-        GL_CHECK_ERROR(glReadBuffer(GL_NONE));
-    }
-
-    check_status();
-
-    unbind();
-    glBindTexture(texture->target(), 0);
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Framebuffer::attach_multiple_render_targets(std::vector<Texture::Ptr> textures)
-{
-    bind();
-
-    m_render_target_count = textures.size();
-
-    for (int i = 0; i < m_render_target_count; i++)
-    {
-        glBindTexture(textures[i]->target(), textures[i]->id());
-        GL_CHECK_ERROR(
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, textures[i]->target(), textures[i]->id(), 0));
-        m_attachments[i] = GL_COLOR_ATTACHMENT0 + i;
-    }
-
-    glDrawBuffers(m_render_target_count, m_attachments);
-
-    check_status();
-
-    unbind();
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Framebuffer::attach_render_target(uint32_t         attachment,
-                                       TextureCube::Ptr texture,
-                                       uint32_t         face,
-                                       uint32_t         layer,
-                                       uint32_t         mip_level,
-                                       bool             draw,
-                                       bool             read)
-{
-    glBindTexture(texture->target(), texture->id());
-    bind();
-
-    if (texture->array_size() > 1)
-    {
-#    if defined(__EMSCRIPTEN__)
-        DW_LOG_ERROR("WEBGL: glFramebufferTexture3D unsupported!");
-#    else
-        GL_CHECK_ERROR(glFramebufferTexture3D(GL_FRAMEBUFFER,
-                                              GL_COLOR_ATTACHMENT0 + attachment,
-                                              GL_TEXTURE_CUBE_MAP_POSITIVE_X + face,
-                                              texture->id(),
-                                              mip_level,
-                                              layer));
-#    endif
-    }
-    else
-    {
-        GL_CHECK_ERROR(glFramebufferTexture2D(
-            GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level));
-    }
-
-#    if defined(__EMSCRIPTEN__)
-    if (draw)
-        m_attachments[m_render_target_count++] = GL_COLOR_ATTACHMENT0 + attachment;
-
-    glDrawBuffers(m_render_target_count, m_attachments);
-#    else
-    if (draw)
-    {
-        GL_CHECK_ERROR(glDrawBuffer(GL_COLOR_ATTACHMENT0 + attachment));
-    }
-    else
-    {
-        GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
-    }
-#    endif
-
-    if (read)
-    {
-        GL_CHECK_ERROR(glReadBuffer(GL_COLOR_ATTACHMENT0 + attachment));
-    }
-    else
-    {
-        GL_CHECK_ERROR(glReadBuffer(GL_NONE));
-    }
-
-    check_status();
-
-    unbind();
-    glBindTexture(texture->target(), 0);
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Framebuffer::attach_depth_stencil_target(Texture::Ptr texture, uint32_t layer, uint32_t mip_level)
-{
-    glBindTexture(texture->target(), texture->id());
-    bind();
-
-    if (texture->array_size() > 1)
-    {
-        GL_CHECK_ERROR(glFramebufferTextureLayer(
-            GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, texture->id(), mip_level, layer));
-    }
-    else
-    {
-#    if defined(__EMSCRIPTEN__)
-        DW_LOG_ERROR("WEBGL: glFramebufferTexture unsupported!");
-#    else
-        GL_CHECK_ERROR(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, texture->id(), mip_level));
-#    endif
-    }
-
-    check_status();
-
-    unbind();
-    glBindTexture(texture->target(), 0);
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Framebuffer::attach_depth_stencil_target(TextureCube::Ptr texture,
-                                              uint32_t         face,
-                                              uint32_t         layer,
-                                              uint32_t         mip_level)
-{
-    glBindTexture(texture->target(), texture->id());
-    bind();
-
-    if (texture->array_size() > 1)
-    {
-#    if defined(__EMSCRIPTEN__)
-        DW_LOG_ERROR("WEBGL: glFramebufferTexture3D unsupported!");
-#    else
-        GL_CHECK_ERROR(glFramebufferTexture3D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level, layer));
-#    endif
-    }
-    else
-    {
-        GL_CHECK_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texture->id(), mip_level));
-    }
-
-#    if !defined(__EMSCRIPTEN__)
-    GL_CHECK_ERROR(glDrawBuffer(GL_NONE));
-#    endif
-    GL_CHECK_ERROR(glReadBuffer(GL_NONE));
-
-    check_status();
-
-    unbind();
-    glBindTexture(texture->target(), 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1203,7 +1415,6 @@ void Framebuffer::check_status()
                 error += "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT";
                 break;
             }
-#    ifndef __EMSCRIPTEN__
             case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
             {
                 error += "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS";
@@ -1214,7 +1425,6 @@ void Framebuffer::check_status()
                 error += "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER";
                 break;
             }
-#    endif
             case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
             {
                 error += "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT";
@@ -1231,17 +1441,6 @@ void Framebuffer::check_status()
 
         DW_LOG_ERROR(error);
     }
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-uint32_t Framebuffer::render_targets() { return m_render_target_count; }
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Framebuffer::set_name(const std::string& name)
-{
-    Object::set_name(m_gl_fbo, name);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1270,6 +1469,13 @@ Shader::Ptr Shader::create_from_file(GLenum type, std::string path, std::vector<
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+void Framebuffer::set_name(const std::string& name)
+{
+    Object::set_name(m_gl_fbo, name);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 Shader::Ptr Shader::create(GLenum type, std::string source)
 {
     return std::shared_ptr<Shader>(new Shader(type, source));
@@ -1280,24 +1486,18 @@ Shader::Ptr Shader::create(GLenum type, std::string source)
 Shader::Shader(GLenum type, std::string source) :
     m_type(type), Object(GL_SHADER)
 {
-    GL_CHECK_ERROR(m_gl_shader = glCreateShader(type));
+    m_gl_shader = glCreateShader(type);
 
-#    if defined(__APPLE__)
-    source = "#version 410 core\n" + std::string(source);
-#    elif defined(__EMSCRIPTEN__)
-    source = "#version 300 es\n precision highp float;\n" + std::string(source);
-#    else
-    source = "#version 430 core\n" + std::string(source);
-#    endif
+    source = "#version 450 core\n" + std::string(source);
 
     GLint  success;
     GLchar log[512];
 
     const GLchar* src = source.c_str();
 
-    GL_CHECK_ERROR(glShaderSource(m_gl_shader, 1, &src, NULL));
-    GL_CHECK_ERROR(glCompileShader(m_gl_shader));
-    GL_CHECK_ERROR(glGetShaderiv(m_gl_shader, GL_COMPILE_STATUS, &success));
+    glShaderSource(m_gl_shader, 1, &src, NULL);
+    glCompileShader(m_gl_shader);
+    glGetShaderiv(m_gl_shader, GL_COMPILE_STATUS, &success);
 
     if (success == GL_FALSE)
     {
@@ -1305,6 +1505,8 @@ Shader::Shader(GLenum type, std::string source) :
 
         std::string log_error = "OPENGL: Shader compilation failed: ";
         log_error += std::string(log);
+        log_error += ", Source: ";
+        log_error += source;
 
         DW_LOG_ERROR(log_error);
         m_compiled = false;
@@ -1315,15 +1517,31 @@ Shader::Shader(GLenum type, std::string source) :
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Shader::~Shader() { GL_CHECK_ERROR(glDeleteShader(m_gl_shader)); }
+Shader::~Shader()
+{
+    glDeleteShader(m_gl_shader);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GLenum Shader::type() { return m_type; }
+GLenum Shader::type()
+{
+    return m_type;
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool Shader::compiled() { return m_compiled; }
+bool Shader::compiled()
+{
+    return m_compiled;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+GLuint Shader::id()
+{
+    return m_gl_shader;
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -1344,7 +1562,6 @@ Program::Ptr Program::create(std::vector<Shader::Ptr> shaders)
 Program::Program(std::vector<Shader::Ptr> shaders) :
     Object(GL_PROGRAM)
 {
-#    if !defined(__EMSCRIPTEN__)
     if (shaders.size() == 1 && shaders[0]->type() != GL_COMPUTE_SHADER)
     {
         DW_LOG_ERROR("OPENGL: Compute shader programs can only have one shader.");
@@ -1352,21 +1569,18 @@ Program::Program(std::vector<Shader::Ptr> shaders) :
 
         return;
     }
-#    endif
 
-    GL_CHECK_ERROR(m_gl_program = glCreateProgram());
+    m_gl_program = glCreateProgram();
 
     for (int i = 0; i < shaders.size(); i++)
-    {
-        GL_CHECK_ERROR(glAttachShader(m_gl_program, shaders[i]->m_gl_shader));
-    }
+        glAttachShader(m_gl_program, shaders[i]->m_gl_shader);
 
-    GL_CHECK_ERROR(glLinkProgram(m_gl_program));
+    glLinkProgram(m_gl_program);
 
     GLint success;
     char  log[512];
 
-    GL_CHECK_ERROR(glGetProgramiv(m_gl_program, GL_LINK_STATUS, &success));
+    glGetProgramiv(m_gl_program, GL_LINK_STATUS, &success);
 
     if (!success)
     {
@@ -1381,8 +1595,7 @@ Program::Program(std::vector<Shader::Ptr> shaders) :
     }
 
     int uniform_count = 0;
-    GL_CHECK_ERROR(
-        glGetProgramiv(m_gl_program, GL_ACTIVE_UNIFORMS, &uniform_count));
+    glGetProgramiv(m_gl_program, GL_ACTIVE_UNIFORMS, &uniform_count);
 
     GLint        size;
     GLenum       type;
@@ -1392,62 +1605,70 @@ Program::Program(std::vector<Shader::Ptr> shaders) :
 
     for (int i = 0; i < uniform_count; i++)
     {
-        GL_CHECK_ERROR(glGetActiveUniform(m_gl_program, i, buf_size, &length, &size, &type, name));
-        GL_CHECK_ERROR(GLuint loc = glGetUniformLocation(m_gl_program, name));
+        glGetActiveUniform(m_gl_program, i, buf_size, &length, &size, &type, name);
+        GLuint loc = glGetUniformLocation(m_gl_program, name);
 
         if (loc != GL_INVALID_INDEX)
             m_location_map[std::string(name)] = loc;
     }
 
-#    if defined(__EMSCRIPTEN__)
-    // Bind attributes in OpenGL ES/WebGL versions.
+    glGetProgramiv(m_gl_program, GL_ACTIVE_UNIFORM_BLOCKS, &m_num_active_uniform_blocks);
 
-    // int attrib_count = 0;
-    // GL_CHECK_ERROR(glGetProgramiv(m_gl_program, GL_ACTIVE_ATTRIBUTES,
-    // &attrib_count));
-
-    // for (int i = 0; i < attrib_count; i++)
-    //{
-    //	GL_CHECK_ERROR(glGetActiveAttrib(m_gl_program, (GLuint)i, buf_size,
-    //&length, &size, &type, name));
-    //	GL_CHECK_ERROR(glBindAttribLocation(m_gl_program, i, name));
-    //}
-#    endif
+    for (int i = 0; i < shaders.size(); i++)
+        glDetachShader(m_gl_program, shaders[i]->m_gl_shader);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Program::~Program() { glDeleteProgram(m_gl_program); }
+Program::~Program()
+{
+    glDeleteProgram(m_gl_program);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Program::use() { glUseProgram(m_gl_program); }
+void Program::use()
+{
+    glUseProgram(m_gl_program);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+int32_t Program::num_active_uniform_blocks()
+{
+    return m_num_active_uniform_blocks;
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Program::uniform_block_binding(std::string name, int binding)
 {
-    GL_CHECK_ERROR(GLuint idx = glGetUniformBlockIndex(m_gl_program, name.c_str()));
+    GLuint idx = glGetUniformBlockIndex(m_gl_program, name.c_str());
 
-    if (idx == GL_INVALID_INDEX)
-    {
-        std::string uniform_error = "OPENGL: Failed to get Uniform Block Index for Uniform Buffer : ";
-        uniform_error += name;
-
-        DW_LOG_ERROR(uniform_error);
-    }
-    else
-        GL_CHECK_ERROR(glUniformBlockBinding(m_gl_program, idx, binding));
+    if (idx != GL_INVALID_INDEX)
+        glUniformBlockBinding(m_gl_program, idx, binding);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool Program::set_uniform(std::string name, int value)
+bool Program::set_uniform(std::string name, int32_t value)
 {
     if (m_location_map.find(name) == m_location_map.end())
         return false;
 
     glUniform1i(m_location_map[name], value);
+
+    return true;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+bool Program::set_uniform(std::string name, uint32_t value)
+{
+    if (m_location_map.find(name) == m_location_map.end())
+        return false;
+
+    glUniform1ui(m_location_map[name], value);
 
     return true;
 }
@@ -1634,6 +1855,184 @@ bool Program::set_uniform(std::string name, int count, glm::mat4* value)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+void Program::extract_reflection_data(ReflectionData& reflection_data)
+{
+    std::vector<GLchar> name_buffer;
+
+    int32_t num_uniforms = 0;
+    glGetProgramInterfaceiv(m_gl_program, GL_UNIFORM, GL_ACTIVE_RESOURCES, &num_uniforms);
+
+    GLenum properties[] = { GL_NAME_LENGTH, GL_TYPE, GL_LOCATION, GL_BLOCK_INDEX };
+
+    for (int i = 0; i < num_uniforms; i++)
+    {
+        GLint results[4];
+        glGetProgramResourceiv(m_gl_program, GL_UNIFORM, i, 4, properties, 4, NULL, results);
+
+        if (results[3] == -1)
+        {
+            name_buffer.reserve(size_t(results[0] + 1));
+
+            glGetProgramResourceName(m_gl_program, GL_UNIFORM, i, results[0] + 1, NULL, name_buffer.data());
+
+            std::string name = (const char*)name_buffer.data();
+
+            switch (results[1])
+            {
+                case GL_SAMPLER_1D:
+                case GL_SAMPLER_2D:
+                case GL_SAMPLER_3D:
+                case GL_SAMPLER_CUBE:
+                case GL_SAMPLER_1D_SHADOW:
+                case GL_SAMPLER_2D_SHADOW:
+                case GL_SAMPLER_1D_ARRAY:
+                case GL_SAMPLER_2D_ARRAY:
+                case GL_SAMPLER_1D_ARRAY_SHADOW:
+                case GL_SAMPLER_2D_ARRAY_SHADOW:
+                case GL_SAMPLER_2D_MULTISAMPLE:
+                case GL_SAMPLER_2D_MULTISAMPLE_ARRAY:
+                case GL_SAMPLER_CUBE_SHADOW:
+                case GL_SAMPLER_BUFFER:
+                case GL_SAMPLER_2D_RECT:
+                case GL_SAMPLER_2D_RECT_SHADOW:
+                case GL_INT_SAMPLER_1D:
+                case GL_INT_SAMPLER_2D:
+                case GL_INT_SAMPLER_3D:
+                case GL_INT_SAMPLER_CUBE:
+                case GL_INT_SAMPLER_1D_ARRAY:
+                case GL_INT_SAMPLER_2D_ARRAY:
+                case GL_INT_SAMPLER_2D_MULTISAMPLE:
+                case GL_INT_SAMPLER_2D_MULTISAMPLE_ARRAY:
+                case GL_INT_SAMPLER_BUFFER:
+                case GL_INT_SAMPLER_2D_RECT:
+                case GL_UNSIGNED_INT_SAMPLER_1D:
+                case GL_UNSIGNED_INT_SAMPLER_2D:
+                case GL_UNSIGNED_INT_SAMPLER_3D:
+                case GL_UNSIGNED_INT_SAMPLER_CUBE:
+                case GL_UNSIGNED_INT_SAMPLER_1D_ARRAY:
+                case GL_UNSIGNED_INT_SAMPLER_2D_ARRAY:
+                case GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE:
+                case GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY:
+                case GL_UNSIGNED_INT_SAMPLER_BUFFER:
+                case GL_UNSIGNED_INT_SAMPLER_2D_RECT:
+                {
+                    SamplerReflection reflection;
+
+                    reflection.location = results[2];
+                    reflection.type     = results[1];
+                    reflection.name     = name;
+
+                    reflection_data.samplers[reflection.location] = reflection;
+                    break;
+                }
+                case GL_IMAGE_1D:
+                case GL_IMAGE_2D:
+                case GL_IMAGE_3D:
+                case GL_IMAGE_2D_RECT:
+                case GL_IMAGE_CUBE:
+                case GL_IMAGE_BUFFER:
+                case GL_IMAGE_1D_ARRAY:
+                case GL_IMAGE_2D_ARRAY:
+                case GL_IMAGE_CUBE_MAP_ARRAY:
+                case GL_IMAGE_2D_MULTISAMPLE:
+                case GL_IMAGE_2D_MULTISAMPLE_ARRAY:
+                case GL_INT_IMAGE_1D:
+                case GL_INT_IMAGE_2D:
+                case GL_INT_IMAGE_3D:
+                case GL_INT_IMAGE_2D_RECT:
+                case GL_INT_IMAGE_CUBE:
+                case GL_INT_IMAGE_BUFFER:
+                case GL_INT_IMAGE_1D_ARRAY:
+                case GL_INT_IMAGE_2D_ARRAY:
+                case GL_INT_IMAGE_CUBE_MAP_ARRAY:
+                case GL_INT_IMAGE_2D_MULTISAMPLE:
+                case GL_INT_IMAGE_2D_MULTISAMPLE_ARRAY:
+                case GL_UNSIGNED_INT_IMAGE_1D:
+                case GL_UNSIGNED_INT_IMAGE_2D:
+                case GL_UNSIGNED_INT_IMAGE_3D:
+                case GL_UNSIGNED_INT_IMAGE_2D_RECT:
+                case GL_UNSIGNED_INT_IMAGE_CUBE:
+                case GL_UNSIGNED_INT_IMAGE_BUFFER:
+                case GL_UNSIGNED_INT_IMAGE_1D_ARRAY:
+                case GL_UNSIGNED_INT_IMAGE_2D_ARRAY:
+                case GL_UNSIGNED_INT_IMAGE_CUBE_MAP_ARRAY:
+                case GL_UNSIGNED_INT_IMAGE_2D_MULTISAMPLE:
+                case GL_UNSIGNED_INT_IMAGE_2D_MULTISAMPLE_ARRAY:
+                {
+                    ImageReflection reflection;
+
+                    reflection.location = results[2];
+                    reflection.type     = results[1];
+                    reflection.name     = name;
+
+                    reflection_data.images[reflection.location] = reflection;
+                    break;
+                }
+                default:
+                {
+                    UniformReflection reflection;
+
+                    reflection.location = results[2];
+                    reflection.type     = results[1];
+                    reflection.name     = name;
+
+                    reflection_data.uniforms[reflection.location] = reflection;
+                    break;
+                }
+            }
+        }
+    }
+
+    int32_t num_ssbos = 0;
+    glGetProgramInterfaceiv(m_gl_program, GL_SHADER_STORAGE_BLOCK, GL_ACTIVE_RESOURCES, &num_ssbos);
+
+    GLint ssbo_max_len;
+    glGetProgramInterfaceiv(m_gl_program, GL_SHADER_STORAGE_BLOCK, GL_MAX_NAME_LENGTH, &ssbo_max_len);
+    name_buffer.resize(ssbo_max_len);
+
+    for (int i = 0; i < num_ssbos; i++)
+    {
+        GLsizei strLength;
+        glGetProgramResourceName(m_gl_program, GL_SHADER_STORAGE_BLOCK, i, ssbo_max_len, &strLength, name_buffer.data());
+
+        SSBOReflection reflection;
+
+        reflection.name    = (const char*)name_buffer.data();
+        reflection.binding = glGetProgramResourceIndex(m_gl_program, GL_SHADER_STORAGE_BLOCK, reflection.name.c_str());
+
+        reflection_data.ssbos[reflection.binding] = reflection;
+    }
+
+    int32_t num_ubos = 0;
+    glGetProgramInterfaceiv(m_gl_program, GL_UNIFORM_BLOCK, GL_ACTIVE_RESOURCES, &num_ubos);
+
+    GLint ubo_max_len;
+    glGetProgramInterfaceiv(m_gl_program, GL_UNIFORM_BLOCK, GL_MAX_NAME_LENGTH, &ubo_max_len);
+    name_buffer.resize(ubo_max_len);
+
+    for (int i = 0; i < num_ubos; i++)
+    {
+        GLsizei strLength;
+        glGetProgramResourceName(m_gl_program, GL_UNIFORM_BLOCK, i, ubo_max_len, &strLength, name_buffer.data());
+
+        UBOReflection reflection;
+
+        reflection.name    = (const char*)name_buffer.data();
+        reflection.binding = glGetProgramResourceIndex(m_gl_program, GL_UNIFORM_BLOCK, reflection.name.c_str());
+
+        reflection_data.ubos[reflection.binding] = reflection;
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+GLint Program::id()
+{
+    return m_gl_program;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 void Program::set_name(const std::string& name)
 {
     Object::set_name(m_gl_program, name);
@@ -1641,106 +2040,124 @@ void Program::set_name(const std::string& name)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Buffer::Buffer(GLenum type, GLenum usage, size_t size, void* data) :
+Buffer::Ptr Buffer::create(GLenum type, GLenum flags, size_t size, void* data)
+{
+    return std::shared_ptr<Buffer>(new Buffer(type, flags, size, data));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Buffer::Buffer(GLenum type, GLenum flags, size_t size, void* data) :
     m_type(type), m_size(size), Object(GL_BUFFER)
 {
-    GL_CHECK_ERROR(glGenBuffers(1, &m_gl_buffer));
+    glCreateBuffers(1, &m_gl_buffer);
 
-    GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
-    GL_CHECK_ERROR(glBufferData(m_type, size, data, usage));
-    GL_CHECK_ERROR(glBindBuffer(m_type, 0));
-
-#    if defined(__EMSCRIPTEN__)
-    m_staging = malloc(m_size);
-#    endif
+    glNamedBufferStorage(m_gl_buffer, size, data, flags);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Buffer::~Buffer()
 {
-#    if defined(__EMSCRIPTEN__)
-    free(m_staging);
-#    endif
     glDeleteBuffers(1, &m_gl_buffer);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Buffer::bind() { GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer)); }
+void Buffer::bind()
+{
+    glBindBuffer(m_type, m_gl_buffer);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Buffer::bind(GLenum type)
+{
+    glBindBuffer(type, m_gl_buffer);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Buffer::bind_base(int index)
 {
-    GL_CHECK_ERROR(glBindBufferBase(m_type, index, m_gl_buffer));
+    glBindBufferBase(m_type, index, m_gl_buffer);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Buffer::bind_range(int index, size_t offset, size_t size)
 {
-    GL_CHECK_ERROR(glBindBufferRange(m_type, index, m_gl_buffer, offset, size));
+    glBindBufferRange(m_type, index, m_gl_buffer, offset, size);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Buffer::unbind() { GL_CHECK_ERROR(glBindBuffer(m_type, 0)); }
+void Buffer::bind_base(GLenum type, int index)
+{
+    glBindBufferBase(type, index, m_gl_buffer);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Buffer::bind_range(GLenum type, int index, size_t offset, size_t size)
+{
+    glBindBufferRange(type, index, m_gl_buffer, offset, size);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Buffer::unbind()
+{
+    glBindBuffer(m_type, 0);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void* Buffer::map(GLenum access)
 {
-#    if defined(__EMSCRIPTEN__)
-    m_mapped_size   = m_size;
-    m_mapped_offset = 0;
-    return m_staging;
-#    else
-    GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
-    GL_CHECK_ERROR(void* ptr = glMapBuffer(m_type, access));
-    GL_CHECK_ERROR(glBindBuffer(m_type, 0));
-    return ptr;
-#    endif
+    return glMapNamedBuffer(m_gl_buffer, access);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void* Buffer::map_range(GLenum access, size_t offset, size_t size)
 {
-#    if defined(__EMSCRIPTEN__)
-    m_mapped_size   = size;
-    m_mapped_offset = offset;
-    return static_cast<char*>(m_staging) + offset;
-#    else
-    GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
-    GL_CHECK_ERROR(void* ptr = glMapBufferRange(m_type, offset, size, access));
-    GL_CHECK_ERROR(glBindBuffer(m_type, 0));
-    return ptr;
-#    endif
+    return glMapNamedBufferRange(m_gl_buffer, offset, size, access);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Buffer::unmap()
 {
-#    if defined(__EMSCRIPTEN__)
-    GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
-    glBufferSubData(m_type, m_mapped_offset, m_mapped_size, static_cast<char*>(m_staging) + m_mapped_offset);
-    GL_CHECK_ERROR(glBindBuffer(m_type, 0));
-#    else
-    GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
-    GL_CHECK_ERROR(glUnmapBuffer(m_type));
-    GL_CHECK_ERROR(glBindBuffer(m_type, 0));
-#    endif
+    glUnmapNamedBuffer(m_gl_buffer);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Buffer::set_data(size_t offset, size_t size, void* data)
+void Buffer::flush_mapped_range(size_t offset, size_t length)
 {
-    GL_CHECK_ERROR(glBindBuffer(m_type, m_gl_buffer));
-    glBufferSubData(m_type, offset, size, data);
-    GL_CHECK_ERROR(glBindBuffer(m_type, 0));
+    glFlushMappedNamedBufferRange(m_gl_buffer, offset, length);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Buffer::write_data(size_t offset, size_t size, void* data)
+{
+    glNamedBufferSubData(m_gl_buffer, offset, size, data);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Buffer::copy(Buffer::Ptr dst, GLintptr read_offset, GLintptr write_offset, GLsizeiptr size)
+{
+    glCopyNamedBufferSubData(m_gl_buffer, dst->m_gl_buffer, read_offset, write_offset, size);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+size_t Buffer::size()
+{
+    return m_size;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -1752,93 +2169,19 @@ void Buffer::set_name(const std::string& name)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GLuint Buffer::handle()
-{
-    return m_gl_buffer;
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-VertexBuffer::Ptr VertexBuffer::create(GLenum usage, size_t size, void* data)
-{
-    return std::shared_ptr<VertexBuffer>(new VertexBuffer(usage, size, data));
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-VertexBuffer::VertexBuffer(GLenum usage, size_t size, void* data) :
-    Buffer(GL_ARRAY_BUFFER, usage, size, data) {}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-VertexBuffer::~VertexBuffer() {}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-IndexBuffer::Ptr IndexBuffer::create(GLenum usage, size_t size, void* data)
-{
-    return std::shared_ptr<IndexBuffer>(new IndexBuffer(usage, size, data));
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-IndexBuffer::IndexBuffer(GLenum usage, size_t size, void* data) :
-    Buffer(GL_ELEMENT_ARRAY_BUFFER, usage, size, data) {}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-IndexBuffer::~IndexBuffer() {}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-UniformBuffer::Ptr UniformBuffer::create(GLenum usage, size_t size, void* data)
-{
-    return std::shared_ptr<UniformBuffer>(new UniformBuffer(usage, size, data));
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-UniformBuffer::UniformBuffer(GLenum usage, size_t size, void* data) :
-    Buffer(GL_UNIFORM_BUFFER, usage, size, data) {}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-UniformBuffer::~UniformBuffer() {}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-#    if !defined(__EMSCRIPTEN__)
-ShaderStorageBuffer::Ptr ShaderStorageBuffer::create(GLenum usage, size_t size, void* data)
-{
-    return std::shared_ptr<ShaderStorageBuffer>(new ShaderStorageBuffer(usage, size, data));
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-ShaderStorageBuffer::ShaderStorageBuffer(GLenum usage, size_t size, void* data) :
-    Buffer(GL_SHADER_STORAGE_BUFFER, usage, size, data)
-{
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-ShaderStorageBuffer::~ShaderStorageBuffer() {}
-#    endif
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-VertexArray::Ptr VertexArray::create(VertexBuffer::Ptr vbo, IndexBuffer::Ptr ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[])
+VertexArray::Ptr VertexArray::create(Buffer::Ptr vbo, Buffer::Ptr ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[])
 {
     return std::shared_ptr<VertexArray>(new VertexArray(vbo, ibo, vertex_size, attrib_count, attribs));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-VertexArray::VertexArray(VertexBuffer::Ptr vbo, IndexBuffer::Ptr ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[]) :
+VertexArray::VertexArray(Buffer::Ptr vbo, Buffer::Ptr ibo, size_t vertex_size, int attrib_count, VertexAttrib attribs[]) :
     Object(GL_VERTEX_ARRAY)
 {
-    GL_CHECK_ERROR(glGenVertexArrays(1, &m_gl_vao));
-    GL_CHECK_ERROR(glBindVertexArray(m_gl_vao));
+    glGenVertexArrays(1, &m_gl_vao);
+    glBindVertexArray(m_gl_vao);
+
     vbo->bind();
 
     if (ibo)
@@ -1846,21 +2189,16 @@ VertexArray::VertexArray(VertexBuffer::Ptr vbo, IndexBuffer::Ptr ibo, size_t ver
 
     for (uint32_t i = 0; i < attrib_count; i++)
     {
-        GL_CHECK_ERROR(glEnableVertexAttribArray(i));
-
-        if (attribs[i].type == GL_INT)
-        {
-            GL_CHECK_ERROR(glVertexAttribIPointer(
-                i, attribs[i].num_sub_elements, attribs[i].type, vertex_size, (GLvoid*)((uint64_t)attribs[i].offset)));
-        }
-        else
-        {
-            GL_CHECK_ERROR(
-                glVertexAttribPointer(i, attribs[i].num_sub_elements, attribs[i].type, attribs[i].normalized, vertex_size, (GLvoid*)((uint64_t)attribs[i].offset)));
-        }
+        glEnableVertexAttribArray(i);
+        glVertexAttribPointer(i,
+                              attribs[i].num_sub_elements,
+                              attribs[i].type,
+                              attribs[i].normalized,
+                              vertex_size,
+                              (GLvoid*)((uint64_t)attribs[i].offset));
     }
 
-    GL_CHECK_ERROR(glBindVertexArray(0));
+    glBindVertexArray(0);
 
     vbo->unbind();
 
@@ -1870,15 +2208,24 @@ VertexArray::VertexArray(VertexBuffer::Ptr vbo, IndexBuffer::Ptr ibo, size_t ver
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-VertexArray::~VertexArray() { glDeleteVertexArrays(1, &m_gl_vao); }
+VertexArray::~VertexArray()
+{
+    glDeleteVertexArrays(1, &m_gl_vao);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void VertexArray::bind() { GL_CHECK_ERROR(glBindVertexArray(m_gl_vao)); }
+void VertexArray::bind()
+{
+    glBindVertexArray(m_gl_vao);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void VertexArray::unbind() { GL_CHECK_ERROR(glBindVertexArray(0)); }
+void VertexArray::unbind()
+{
+    glBindVertexArray(0);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -1890,54 +2237,52 @@ void VertexArray::set_name(const std::string& name)
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Query::Query() :
-    Object(GL_QUERY) { GL_CHECK_ERROR(glGenQueries(1, &m_query)); }
+    Object(GL_QUERY)
+{
+    glGenQueries(1, &m_query);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Query::~Query() { GL_CHECK_ERROR(glDeleteQueries(1, &m_query)); }
+Query::~Query()
+{
+    glDeleteQueries(1, &m_query);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Query::query_counter(GLenum type)
 {
-#    if defined(__EMSCRIPTEN__)
-    DW_LOG_FATAL("OPENGL ES: glQueryCounter unsupported on OpenGL ES!");
-#    else
-    GL_CHECK_ERROR(glQueryCounter(m_query, type));
-#    endif
+    glQueryCounter(m_query, type);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Query::begin(GLenum type) { GL_CHECK_ERROR(glBeginQuery(type, m_query)); }
+void Query::begin(GLenum type)
+{
+    glBeginQuery(type, m_query);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Query::end(GLenum type) { GL_CHECK_ERROR(glEndQuery(type)); }
+void Query::end(GLenum type)
+{
+    glEndQuery(type);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Query::result_64(uint64_t* ptr)
 {
-#    if defined(__EMSCRIPTEN__)
-    DW_LOG_FATAL("OPENGL ES: glGetQueryObjectui64v unsupported on OpenGL ES!");
-#    else
-    GL_CHECK_ERROR(glGetQueryObjectui64v(m_query, GL_QUERY_RESULT, ptr));
-#    endif
+    glGetQueryObjectui64v(m_query, GL_QUERY_RESULT, ptr);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 bool Query::result_available()
 {
-#    if defined(__EMSCRIPTEN__)
-    GLuint done = 0;
-    GL_CHECK_ERROR(
-        glGetQueryObjectuiv(m_query, GL_QUERY_RESULT_AVAILABLE, &done));
-#    else
     int done = 0;
-    GL_CHECK_ERROR(glGetQueryObjectiv(m_query, GL_QUERY_RESULT_AVAILABLE, &done));
-#    endif
+    glGetQueryObjectiv(m_query, GL_QUERY_RESULT_AVAILABLE, &done);
     return done == 1;
 }
 
@@ -1946,6 +2291,42 @@ bool Query::result_available()
 void Query::set_name(const std::string& name)
 {
     Object::set_name(m_query, name);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Fence::Fence()
+{
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Fence::~Fence()
+{
+    if (m_fence)
+        glDeleteSync(m_fence);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Fence::insert()
+{
+    if (m_fence)
+        wait();
+
+    m_fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Fence::wait()
+{
+    if (m_fence)
+    {
+        glClientWaitSync(m_fence, 0, 10000000);
+        m_fence = nullptr;
+        glDeleteSync(m_fence);
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

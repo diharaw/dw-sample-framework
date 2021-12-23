@@ -32,12 +32,12 @@ namespace dw
 {
 struct AppSettings
 {
-    bool        maximized    = false;
-    bool        fullscreen   = false;
-    bool        vsync        = false;
-    int         width        = 800;
-    int         height       = 600;
-    std::string title        = "dwSampleFramwork";
+    bool        maximized  = false;
+    bool        fullscreen = false;
+    bool        vsync      = false;
+    int         width      = 800;
+    int         height     = 600;
+    std::string title      = "dwSampleFramwork";
 
 #if defined(DWSF_VULKAN)
     std::vector<const char*> device_extensions;
@@ -115,12 +115,13 @@ private:
     void update_base(double delta);
     void shutdown_base();
 
-    // Load config from file method 
+    // Load config from file method
     void load_initial_settings_from_file(AppSettings& settings);
 
 protected:
     uint32_t                            m_width;
     uint32_t                            m_height;
+    bool                                m_vsync = false;
     double                              m_mouse_x;
     double                              m_mouse_y;
     double                              m_last_mouse_x;
@@ -138,7 +139,6 @@ protected:
 
 #if defined(DWSF_VULKAN)
     bool                            m_should_recreate_swap_chain = false;
-    bool                            m_vsync                      = false;
     vk::Backend::Ptr                m_vk_backend;
     std::vector<vk::Semaphore::Ptr> m_image_available_semaphores;
     std::vector<vk::Semaphore::Ptr> m_render_finished_semaphores;

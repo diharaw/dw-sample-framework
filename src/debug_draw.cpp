@@ -978,7 +978,7 @@ bool DebugDraw::init(
     m_line_program->uniform_block_binding("CameraUniforms", 0);
 
     // Create vertex buffer
-    m_line_vbo = gl::VertexBuffer::create(GL_DYNAMIC_DRAW, sizeof(VertexWorld) * MAX_VERTICES);
+    m_line_vbo = gl::Buffer::create(GL_ARRAY_BUFFER, GL_MAP_WRITE_BIT, sizeof(VertexWorld) * MAX_VERTICES);
 
     // Declare vertex attributes
     gl::VertexAttrib attribs[] = { { 3, GL_FLOAT, false, 0 },
@@ -995,7 +995,7 @@ bool DebugDraw::init(
     }
 
     // Create uniform buffer for matrix data
-    m_ubo = gl::UniformBuffer::create(GL_DYNAMIC_DRAW, sizeof(CameraUniforms));
+    m_ubo = gl::Buffer::create(GL_UNIFORM_BUFFER, GL_MAP_WRITE_BIT, sizeof(CameraUniforms));
 
     return true;
 #endif

@@ -164,12 +164,12 @@ bool Application::init_base(int argc, const char* argv[])
 
     load_initial_settings_from_file(settings);
 
-    bool maximized    = settings.maximized;
-    bool fullscreen   = settings.fullscreen;
-    m_vsync           = settings.vsync;
-    m_width           = settings.width;
-    m_height          = settings.height;
-    m_title           = settings.title;
+    bool maximized  = settings.maximized;
+    bool fullscreen = settings.fullscreen;
+    m_vsync         = settings.vsync;
+    m_width         = settings.width;
+    m_height        = settings.height;
+    m_title         = settings.title;
 
     int major_ver = 4;
 #if defined(__APPLE__)
@@ -180,7 +180,7 @@ bool Application::init_base(int argc, const char* argv[])
     int         minor_ver          = 0;
     const char* imgui_glsl_version = "#version 150";
 #else
-    int         minor_ver          = 5;
+    int         minor_ver          = 6;
     const char* imgui_glsl_version = "#version 130";
 #endif
 

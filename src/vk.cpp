@@ -3427,7 +3427,7 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool enable_validation_layers, 
         device_extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
         device_extensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
     }
-    
+
     device_extensions.push_back(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
     device_extensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
     device_extensions.push_back(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
@@ -4523,7 +4523,7 @@ bool Backend::create_logical_device(std::vector<const char*> extensions, bool re
     VkPhysicalDeviceRayQueryFeaturesKHR device_ray_query_features;
     DW_ZERO_MEMORY(device_ray_query_features);
 
-    device_ray_query_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+    device_ray_query_features.sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
     device_ray_query_features.pNext    = nullptr;
     device_ray_query_features.rayQuery = VK_TRUE;
 
@@ -5010,12 +5010,12 @@ void set_image_layout(VkCommandBuffer         cmdbuffer,
 void blitt_image(vk::CommandBuffer::Ptr cmd_buf,
                  vk::Image::Ptr         src,
                  vk::Image::Ptr         dst,
-                 VkImageLayout              src_img_src_layout,
-                 VkImageLayout              src_img_dst_layout,
-                 VkImageLayout              dst_img_src_layout,
-                 VkImageLayout              dst_img_dst_layout,
-                 VkImageAspectFlags         aspect_flags,
-                 VkFilter                   filter)
+                 VkImageLayout          src_img_src_layout,
+                 VkImageLayout          src_img_dst_layout,
+                 VkImageLayout          dst_img_src_layout,
+                 VkImageLayout          dst_img_dst_layout,
+                 VkImageAspectFlags     aspect_flags,
+                 VkFilter               filter)
 {
     VkImageSubresourceRange initial_subresource_range;
     DW_ZERO_MEMORY(initial_subresource_range);
@@ -5029,17 +5029,17 @@ void blitt_image(vk::CommandBuffer::Ptr cmd_buf,
     if (src_img_src_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
     {
         vk::utilities::set_image_layout(cmd_buf->handle(),
-                                            src->handle(),
-                                            src_img_src_layout,
-                                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                            initial_subresource_range);
+                                        src->handle(),
+                                        src_img_src_layout,
+                                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                        initial_subresource_range);
     }
 
     vk::utilities::set_image_layout(cmd_buf->handle(),
-                                        dst->handle(),
-                                        dst_img_src_layout,
-                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                        initial_subresource_range);
+                                    dst->handle(),
+                                    dst_img_src_layout,
+                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                    initial_subresource_range);
 
     VkImageBlit blit                   = {};
     blit.srcOffsets[0]                 = { 0, 0, 0 };
@@ -5065,16 +5065,16 @@ void blitt_image(vk::CommandBuffer::Ptr cmd_buf,
                    filter);
 
     vk::utilities::set_image_layout(cmd_buf->handle(),
-                                        src->handle(),
-                                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                        src_img_dst_layout,
-                                        initial_subresource_range);
+                                    src->handle(),
+                                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                    src_img_dst_layout,
+                                    initial_subresource_range);
 
     vk::utilities::set_image_layout(cmd_buf->handle(),
-                                        dst->handle(),
-                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                        dst_img_dst_layout,
-                                        initial_subresource_range);
+                                    dst->handle(),
+                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                    dst_img_dst_layout,
+                                    initial_subresource_range);
 }
 
 uint32_t get_memory_type(VkPhysicalDevice device, uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound)
