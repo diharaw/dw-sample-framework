@@ -5,7 +5,10 @@
 #include <logger.h>
 #include <profiler.h>
 #include <gtc/matrix_transform.hpp>
-#include <vk_mem_alloc.h>
+
+#if defined(DWSF_VULKAN)
+#    include <vk_mem_alloc.h>
+#endif
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -1636,7 +1639,7 @@ static const unsigned int kSKY_MODEL_FRAG_SPIRV_data[4500 / 4] = {
 };
 
 #else
-static const char* g_vs_src = R"(
+static const char* g_update_vs_src = R"(
 // ------------------------------------------------------------------
 // INPUTS -----------------------------------------------------------
 // ------------------------------------------------------------------
@@ -1670,7 +1673,7 @@ void main()
 // ------------------------------------------------------------------
 )";
 
-static const char* g_fs_src = R"(
+static const char* g_update_fs_src = R"(
 // ------------------------------------------------------------------
 // INPUTS -----------------------------------------------------------
 // ------------------------------------------------------------------
@@ -1725,6 +1728,81 @@ void main()
 
 // ------------------------------------------------------------------
 )";
+
+static const char* g_render_vs_src = R"(
+// ------------------------------------------------------------------
+// INPUTS  ----------------------------------------------------------
+// ------------------------------------------------------------------
+
+layout(location = 0) in vec3 VS_IN_Position;
+
+// ------------------------------------------------------------------
+// OUTPUTS  ---------------------------------------------------------
+// ------------------------------------------------------------------
+
+out vec3 FS_IN_WorldPos;
+
+// ------------------------------------------------------------------
+// UNIFORMS  --------------------------------------------------------
+// ------------------------------------------------------------------
+
+uniform mat4 u_Projection;
+uniform mat4 u_View;
+
+// ------------------------------------------------------------------
+// MAIN  ------------------------------------------------------------
+// ------------------------------------------------------------------
+
+void main()
+{
+    FS_IN_WorldPos = VS_IN_Position;
+
+    mat4 rotView = mat4(mat3(u_View));
+    vec4 clipPos = u_Projection * rotView * vec4(VS_IN_Position, 1.0);
+
+    gl_Position = clipPos.xyww;
+}
+
+// ------------------------------------------------------------------
+)";
+
+static const char* g_render_fs_src = R"(
+// ------------------------------------------------------------------
+// INPUTS  ----------------------------------------------------------
+// ------------------------------------------------------------------
+
+out vec3 FS_OUT_Color;
+
+// ------------------------------------------------------------------
+// OUTPUTS  ---------------------------------------------------------
+// ------------------------------------------------------------------
+
+in vec3 FS_IN_WorldPos;
+
+// ------------------------------------------------------------------
+// UNIFORMS  --------------------------------------------------------
+// ------------------------------------------------------------------
+
+uniform samplerCube s_Cubemap;
+
+// ------------------------------------------------------------------
+// MAIN -------------------------------------------------------------
+// ------------------------------------------------------------------
+
+void main()
+{
+    vec3 env_color = texture(s_Cubemap, FS_IN_WorldPos).rgb;
+
+    // HDR tonemap and gamma correct
+    env_color = env_color / (env_color + vec3(1.0));
+    env_color = pow(env_color, vec3(1.0 / 2.2));
+
+    FS_OUT_Color = env_color;
+}
+
+// ------------------------------------------------------------------
+)";
+
 #endif
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2368,24 +2446,33 @@ HosekWilkieSkyModel::HosekWilkieSkyModel(
 
     for (int i = 0; i < 6; i++)
     {
-        m_fbos.push_back(gl::Framebuffer::create());
-        m_fbos[i]->attach_render_target(0, m_cubemap, i, 0, 0, true, true);
-        m_fbos[i]->attach_depth_stencil_target(m_depth, 0, 0);
+        gl::TextureCubeView::Ptr view = gl::TextureCubeView::create(m_cubemap, GL_TEXTURE_2D, 0, 1, i, 1);
+        m_texture_views.push_back(view);
+        m_fbos.push_back(gl::Framebuffer::create({ view }, m_depth));
     }
 
-    m_vs = gl::Shader::create(GL_VERTEX_SHADER, g_vs_src);
-    m_fs = gl::Shader::create(GL_FRAGMENT_SHADER, g_fs_src);
+    m_update_vs = gl::Shader::create(GL_VERTEX_SHADER, g_update_vs_src);
+    m_update_fs = gl::Shader::create(GL_FRAGMENT_SHADER, g_update_fs_src);
 
-    if (!m_vs->compiled() || !m_fs->compiled())
+    if (!m_update_vs->compiled() || !m_update_fs->compiled())
         DW_LOG_FATAL("Failed to create Shaders");
 
     // Create general shader program
-    m_program = gl::Program::create({ m_vs, m_fs });
+    m_update_program = gl::Program::create({ m_update_vs, m_update_fs });
 
-    if (!m_program)
+    m_render_vs = gl::Shader::create(GL_VERTEX_SHADER, g_render_vs_src);
+    m_render_fs = gl::Shader::create(GL_FRAGMENT_SHADER, g_render_fs_src);
+
+    if (!m_render_vs->compiled() || !m_render_fs->compiled())
+        DW_LOG_FATAL("Failed to create Shaders");
+
+    // Create general shader program
+    m_render_program = gl::Program::create({ m_render_vs, m_render_fs });
+
+    if (!m_render_program)
         DW_LOG_FATAL("Failed to create Shader Program");
 
-    m_vbo = gl::VertexBuffer::create(GL_STATIC_DRAW, sizeof(cube_vertices), cube_vertices);
+    m_vbo = gl::Buffer::create(GL_ARRAY_BUFFER, 0, sizeof(cube_vertices), cube_vertices);
 
     if (!m_vbo)
         DW_LOG_ERROR("Failed to create Vertex Buffer");
@@ -2420,9 +2507,9 @@ HosekWilkieSkyModel::~HosekWilkieSkyModel()
     m_cubemap_image.reset();
 
 #else
-    m_program.reset();
-    m_vs.reset();
-    m_fs.reset();
+    m_update_program.reset();
+    m_update_vs.reset();
+    m_update_fs.reset();
     m_fbos.clear();
     m_cubemap.reset();
     m_depth.reset();
@@ -2549,23 +2636,23 @@ void HosekWilkieSkyModel::update(
         vkCmdEndRenderPass(cmd_buf->handle());
     }
 #else
-    m_program->use();
+    m_update_program->use();
 
-    m_program->set_uniform("u_Direction", direction);
-    m_program->set_uniform("A", A);
-    m_program->set_uniform("B", B);
-    m_program->set_uniform("C", C);
-    m_program->set_uniform("D", D);
-    m_program->set_uniform("E", E);
-    m_program->set_uniform("F", F);
-    m_program->set_uniform("G", G);
-    m_program->set_uniform("H", H);
-    m_program->set_uniform("I", I);
-    m_program->set_uniform("Z", Z);
+    m_update_program->set_uniform("u_Direction", direction);
+    m_update_program->set_uniform("A", A);
+    m_update_program->set_uniform("B", B);
+    m_update_program->set_uniform("C", C);
+    m_update_program->set_uniform("D", D);
+    m_update_program->set_uniform("E", E);
+    m_update_program->set_uniform("F", F);
+    m_update_program->set_uniform("G", G);
+    m_update_program->set_uniform("H", H);
+    m_update_program->set_uniform("I", I);
+    m_update_program->set_uniform("Z", Z);
 
     for (int i = 0; i < 6; i++)
     {
-        m_program->set_uniform("u_ViewProj", m_view_projection_mats[i]);
+        m_update_program->set_uniform("u_ViewProj", m_view_projection_mats[i]);
 
         m_fbos[i]->bind();
         glViewport(0, 0, SKY_CUBEMAP_SIZE, SKY_CUBEMAP_SIZE);
@@ -2577,6 +2664,44 @@ void HosekWilkieSkyModel::update(
 
         glDrawArrays(GL_TRIANGLES, 0, 36);
     }
+#endif
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void HosekWilkieSkyModel::render(
+#if defined(DWSF_VULKAN)
+    vk::CommandBuffer::Ptr cmd_buf,
+#endif
+    uint32_t  width,
+    uint32_t  height,
+    glm::mat4 view_mat,
+    glm::mat4 projection_mat)
+{
+#if defined(DWSF_VULKAN)
+
+#else
+    DW_SCOPED_SAMPLE("Render Sky Model");
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDisable(GL_CULL_FACE);
+
+    m_render_program->use();
+    m_vao->bind();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, width, height);
+
+    m_render_program->set_uniform("u_View", view_mat);
+    m_render_program->set_uniform("u_Projection", projection_mat);
+
+    if (m_render_program->set_uniform("s_Cubemap", 0))
+        m_cubemap->bind(0);
+
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    glDepthFunc(GL_LESS);
 #endif
 }
 

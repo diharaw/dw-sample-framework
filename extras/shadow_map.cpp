@@ -1,7 +1,10 @@
 #include "shadow_map.h"
 #include <gtc/matrix_transform.hpp>
-#include <vk_mem_alloc.h>
 #include <macros.h>
+
+#if defined(DWSF_VULKAN)
+#    include <vk_mem_alloc.h>
+#endif
 
 namespace dw
 {
@@ -73,8 +76,7 @@ ShadowMap::ShadowMap(
     m_framebuffer = vk::Framebuffer::create(backend, m_render_pass, { m_image_view }, m_size, m_size, 1);
 #else
     m_shadow_map     = gl::Texture2D::create(m_size, m_size, 1, 1, 1, GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT);
-    m_shadow_map_fbo = gl::Framebuffer::create();
-    m_shadow_map_fbo->attach_depth_stencil_target(m_shadow_map, 0, 0);
+    m_shadow_map_fbo = gl::Framebuffer::create({}, m_shadow_map);
 #endif
 
     update();

@@ -265,6 +265,8 @@ bool Application::init_base(int argc, const char* argv[])
         glEnable(GL_DEBUG_OUTPUT);
     }
 
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
 #endif
 
 #if defined(DWSF_IMGUI)

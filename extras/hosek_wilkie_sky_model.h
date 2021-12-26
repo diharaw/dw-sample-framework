@@ -11,23 +11,38 @@ class HosekWilkieSkyModel
 {
 public:
     HosekWilkieSkyModel(
-#if defined(DWSF_VULKAN)  
+#if defined(DWSF_VULKAN)
         vk::Backend::Ptr backend
-#endif    
+#endif
     );
     ~HosekWilkieSkyModel();
 
     void update(
-#if defined(DWSF_VULKAN) 
-        vk::CommandBuffer::Ptr cmd_buf, 
-#endif 
+#if defined(DWSF_VULKAN)
+        vk::CommandBuffer::Ptr cmd_buf,
+#endif
         glm::vec3 direction);
 
+    void render(
 #if defined(DWSF_VULKAN)
-    inline vk::Image::Ptr image() { return m_cubemap_image; }
+        vk::CommandBuffer::Ptr cmd_buf,
+#endif
+        uint32_t  width,
+        uint32_t  height,
+        glm::mat4 view_mat,
+        glm::mat4 projection_mat);
+
+#if defined(DWSF_VULKAN)
+    inline vk::Image::Ptr image()
+    {
+        return m_cubemap_image;
+    }
     inline vk::ImageView::Ptr image_view() { return m_cubemap_image_view; }
 #else
-    inline gl::TextureCube::Ptr texture() { return m_cubemap; }
+    inline gl::TextureCube::Ptr texture()
+    {
+        return m_cubemap;
+    }
 #endif
 
 private:
@@ -43,22 +58,26 @@ private:
     vk::DescriptorSetLayout::Ptr      m_ds_layout;
     vk::DescriptorSet::Ptr            m_ds;
     vk::Buffer::Ptr                   m_ubo;
-    
+
 #else
-    gl::TextureCube::Ptr              m_cubemap;
-    gl::Texture2D::Ptr                m_depth;
-    std::vector<gl::Framebuffer::Ptr> m_fbos;
-    gl::VertexBuffer::Ptr             m_vbo;
-    gl::VertexArray::Ptr              m_vao;
-    gl::Shader::Ptr                   m_vs;
-    gl::Shader::Ptr                   m_fs;
-    gl::Program::Ptr                  m_program;
+    gl::TextureCube::Ptr                  m_cubemap;
+    std::vector<gl::TextureCubeView::Ptr> m_texture_views;
+    gl::Texture2D::Ptr                    m_depth;
+    std::vector<gl::Framebuffer::Ptr>     m_fbos;
+    gl::Buffer::Ptr                       m_vbo;
+    gl::VertexArray::Ptr                  m_vao;
+    gl::Shader::Ptr                       m_update_vs;
+    gl::Shader::Ptr                       m_update_fs;
+    gl::Program::Ptr                      m_update_program;
+    gl::Shader::Ptr                       m_render_vs;
+    gl::Shader::Ptr                       m_render_fs;
+    gl::Program::Ptr                      m_render_program;
 #endif
-    std::vector<glm::mat4>            m_view_projection_mats;
-    float                             m_normalized_sun_y = 1.15f;
-    float                             m_albedo           = 0.1f;
-    float                             m_turbidity        = 4.0f;
-    glm::vec3                         A, B, C, D, E, F, G, H, I;
-    glm::vec3                         Z;
+    std::vector<glm::mat4> m_view_projection_mats;
+    float                  m_normalized_sun_y = 1.15f;
+    float                  m_albedo           = 0.1f;
+    float                  m_turbidity        = 4.0f;
+    glm::vec3              A, B, C, D, E, F, G, H, I;
+    glm::vec3              Z;
 };
 } // namespace dw
