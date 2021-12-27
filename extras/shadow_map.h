@@ -49,6 +49,7 @@ public:
 #endif
     );
 
+    void gui();
     void set_direction(const glm::vec3& d);
     void set_target(const glm::vec3& t);
     void set_color(const glm::vec3& c);

@@ -2650,6 +2650,9 @@ void HosekWilkieSkyModel::update(
     m_update_program->set_uniform("I", I);
     m_update_program->set_uniform("Z", Z);
 
+    glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
+
     for (int i = 0; i < 6; i++)
     {
         m_update_program->set_uniform("u_ViewProj", m_view_projection_mats[i]);
@@ -2658,6 +2661,7 @@ void HosekWilkieSkyModel::update(
         glViewport(0, 0, SKY_CUBEMAP_SIZE, SKY_CUBEMAP_SIZE);
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClearDepth(1.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         m_vao->bind();

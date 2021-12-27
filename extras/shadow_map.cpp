@@ -1,6 +1,7 @@
 #include "shadow_map.h"
 #include <gtc/matrix_transform.hpp>
 #include <macros.h>
+#include <imgui.h>
 
 #if defined(DWSF_VULKAN)
 #    include <vk_mem_alloc.h>
@@ -168,6 +169,16 @@ void ShadowMap::end_render(
 #else
     glEnable(GL_CULL_FACE);
 #endif
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void ShadowMap::gui()
+{
+    ImGui::SliderFloat("Extents", &m_extents, 1.0f, 10000.0f);
+    ImGui::SliderFloat("Near Plane", &m_near_plane, 1.0f, 10000.0f);
+    ImGui::SliderFloat("Far Plane", &m_far_plane, 1.0f, 10000.0f);
+    ImGui::SliderFloat("Back Off Distance", &m_backoff_distance, 1.0f, 10000.0f);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
