@@ -356,24 +356,39 @@ vk::DescriptorSet::Ptr Material::create_descriptor_set(vk::Backend::Ptr backend)
 #else
 
 Material::Material(const std::vector<std::string>& textures, const int32_t& albedo_idx, const int32_t& normal_idx, const glm::ivec2& roughness_idx, const glm::ivec2& metallic_idx, const int32_t& emissive_idx) :
-    m_albedo_idx(albedo_idx), m_normal_idx(normal_idx), m_roughness_idx(roughness_idx.x), m_metallic_idx(metallic_idx.x), m_emissive_idx(emissive_idx), m_roughness_channel(roughness_idx.y), m_metallic_channel(metallic_idx.y)
+    m_roughness_channel(roughness_idx.y), m_metallic_channel(metallic_idx.y)
 {
     m_id = g_last_mat_idx++;
 
     if (albedo_idx != -1 && textures[albedo_idx].size() > 0)
+    {
+        m_albedo_idx = m_textures.size();
         m_textures.push_back(load_texture(textures[albedo_idx], true));
+    }
 
     if (normal_idx != -1 && textures[normal_idx].size() > 0)
+    {
+        m_normal_idx = m_textures.size();
         m_textures.push_back(load_texture(textures[normal_idx], false));
+    }
 
     if (roughness_idx.x != -1 && textures[roughness_idx.x].size() > 0)
+    {
+        m_roughness_idx = m_textures.size();
         m_textures.push_back(load_texture(textures[roughness_idx.x], false));
+    }
 
     if (metallic_idx.x != -1 && textures[metallic_idx.x].size() > 0)
+    {
+        m_metallic_idx = m_textures.size();
         m_textures.push_back(load_texture(textures[metallic_idx.x], false));
+    }
 
     if (emissive_idx != -1 && textures[emissive_idx].size() > 0)
+    {
+        m_emissive_idx = m_textures.size();
         m_textures.push_back(load_texture(textures[emissive_idx], false));
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
