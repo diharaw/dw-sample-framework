@@ -162,7 +162,7 @@ public:
     using Ptr = std::shared_ptr<Texture2D>;
 
     static Texture2D::Ptr create(uint32_t w, uint32_t h, uint32_t array_size, int32_t mip_levels, uint32_t num_samples, GLenum internal_format, GLenum format, GLenum type);
-    static Texture2D::Ptr create_from_files(std::string path, bool flip_vertical, bool srgb);
+    static Texture2D::Ptr create_from_file(std::string path, bool flip_vertical = true, bool srgb = false);
 
     ~Texture2D();
     void     write_data(int array_index, int mip_level, void* data);

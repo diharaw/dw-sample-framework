@@ -38,11 +38,13 @@ public:
         return m_cubemap_image;
     }
     inline vk::ImageView::Ptr image_view() { return m_cubemap_image_view; }
+    inline vk::Buffer::Ptr    cube_vbo() { return m_cube_vbo; }
 #else
     inline gl::TextureCube::Ptr texture()
     {
         return m_cubemap;
     }
+    inline gl::VertexArray::Ptr           cube_vao() { return m_vao; }
 #endif
 
 private:

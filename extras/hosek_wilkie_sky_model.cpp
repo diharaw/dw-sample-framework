@@ -2685,7 +2685,7 @@ void HosekWilkieSkyModel::render(
 #if defined(DWSF_VULKAN)
 
 #else
-    DW_SCOPED_SAMPLE("Render Sky Model");
+    DW_SCOPED_SAMPLE("Render Sky Box");
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);

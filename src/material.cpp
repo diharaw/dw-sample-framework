@@ -399,7 +399,7 @@ gl::Texture2D::Ptr Material::load_texture(const std::string& path, bool srgb)
         return m_texture_cache[path].lock();
     else
     {
-        gl::Texture2D::Ptr tex = gl::Texture2D::create_from_files(path, false, srgb);
+        gl::Texture2D::Ptr tex = gl::Texture2D::create_from_file(path, false, srgb);
         m_texture_cache[path]  = tex;
         return tex;
     }

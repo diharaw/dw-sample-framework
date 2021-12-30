@@ -426,7 +426,7 @@ Texture2D::Ptr Texture2D::create(uint32_t w, uint32_t h, uint32_t array_size, in
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
-Texture2D::Ptr Texture2D::create_from_files(std::string path, bool flip_vertical, bool srgb)
+Texture2D::Ptr Texture2D::create_from_file(std::string path, bool flip_vertical, bool srgb)
 {
     int x, y, n;
     stbi_set_flip_vertically_on_load(flip_vertical);
