@@ -76,6 +76,11 @@ public:
     inline const vk::VertexInputStateDesc& vertex_input_state_desc() { return m_vertex_input_state_desc; }
     inline vk::AccelerationStructure::Ptr  acceleration_structure() { return m_blas; }
 #else
+    inline gl::Buffer::Ptr vertex_buffer()
+    {
+        return m_vbo;
+    }
+    inline gl::Buffer::Ptr  index_buffer() { return m_ibo; }
     inline gl::VertexArray* mesh_vertex_array()
     {
         return m_vao.get();
@@ -86,8 +91,6 @@ public:
     {
         return m_id;
     }
-    inline gl::Buffer::Ptr                               vertex_buffer() { return m_vbo; }
-    inline gl::Buffer::Ptr                               index_buffer() { return m_ibo; }
     inline const std::vector<std::shared_ptr<Material>>& materials() { return m_materials; }
     inline const std::vector<SubMesh>&                   sub_meshes() { return m_sub_meshes; }
     inline const std::vector<uint32_t>&                  indices() { return m_indices; }

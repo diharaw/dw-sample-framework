@@ -4637,8 +4637,8 @@ bool Backend::create_swapchain()
 
     uint32_t image_count = m_swapchain_details.capabilities.minImageCount + 1;
 
-    if (m_swapchain_details.capabilities.maxImageCount > 0 && image_count > m_swapchain_details.capabilities.maxImageCount)
-        image_count = m_swapchain_details.capabilities.maxImageCount;
+    if (m_swapchain_details.capabilities.maxImageCount > kMaxFramesInFlight)
+        image_count = kMaxFramesInFlight;
 
     VkSwapchainCreateInfoKHR create_info;
     DW_ZERO_MEMORY(create_info);
@@ -4827,13 +4827,12 @@ void Backend::create_render_pass()
 
 VkSurfaceFormatKHR Backend::choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats)
 {
-    if (available_formats.size() == 1 && available_formats[0].format == VK_FORMAT_UNDEFINED)
-        return { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
-
-    for (const auto& available_format : available_formats)
+    for (const auto& availableFormat : available_formats)
     {
-        if (available_format.format == VK_FORMAT_B8G8R8A8_SNORM && available_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-            return available_format;
+        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        {
+            return availableFormat;
+        }
     }
 
     return available_formats[0];
