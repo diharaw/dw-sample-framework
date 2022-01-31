@@ -3329,9 +3329,9 @@ void BatchUploader::add_staging_buffer(const size_t& size)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Backend::Ptr Backend::create(GLFWwindow* window, bool vsync, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions)
+Backend::Ptr Backend::create(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions)
 {
-    std::shared_ptr<Backend> backend = std::shared_ptr<Backend>(new Backend(window, vsync, enable_validation_layers, require_ray_tracing, additional_device_extensions));
+    std::shared_ptr<Backend> backend = std::shared_ptr<Backend>(new Backend(window, vsync, srgb_swapchain, enable_validation_layers, require_ray_tracing, additional_device_extensions));
     backend->initialize();
 
     return backend;
@@ -3339,8 +3339,8 @@ Backend::Ptr Backend::create(GLFWwindow* window, bool vsync, bool enable_validat
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Backend::Backend(GLFWwindow* window, bool vsync, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions) :
-    m_vsync(vsync), m_window(window)
+Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions) :
+    m_vsync(vsync), m_srgb_swapchain(srgb_swapchain), m_window(window)
 {
     m_ray_tracing_enabled = require_ray_tracing;
 
@@ -3348,9 +3348,9 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool enable_validation_layers, 
     DW_ZERO_MEMORY(appInfo);
 
     appInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName   = "Helios";
+    appInfo.pApplicationName   = "dwSampleFramework";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName        = "Helios";
+    appInfo.pEngineName        = "dwSampleFramework";
     appInfo.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
     appInfo.apiVersion         = VK_API_VERSION_1_2;
 
@@ -4829,9 +4829,18 @@ VkSurfaceFormatKHR Backend::choose_swap_surface_format(const std::vector<VkSurfa
 {
     for (const auto& availableFormat : available_formats)
     {
-        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        if (availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
         {
-            return availableFormat;
+            if (m_srgb_swapchain)
+            {
+                if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB)
+                    return availableFormat;
+            }
+            else
+            {
+                if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM)
+                    return availableFormat;
+            }
         }
     }
 

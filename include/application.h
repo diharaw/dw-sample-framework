@@ -35,6 +35,7 @@ struct AppSettings
     bool        maximized  = false;
     bool        fullscreen = false;
     bool        vsync      = false;
+    bool        srgb       = false;
     int         width      = 800;
     int         height     = 600;
     std::string title      = "dwSampleFramwork";
@@ -140,8 +141,8 @@ protected:
 #if defined(DWSF_VULKAN)
     bool                            m_should_recreate_swap_chain = false;
     vk::Backend::Ptr                m_vk_backend;
-    std::vector<vk::Semaphore::Ptr> m_image_available_semaphores;
-    std::vector<vk::Semaphore::Ptr> m_render_finished_semaphores;
+    vk::Semaphore::Ptr              m_present_complete_semaphore;
+    vk::Semaphore::Ptr              m_render_complete_semaphore;
 #endif
 };
 } // namespace dw

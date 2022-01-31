@@ -234,6 +234,7 @@ bool Application::init_base(int argc, const char* argv[])
 #if defined(DWSF_VULKAN)
     m_vk_backend = vk::Backend::create(m_window,
                                        m_vsync,
+                                       settings.srgb,
 #    if defined(_DEBUG)
                                        true
 #    else
@@ -243,14 +244,8 @@ bool Application::init_base(int argc, const char* argv[])
                                        settings.ray_tracing,
                                        settings.device_extensions);
 
-    m_image_available_semaphores.resize(vk::Backend::kMaxFramesInFlight);
-    m_render_finished_semaphores.resize(vk::Backend::kMaxFramesInFlight);
-
-    for (size_t i = 0; i < vk::Backend::kMaxFramesInFlight; i++)
-    {
-        m_image_available_semaphores[i] = vk::Semaphore::create(m_vk_backend);
-        m_render_finished_semaphores[i] = vk::Semaphore::create(m_vk_backend);
-    }
+    m_present_complete_semaphore = vk::Semaphore::create(m_vk_backend);
+    m_render_complete_semaphore = vk::Semaphore::create(m_vk_backend);
 
     Material::initialize_common_resources(m_vk_backend);
 #else
@@ -383,11 +378,8 @@ void Application::shutdown_base()
     ImGui_ImplVulkan_Shutdown();
 #    endif
 
-    for (int i = 0; i < vk::Backend::kMaxFramesInFlight; i++)
-    {
-        m_image_available_semaphores[i].reset();
-        m_render_finished_semaphores[i].reset();
-    }
+    m_present_complete_semaphore.reset();
+    m_render_complete_semaphore.reset();
 
     m_vk_backend->~Backend();
 #else
@@ -429,11 +421,11 @@ void Application::render_gui(vk::CommandBuffer::Ptr cmd_buf)
 void Application::submit_and_present(const std::vector<vk::CommandBuffer::Ptr>& cmd_bufs)
 {
     m_vk_backend->submit_graphics(cmd_bufs,
-                                  { m_image_available_semaphores[m_vk_backend->current_frame_idx()] },
+                                  { m_present_complete_semaphore },
                                   { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
-                                  { m_render_finished_semaphores[m_vk_backend->current_frame_idx()] });
+                                  { m_render_complete_semaphore });
 
-    m_vk_backend->present({ m_render_finished_semaphores[m_vk_backend->current_frame_idx()] });
+    m_vk_backend->present({ m_render_complete_semaphore });
 }
 
 #endif
@@ -453,7 +445,7 @@ void Application::begin_frame()
         m_should_recreate_swap_chain = false;
     }
 
-    m_vk_backend->acquire_next_swap_chain_image(m_image_available_semaphores[m_vk_backend->current_frame_idx()]);
+    m_vk_backend->acquire_next_swap_chain_image(m_present_complete_semaphore);
 
 #    if defined(DWSF_IMGUI)
     ImGui_ImplVulkan_NewFrame();
