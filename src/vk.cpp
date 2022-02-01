@@ -696,12 +696,19 @@ void Framebuffer::set_name(const std::string& name)
 
 Buffer::Ptr Buffer::create(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaMemoryUsage memory_usage, VkFlags create_flags, void* data)
 {
-    return std::shared_ptr<Buffer>(new Buffer(backend, usage, size, memory_usage, create_flags, data));
+    return std::shared_ptr<Buffer>(new Buffer(backend, usage, size, 0, memory_usage, create_flags, data));
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Buffer::Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaMemoryUsage memory_usage, VkFlags create_flags, void* data) :
+Buffer::Ptr Buffer::create_with_alignment(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, size_t alignment, VmaMemoryUsage memory_usage, VkFlags create_flags, void* data)
+{
+    return std::shared_ptr<Buffer>(new Buffer(backend, usage, size, alignment, memory_usage, create_flags, data));
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+Buffer::Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, size_t alignment, VmaMemoryUsage memory_usage, VkFlags create_flags, void* data) :
     Object(backend), m_size(size), m_vma_memory_usage(memory_usage)
 {
     m_vma_allocator = backend->allocator();
@@ -755,10 +762,21 @@ Buffer::Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaM
     alloc_create_info.memoryTypeBits = 0;
     alloc_create_info.pool           = VK_NULL_HANDLE;
 
-    if (vmaCreateBuffer(m_vma_allocator, &buffer_info, &alloc_create_info, &m_vk_buffer, &m_vma_allocation, &vma_alloc_info) != VK_SUCCESS)
+    if (alignment == 0)
     {
-        DW_LOG_FATAL("(Vulkan) Failed to create Buffer.");
-        throw std::runtime_error("(Vulkan) Failed to create Buffer.");
+        if (vmaCreateBuffer(m_vma_allocator, &buffer_info, &alloc_create_info, &m_vk_buffer, &m_vma_allocation, &vma_alloc_info) != VK_SUCCESS)
+        {
+            DW_LOG_FATAL("(Vulkan) Failed to create Buffer.");
+            throw std::runtime_error("(Vulkan) Failed to create Buffer.");
+        }
+    }
+    else
+    {
+        if (vmaCreateBufferWithAlignment(m_vma_allocator, &buffer_info, &alloc_create_info, alignment, &m_vk_buffer, &m_vma_allocation, &vma_alloc_info) != VK_SUCCESS)
+        {
+            DW_LOG_FATAL("(Vulkan) Failed to create Buffer.");
+            throw std::runtime_error("(Vulkan) Failed to create Buffer.");
+        }
     }
 
     m_vk_device_memory = vma_alloc_info.deviceMemory;
@@ -2397,7 +2415,7 @@ RayTracingPipeline::RayTracingPipeline(Backend::Ptr backend, Desc desc) :
     uint32_t group_size_aligned = utilities::aligned_size(rt_pipeline_props.shaderGroupHandleSize, rt_pipeline_props.shaderGroupBaseAlignment);
     size_t   sbt_size           = m_sbt->groups().size() * group_size_aligned;
 
-    m_vk_buffer = vk::Buffer::create(backend, VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, sbt_size, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+    m_vk_buffer = vk::Buffer::create_with_alignment(backend, VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, sbt_size, rt_pipeline_props.shaderGroupBaseAlignment, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
     std::vector<uint8_t> scratch_mem(sbt_size);
 
@@ -2415,7 +2433,7 @@ RayTracingPipeline::RayTracingPipeline(Backend::Ptr backend, Desc desc) :
         memcpy(dst_ptr, src_ptr, group_handle_size);
 
         dst_ptr += group_size_aligned;
-        src_ptr += group_handle_size;
+        src_ptr += group_size_aligned;
     }
 }
 
@@ -3551,13 +3569,13 @@ void Backend::initialize()
     DescriptorPool::Desc dp_desc;
 
     dp_desc.set_max_sets(512)
-        .add_pool_size(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 32)
-        .add_pool_size(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 4)
-        .add_pool_size(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 256)
-        .add_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 32)
-        .add_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 32)
+        .add_pool_size(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1024)
+        .add_pool_size(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 16)
+        .add_pool_size(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4096)
+        .add_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1024)
+        .add_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1024)
         .add_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 16)
-        .add_pool_size(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 16);
+        .add_pool_size(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 32);
 
     for (int i = 0; i < MAX_DESCRIPTOR_POOL_THREADS; i++)
         g_descriptor_pools[i] = DescriptorPool::create(shared_from_this(), dp_desc);

@@ -336,6 +336,7 @@ public:
     using Ptr = std::shared_ptr<Buffer>;
 
     static Buffer::Ptr create(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaMemoryUsage memory_usage, VkFlags create_flags, void* data = nullptr);
+    static Buffer::Ptr create_with_alignment(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, size_t alignment, VmaMemoryUsage memory_usage, VkFlags create_flags, void* data = nullptr);
 
     ~Buffer();
 
@@ -349,7 +350,7 @@ public:
     inline VkDeviceAddress device_address() { return m_device_address; }
 
 private:
-    Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, VmaMemoryUsage memory_usage, VkFlags create_flags, void* data);
+    Buffer(Backend::Ptr backend, VkBufferUsageFlags usage, size_t size, size_t alignment, VmaMemoryUsage memory_usage, VkFlags create_flags, void* data);
 
 private:
     size_t                m_size;
