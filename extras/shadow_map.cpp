@@ -125,9 +125,9 @@ void ShadowMap::begin_render(
     VkViewport vp;
 
     vp.x        = 0.0f;
-    vp.y        = 0.0f;
+    vp.y        = (float)m_size;
     vp.width    = (float)m_size;
-    vp.height   = (float)m_size;
+    vp.height   = -(float)m_size;
     vp.minDepth = 0.0f;
     vp.maxDepth = 1.0f;
 
