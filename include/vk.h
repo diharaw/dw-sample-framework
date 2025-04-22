@@ -584,8 +584,15 @@ public:
         std::string                      shader_entry_names[6];
         uint32_t                         dynamic_state_count = 0;
         VkDynamicState                   dynamic_states[32];
+        uint32_t                         color_attachment_format_count = 0;
+        VkFormat                         color_attachment_formats[8];
+        VkFormat                         depth_attachment_format = VK_FORMAT_UNDEFINED;
+        VkFormat                         stencil_attachment_format = VK_FORMAT_UNDEFINED;
 
         Desc();
+        Desc& add_color_attachment_format(VkFormat format);
+        Desc& set_depth_attachment_format(VkFormat format);
+        Desc& set_stencil_attachment_format(VkFormat format);
         Desc& add_dynamic_state(const VkDynamicState& state);
         Desc& set_viewport_state(ViewportStateDesc& state);
         Desc& add_shader_stage(const VkShaderStageFlagBits& stage, const ShaderModule::Ptr& shader_module, const std::string& name);
@@ -604,6 +611,7 @@ public:
     };
 
     static GraphicsPipeline::Ptr create_for_post_process(Backend::Ptr backend, std::string vs, std::string fs, std::shared_ptr<PipelineLayout> pipeline_layout, RenderPass::Ptr render_pass);
+    static GraphicsPipeline::Ptr create_for_post_process(Backend::Ptr backend, std::string vs, std::string fs, std::shared_ptr<PipelineLayout> pipeline_layout, uint32_t attachment_count, VkFormat attachment_formats[]);
     static GraphicsPipeline::Ptr create(Backend::Ptr backend, Desc desc);
 
     inline const VkPipeline& handle() { return m_vk_pipeline; }

@@ -1660,6 +1660,39 @@ GraphicsPipeline::Desc::Desc()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::add_color_attachment_format(VkFormat format)
+{
+    if (dynamic_state_count == 8)
+    {
+        DW_LOG_FATAL("(Vulkan) Max color attachment count reached.");
+        throw std::runtime_error("(Vulkan) Max color attachment count reached.");
+    }
+
+    color_attachment_formats[color_attachment_format_count++] = format;
+
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_depth_attachment_format(VkFormat format)
+{
+    depth_attachment_format = format;
+
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_stencil_attachment_format(VkFormat format)
+{
+    stencil_attachment_format = format;
+
+    return *this;
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 GraphicsPipeline::Desc& GraphicsPipeline::Desc::add_dynamic_state(const VkDynamicState& state)
 {
     if (dynamic_state_count == 32)
@@ -1925,6 +1958,138 @@ GraphicsPipeline::Ptr GraphicsPipeline::create_for_post_process(Backend::Ptr bac
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+GraphicsPipeline::Ptr GraphicsPipeline::create_for_post_process(Backend::Ptr backend, std::string vs, std::string fs, std::shared_ptr<PipelineLayout> pipeline_layout, uint32_t attachment_count, VkFormat attachment_formats[])
+{
+    // ---------------------------------------------------------------------------
+    // Create shader modules
+    // ---------------------------------------------------------------------------
+
+    vk::ShaderModule::Ptr vs_module = vk::ShaderModule::create_from_file(backend, vs);
+    vk::ShaderModule::Ptr fs_module = vk::ShaderModule::create_from_file(backend, fs);
+
+    vk::GraphicsPipeline::Desc pso_desc;
+
+    pso_desc.add_shader_stage(VK_SHADER_STAGE_VERTEX_BIT, vs_module, "main")
+        .add_shader_stage(VK_SHADER_STAGE_FRAGMENT_BIT, fs_module, "main");
+
+    // ---------------------------------------------------------------------------
+    // Vertex input state
+    // ---------------------------------------------------------------------------
+
+    VertexInputStateDesc vs_desc;
+
+    pso_desc.set_vertex_input_state(vs_desc);
+
+    // ---------------------------------------------------------------------------
+    // Create pipeline input assembly state
+    // ---------------------------------------------------------------------------
+
+    vk::InputAssemblyStateDesc input_assembly_state_desc;
+
+    input_assembly_state_desc.set_primitive_restart_enable(false)
+        .set_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+
+    pso_desc.set_input_assembly_state(input_assembly_state_desc);
+
+    // ---------------------------------------------------------------------------
+    // Create viewport state
+    // ---------------------------------------------------------------------------
+
+    vk::ViewportStateDesc vp_desc;
+
+    vp_desc.add_viewport(0.0f, 0.0f, 1, 1, 0.0f, 1.0f)
+        .add_scissor(0, 0, 1, 1);
+
+    pso_desc.set_viewport_state(vp_desc);
+
+    // ---------------------------------------------------------------------------
+    // Create rasterization state
+    // ---------------------------------------------------------------------------
+
+    vk::RasterizationStateDesc rs_state;
+
+    rs_state.set_depth_clamp(VK_FALSE)
+        .set_rasterizer_discard_enable(VK_FALSE)
+        .set_polygon_mode(VK_POLYGON_MODE_FILL)
+        .set_line_width(1.0f)
+        .set_cull_mode(VK_CULL_MODE_NONE)
+        .set_front_face(VK_FRONT_FACE_COUNTER_CLOCKWISE)
+        .set_depth_bias(VK_FALSE);
+
+    pso_desc.set_rasterization_state(rs_state);
+
+    // ---------------------------------------------------------------------------
+    // Create multisample state
+    // ---------------------------------------------------------------------------
+
+    vk::MultisampleStateDesc ms_state;
+
+    ms_state.set_sample_shading_enable(VK_FALSE)
+        .set_rasterization_samples(VK_SAMPLE_COUNT_1_BIT);
+
+    pso_desc.set_multisample_state(ms_state);
+
+    // ---------------------------------------------------------------------------
+    // Create depth stencil state
+    // ---------------------------------------------------------------------------
+
+    vk::DepthStencilStateDesc ds_state;
+
+    ds_state.set_depth_test_enable(VK_FALSE)
+        .set_depth_write_enable(VK_FALSE)
+        .set_depth_compare_op(VK_COMPARE_OP_LESS)
+        .set_depth_bounds_test_enable(VK_FALSE)
+        .set_stencil_test_enable(VK_FALSE);
+
+    pso_desc.set_depth_stencil_state(ds_state);
+
+    // ---------------------------------------------------------------------------
+    // Create color blend state
+    // ---------------------------------------------------------------------------
+
+    vk::ColorBlendAttachmentStateDesc blend_att_desc;
+
+    blend_att_desc.set_color_write_mask(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT)
+        .set_blend_enable(VK_FALSE);
+
+    vk::ColorBlendStateDesc blend_state;
+
+    blend_state.set_logic_op_enable(VK_FALSE)
+        .set_logic_op(VK_LOGIC_OP_COPY)
+        .set_blend_constants(0.0f, 0.0f, 0.0f, 0.0f)
+        .add_attachment(blend_att_desc);
+
+    pso_desc.set_color_blend_state(blend_state);
+
+    // ---------------------------------------------------------------------------
+    // Create pipeline layout
+    // ---------------------------------------------------------------------------
+
+    pso_desc.set_pipeline_layout(pipeline_layout);
+
+    // ---------------------------------------------------------------------------
+    // Create dynamic state
+    // ---------------------------------------------------------------------------
+
+    pso_desc.add_dynamic_state(VK_DYNAMIC_STATE_VIEWPORT)
+        .add_dynamic_state(VK_DYNAMIC_STATE_SCISSOR);
+
+    // ---------------------------------------------------------------------------
+    // Create rendering state
+    // ---------------------------------------------------------------------------
+
+    for (uint32_t i = 0; i < attachment_count; i++)
+        pso_desc.add_color_attachment_format(attachment_formats[i]);
+
+    // ---------------------------------------------------------------------------
+    // Create pipeline
+    // ---------------------------------------------------------------------------
+
+    return vk::GraphicsPipeline::create(backend, pso_desc);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 GraphicsPipeline::Ptr GraphicsPipeline::create(Backend::Ptr backend, Desc desc)
 {
     return std::shared_ptr<GraphicsPipeline>(new GraphicsPipeline(backend, desc));
@@ -1935,11 +2100,24 @@ GraphicsPipeline::Ptr GraphicsPipeline::create(Backend::Ptr backend, Desc desc)
 GraphicsPipeline::GraphicsPipeline(Backend::Ptr backend, Desc desc) :
     Object(backend)
 {
+    VkPipelineRenderingCreateInfoKHR rendering_create_info {};
+
     desc.create_info.pStages             = &desc.shader_stages[0];
     desc.create_info.stageCount          = desc.shader_stage_count;
     desc.dynamic_state.dynamicStateCount = desc.dynamic_state_count;
     desc.dynamic_state.pDynamicStates    = &desc.dynamic_states[0];
     desc.create_info.pDynamicState       = &desc.dynamic_state;
+
+    if (!desc.create_info.renderPass)
+    {
+        rendering_create_info.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+        rendering_create_info.colorAttachmentCount    = desc.color_attachment_format_count;
+        rendering_create_info.pColorAttachmentFormats = &desc.color_attachment_formats[0];
+        rendering_create_info.depthAttachmentFormat   = desc.depth_attachment_format;
+        rendering_create_info.stencilAttachmentFormat = desc.stencil_attachment_format;
+
+        desc.create_info.pNext = &rendering_create_info;
+    }
 
     if (vkCreateGraphicsPipelines(backend->device(), nullptr, 1, &desc.create_info, nullptr, &m_vk_pipeline) != VK_SUCCESS)
     {
@@ -3465,6 +3643,7 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enabl
     device_extensions.push_back(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
     device_extensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
     device_extensions.push_back(VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME);
+    device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
 
     for (auto ext : additional_device_extensions)
         device_extensions.push_back(ext);
@@ -4553,11 +4732,18 @@ bool Backend::is_queue_compatible(VkQueueFlags current_queue_flags, int32_t grap
 
 bool Backend::create_logical_device(std::vector<const char*> extensions, bool require_ray_tracing)
 {
+    // Dynamic Rendering Features.
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_features;
+    DW_ZERO_MEMORY(dynamic_rendering_features);
+    
+    dynamic_rendering_features.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
+    dynamic_rendering_features.dynamicRendering = VK_TRUE;
+
     VkPhysicalDeviceRayQueryFeaturesKHR device_ray_query_features;
     DW_ZERO_MEMORY(device_ray_query_features);
 
     device_ray_query_features.sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
-    device_ray_query_features.pNext    = nullptr;
+    device_ray_query_features.pNext    = &dynamic_rendering_features;
     device_ray_query_features.rayQuery = VK_TRUE;
 
     // Acceleration Structure Features
