@@ -3398,23 +3398,25 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enabl
 
     if (enable_validation_layers)
     {
-        VkValidationFeatureEnableEXT enabled_features[] = { VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT };
+        VkValidationFeatureEnableEXT enabled_features[] = { VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT, VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT };
 
         VkValidationFeaturesEXT validation_features;
         DW_ZERO_MEMORY(validation_features);
 
-        validation_features.sType                         = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+        validation_features.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+#if defined(ENABLE_GPU_ASSISTED_VALIDATION)
+        validation_features.enabledValidationFeatureCount = 2;
+#else
         validation_features.enabledValidationFeatureCount = 1;
-        validation_features.pEnabledValidationFeatures    = enabled_features;
+#endif
+        validation_features.pEnabledValidationFeatures = enabled_features;
 
         DW_ZERO_MEMORY(debug_create_info);
         create_info.enabledLayerCount   = static_cast<uint32_t>(kValidationLayers.size());
         create_info.ppEnabledLayerNames = kValidationLayers.data();
 
         debug_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-#    if defined(ENABLE_GPU_ASSISTED_VALIDATION)
         debug_create_info.pNext = &validation_features;
-#    endif
         debug_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         debug_create_info.messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         debug_create_info.pfnUserCallback = debug_callback;
