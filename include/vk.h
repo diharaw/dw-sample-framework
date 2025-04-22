@@ -2,7 +2,7 @@
 
 #if defined(DWSF_VULKAN)
 
-#    include <vulkan/vulkan.h>
+#    include <volk.h>
 #    include <vector>
 #    include <string>
 #    include <memory>

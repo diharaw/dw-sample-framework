@@ -19,3 +19,6 @@
 [submodule "external/json"]
 	path = external/json
 	url = https://github.com/nlohmann/json.git
+[submodule "external/volk"]
+	path = external/volk
+	url = https://github.com/zeux/volk.git

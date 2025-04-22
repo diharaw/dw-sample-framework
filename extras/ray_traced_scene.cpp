@@ -61,7 +61,7 @@ RayTracedScene::RayTracedScene(vk::Backend::Ptr backend, std::vector<Instance> i
     m_backend(backend), m_instances(instances), m_id(g_last_scene_idx++)
 {
     // Allocate device instance buffer
-    m_tlas_instance_buffer_device = vk::Buffer::create(backend, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, sizeof(VkAccelerationStructureInstanceKHR) * MAX_INSTANCES, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    m_tlas_instance_buffer_device = vk::Buffer::create_with_alignment(backend, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, sizeof(VkAccelerationStructureInstanceKHR) * MAX_INSTANCES, 16, VMA_MEMORY_USAGE_GPU_ONLY, 0);
     m_tlas_instance_buffer_device->set_name("TLAS Instance Buffer Device");
 
     VkDeviceOrHostAddressConstKHR instance_device_address {};

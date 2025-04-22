@@ -2,11 +2,12 @@
 #include <logger.h>
 #include <macros.h>
 #include <fstream>
-#include <extensions_vk.h>
 #include <glm.hpp>
 #include <utility.h>
 
 #define VMA_IMPLEMENTATION
+#define VMA_STATIC_VULKAN_FUNCTIONS 0
+#define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
 #include <vk_mem_alloc.h>
 
 #define GLFW_INCLUDE_VULKAN
@@ -19,6 +20,9 @@
 #if defined(DWSF_VULKAN)
 
 //#define ENABLE_GPU_ASSISTED_VALIDATION
+
+#undef min
+#undef max
 
 namespace dw
 {
@@ -3302,7 +3306,7 @@ void BatchUploader::submit()
             for (int i = 0; i < m_blas_build_requests.size(); i++)
                 scratch_buffer_size = std::max(scratch_buffer_size, m_blas_build_requests[i].acceleration_structure->build_sizes().buildScratchSize);
 
-            blas_scratch_buffer = vk::Buffer::create(backend, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, scratch_buffer_size, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+            blas_scratch_buffer = vk::Buffer::create_with_alignment(backend, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, scratch_buffer_size, backend->acceleration_structure_properties().minAccelerationStructureScratchOffsetAlignment, VMA_MEMORY_USAGE_GPU_ONLY, 0);
 
             for (int i = 0; i < m_blas_build_requests.size(); i++)
             {
@@ -3362,6 +3366,12 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enabl
 {
     m_ray_tracing_enabled = require_ray_tracing;
 
+    if (volkInitialize() != VK_SUCCESS)
+    {
+        DW_LOG_FATAL("Failed to initialize Volk.");
+        throw std::runtime_error("Failed to initialize Volk.");
+    }
+
     VkApplicationInfo appInfo;
     DW_ZERO_MEMORY(appInfo);
 
@@ -3370,7 +3380,7 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enabl
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName        = "dwSampleFramework";
     appInfo.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion         = VK_API_VERSION_1_2;
+    appInfo.apiVersion         = VK_API_VERSION_1_3;
 
     std::vector<const char*> extensions = required_extensions(enable_validation_layers);
 
@@ -3423,6 +3433,8 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enabl
         throw std::runtime_error("(Vulkan) Failed to create Vulkan instance.");
     }
 
+    volkLoadInstance(m_vk_instance);
+
     if (enable_validation_layers && create_debug_utils_messenger(m_vk_instance, &debug_create_info, nullptr, &m_vk_debug_messenger) != VK_SUCCESS)
         DW_LOG_FATAL("(Vulkan) Failed to create Vulkan debug messenger.");
 
@@ -3467,19 +3479,23 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enabl
         throw std::runtime_error("(Vulkan) Failed to create logical device.");
     }
 
+    VmaVulkanFunctions vulkan_functions = {};
+
+    vulkan_functions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+    vulkan_functions.vkGetDeviceProcAddr   = vkGetDeviceProcAddr;
+
     VmaAllocatorCreateInfo allocator_info = {};
     allocator_info.flags                  = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     allocator_info.physicalDevice         = m_vk_physical_device;
     allocator_info.device                 = m_vk_device;
     allocator_info.instance               = m_vk_instance;
+    allocator_info.pVulkanFunctions       = (const VmaVulkanFunctions*)&vulkan_functions;
 
     if (vmaCreateAllocator(&allocator_info, &m_vma_allocator) != VK_SUCCESS)
     {
         DW_LOG_FATAL("(Vulkan) Failed to create Allocator.");
         throw std::runtime_error("(Vulkan) Failed to create Allocator.");
     }
-
-    load_VK_EXTENSION_SUBSET(m_vk_instance, vkGetInstanceProcAddr, m_vk_device, vkGetDeviceProcAddr);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3614,7 +3630,8 @@ void Backend::initialize()
     m_trilinear_sampler->set_name("Trilinear Sampler");
 
     sampler_desc.mag_filter = VK_FILTER_NEAREST;
-    sampler_desc.min_filter = VK_FILTER_NEAREST;
+    sampler_desc.min_filter  = VK_FILTER_NEAREST;
+    sampler_desc.mipmap_mode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 
     m_nearest_sampler = Sampler::create(shared_from_this(), sampler_desc);
     m_nearest_sampler->set_name("Nearest Sampler");
@@ -4307,23 +4324,19 @@ bool Backend::is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType t
 
             if (require_ray_tracing)
             {
+                // Get acceleration structure properties
+                DW_ZERO_MEMORY(m_acceleration_structure_properties);
+                m_acceleration_structure_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
+
                 // Get ray tracing pipeline properties
                 DW_ZERO_MEMORY(m_ray_tracing_pipeline_properties);
                 m_ray_tracing_pipeline_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+                m_ray_tracing_pipeline_properties.pNext = &m_acceleration_structure_properties;
 
                 VkPhysicalDeviceProperties2 device_properties2 {};
                 device_properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
                 device_properties2.pNext = &m_ray_tracing_pipeline_properties;
                 vkGetPhysicalDeviceProperties2(device, &device_properties2);
-
-                // Get acceleration structure properties
-                DW_ZERO_MEMORY(m_acceleration_structure_properties);
-                m_acceleration_structure_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
-
-                VkPhysicalDeviceFeatures2 device_features2 {};
-                device_features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-                device_features2.pNext = &m_acceleration_structure_properties;
-                vkGetPhysicalDeviceFeatures2(device, &device_features2);
             }
 
             return find_queues(device, infos);

@@ -7,6 +7,8 @@ endif()
 
 if (USE_VULKAN)
     add_definitions(-DDWSF_VULKAN)
+	add_definitions(-DVK_NO_PROTOTYPES)	
+	add_definitions(-DIMGUI_IMPL_VULKAN_USE_VOLK)
 endif()
 
 set (CMAKE_CXX_STANDARD 17)
@@ -76,7 +78,7 @@ else()
 	target_link_libraries(dwSampleFramework glfw)
 
 	if (USE_VULKAN)
-		target_link_libraries(dwSampleFramework ${Vulkan_LIBRARY})
+		target_link_libraries(dwSampleFramework volk)
 	else()
 		target_link_libraries(dwSampleFramework ${OPENGL_LIBRARIES})
 	endif()

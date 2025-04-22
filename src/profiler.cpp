@@ -1,6 +1,6 @@
+#include <profiler.h>
 #include <imgui.h>
 #include <macros.h>
-#include <profiler.h>
 #include <timer.h>
 #include <stack>
 #include <vector>

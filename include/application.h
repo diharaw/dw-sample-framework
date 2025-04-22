@@ -11,7 +11,6 @@
 #else
 #    include <GLFW/glfw3.h>
 #endif
-#include <imgui.h>
 #include "vk.h"
 #include "logger.h"
 #include "timer.h"

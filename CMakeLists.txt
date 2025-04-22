@@ -8,6 +8,7 @@ set(BUILD_SHARED_LIBRARY false CACHE BOOL "Build shared library.")
 set(ENABLE_CLANG_FORMATTING false CACHE BOOL "Enable clang formatting.")
 set(USE_VULKAN false CACHE BOOL "Use Vulkan graphics API.")
 set(ENABLE_IMGUI true CACHE BOOL "Enable ImGui.")
+set(VOLK_STATIC_DEFINES "VK_USE_PLATFORM_WIN32_KHR")
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
@@ -22,6 +23,7 @@ set(IMGUI_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/imgui")
 set(ASSIMP_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/assimp/include" "${CMAKE_CURRENT_BINARY_DIR}/external/assimp/include")
 set(JSON_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/json/single_include/nlohmann")
 set(VMA_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/VulkanMemoryAllocator/include")
+set(VOLK_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/volk")
 
 if (USE_VULKAN)
     find_package(Vulkan)
@@ -38,7 +40,7 @@ set(DW_SAMPLE_FRAMEWORK_INCLUDES ${DWSFW_INCLUDE_DIRS}
                                  ${ASSIMP_INCLUDE_DIRS}
                                  ${JSON_INCLUDE_DIRS}
                                  ${VMA_INCLUDE_DIRS}
-                                 ${Vulkan_INCLUDE_DIR}
+                                 ${VOLK_INCLUDE_DIRS}
                                  PARENT_SCOPE)
 
 include_directories(${DWSFW_INCLUDE_DIRS}
@@ -48,15 +50,20 @@ include_directories(${DWSFW_INCLUDE_DIRS}
                     ${STB_INCLUDE_DIRS}
                     ${IMGUI_INCLUDE_DIRS}
                     ${ASSIMP_INCLUDE_DIRS}
+                    ${JSON_INCLUDE_DIRS}
                     ${VMA_INCLUDE_DIRS}
-                    ${Vulkan_INCLUDE_DIR}
-                    ${JSON_INCLUDE_DIRS})
+                    ${VOLK_INCLUDE_DIRS})
 
 if (NOT EMSCRIPTEN)
     add_subdirectory(external/glfw)
 endif()
-                
+          
+if (USE_VULKAN)
+    add_subdirectory(external/volk)
+endif()
+      
 add_subdirectory(external/assimp)
+
 add_subdirectory(src)
 
 if (BUILD_SAMPLES)

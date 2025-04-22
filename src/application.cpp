@@ -272,36 +272,22 @@ bool Application::init_base(int argc, const char* argv[])
 
     ImGui_ImplVulkan_InitInfo init_info = {};
 
-    init_info.Instance        = m_vk_backend->instance();
-    init_info.PhysicalDevice  = m_vk_backend->physical_device();
-    init_info.Device          = m_vk_backend->device();
-    init_info.QueueFamily     = m_vk_backend->queue_infos().graphics_queue_index;
-    init_info.Queue           = m_vk_backend->graphics_queue();
-    init_info.PipelineCache   = nullptr;
-    init_info.DescriptorPool  = m_vk_backend->thread_local_descriptor_pool()->handle();
-    init_info.Allocator       = nullptr;
-    init_info.MinImageCount   = 2;
-    init_info.ImageCount      = m_vk_backend->swap_image_count();
-    init_info.CheckVkResultFn = nullptr;
+    init_info.Instance           = m_vk_backend->instance();
+    init_info.PhysicalDevice     = m_vk_backend->physical_device();
+    init_info.Device             = m_vk_backend->device();
+    init_info.QueueFamily        = m_vk_backend->queue_infos().graphics_queue_index;
+    init_info.Queue              = m_vk_backend->graphics_queue();
+    init_info.PipelineCache      = nullptr;
+    init_info.DescriptorPoolSize = 32;
+    init_info.RenderPass         = m_vk_backend->swapchain_render_pass()->handle();
+    init_info.Allocator          = nullptr;
+    init_info.MinImageCount      = 2;
+    init_info.ImageCount         = m_vk_backend->swap_image_count();
+    init_info.CheckVkResultFn    = nullptr;
 
-    ImGui_ImplVulkan_Init(&init_info, m_vk_backend->swapchain_render_pass()->handle());
+    ImGui_ImplVulkan_Init(&init_info);
 
-    vk::CommandBuffer::Ptr cmd_buf = m_vk_backend->allocate_graphics_command_buffer();
-
-    VkCommandBufferBeginInfo begin_info;
-    DW_ZERO_MEMORY(begin_info);
-
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-    vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
-
-    ImGui_ImplVulkan_CreateFontsTexture(cmd_buf->handle());
-
-    vkEndCommandBuffer(cmd_buf->handle());
-
-    m_vk_backend->flush_graphics({ cmd_buf });
-
-    ImGui_ImplVulkan_DestroyFontUploadObjects();
+    ImGui_ImplVulkan_CreateFontsTexture();
 #    else
     ImGui_ImplGlfw_InitForOpenGL(m_window, false);
     ImGui_ImplOpenGL3_Init(imgui_glsl_version);
