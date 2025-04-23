@@ -130,6 +130,7 @@ protected:
     double                              m_mouse_delta_y;
     double                              m_delta;
     double                              m_delta_seconds;
+    uint32_t                            m_frame_index = 0;
     std::string                         m_title;
     std::array<bool, MAX_KEYS>          m_keys;
     std::array<bool, MAX_MOUSE_BUTTONS> m_mouse_buttons;
@@ -140,8 +141,9 @@ protected:
 #if defined(DWSF_VULKAN)
     bool                            m_should_recreate_swap_chain = false;
     vk::Backend::Ptr                m_vk_backend;
-    vk::Semaphore::Ptr              m_present_complete_semaphore;
-    vk::Semaphore::Ptr              m_render_complete_semaphore;
+    std::vector<vk::Fence::Ptr>     m_render_complete_fences;
+    std::vector<vk::Semaphore::Ptr> m_present_complete_semaphores;
+    std::vector<vk::Semaphore::Ptr> m_render_complete_semaphores;
 #endif
 };
 } // namespace dw

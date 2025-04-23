@@ -84,22 +84,23 @@ public:
     void                                    submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
                                                             const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
                                                             const std::vector<VkPipelineStageFlags>&           wait_stages,
-                                                            const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores);
+                                                            const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores,
+                                                            const std::shared_ptr<Fence>&                      signal_fence);
     void                                    submit_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
                                                            const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
                                                            const std::vector<VkPipelineStageFlags>&           wait_stages,
-                                                           const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores);
+                                                           const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores,
+                                                           const std::shared_ptr<Fence>&                      signal_fence);
     void                                    submit_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
                                                             const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
                                                             const std::vector<VkPipelineStageFlags>&           wait_stages,
-                                                            const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores);
+                                                            const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores,
+                                                            const std::shared_ptr<Fence>&                      signal_fence);
     void                                    flush_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
     void                                    flush_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
     void                                    flush_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
-    void                                    acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& semaphore);
+    bool                                    acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& semaphore);
     void                                    present(const std::vector<std::shared_ptr<Semaphore>>& semaphores);
-    bool                                    is_frame_done(uint32_t idx);
-    void                                    wait_for_frame(uint32_t idx);
     std::shared_ptr<Image>                  swapchain_image();
     std::shared_ptr<ImageView>              swapchain_image_view();
     std::vector<std::shared_ptr<ImageView>> swapchain_image_views();
@@ -121,8 +122,6 @@ public:
     size_t           min_dynamic_ubo_alignment();
     size_t           aligned_dynamic_ubo_size(size_t size);
     VkFormat         find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
-    void             process_deletion_queue();
-    void             queue_object_deletion(std::shared_ptr<Object> object);
 
     inline VkPhysicalDeviceRayTracingPipelinePropertiesKHR    ray_tracing_pipeline_properties() { return m_ray_tracing_pipeline_properties; }
     inline VkPhysicalDeviceAccelerationStructurePropertiesKHR acceleration_structure_properties() { return m_acceleration_structure_properties; }
@@ -162,7 +161,8 @@ private:
                                     const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
                                     const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
                                     const std::vector<VkPipelineStageFlags>&           wait_stages,
-                                    const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores);
+                                    const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores,
+                                    const std::shared_ptr<Fence>&                      signal_fence);
     void                     flush(VkQueue queue, const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs);
 
 private:
@@ -196,14 +196,12 @@ private:
     std::shared_ptr<ImageView>                               m_default_cubemap_image_view;
     uint32_t                                                 m_image_index   = 0;
     uint32_t                                                 m_current_frame = 0;
-    std::vector<std::shared_ptr<Fence>>                      m_in_flight_fences;
     std::shared_ptr<Image>                                   m_swap_chain_depth      = nullptr;
     std::shared_ptr<ImageView>                               m_swap_chain_depth_view = nullptr;
     VkPhysicalDeviceProperties                               m_device_properties;
     bool                                                     m_ray_tracing_enabled = false;
     bool                                                     m_vsync               = false;
     bool                                                     m_srgb_swapchain      = false;
-    std::deque<std::pair<std::shared_ptr<Object>, uint32_t>> m_deletion_queue;
 };
 
 class Object
@@ -959,6 +957,8 @@ public:
     static Fence::Ptr create(Backend::Ptr backend);
 
     ~Fence();
+
+    void wait_for_completion();
 
     void set_name(const std::string& name);
 

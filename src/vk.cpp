@@ -3132,6 +3132,16 @@ Fence::~Fence()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+void Fence::wait_for_completion()
+{
+    auto backend = m_vk_backend.lock();
+
+    vkWaitForFences(backend->device(), 1, &m_vk_fence, VK_TRUE, UINT64_MAX);
+    vkResetFences(backend->device(), 1, &m_vk_fence);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 void Fence::set_name(const std::string& name)
 {
     auto backend = m_vk_backend.lock();
@@ -3683,13 +3693,6 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enabl
 
 Backend::~Backend()
 {
-    while (!m_deletion_queue.empty())
-    {
-        auto front = m_deletion_queue.front();
-        wait_for_frame(front.second);
-        m_deletion_queue.pop_front();
-    }
-
     m_default_cubemap_image_view.reset();
     m_default_cubemap_image.reset();
     m_bilinear_sampler.reset();
@@ -3711,9 +3714,6 @@ Backend::~Backend()
         m_swap_chain_framebuffers[i].reset();
         m_swap_chain_image_views[i].reset();
     }
-
-    for (int i = 0; i < m_in_flight_fences.size(); i++)
-        m_in_flight_fences[i].reset();
 
     m_swap_chain_render_pass.reset();
     m_swap_chain_depth_view.reset();
@@ -3904,9 +3904,10 @@ std::shared_ptr<DescriptorPool> Backend::thread_local_descriptor_pool()
 void Backend::submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
                               const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
                               const std::vector<VkPipelineStageFlags>&           wait_stages,
-                              const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores)
+                              const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores,
+                              const std::shared_ptr<Fence>&                      signal_fence)
 {
-    submit(m_vk_graphics_queue, cmd_bufs, wait_semaphores, wait_stages, signal_semaphores);
+    submit(m_vk_graphics_queue, cmd_bufs, wait_semaphores, wait_stages, signal_semaphores, signal_fence);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3914,9 +3915,10 @@ void Backend::submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>&
 void Backend::submit_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
                              const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
                              const std::vector<VkPipelineStageFlags>&           wait_stages,
-                             const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores)
+                             const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores,
+                             const std::shared_ptr<Fence>&                      signal_fence)
 {
-    submit(m_vk_compute_queue, cmd_bufs, wait_semaphores, wait_stages, signal_semaphores);
+    submit(m_vk_compute_queue, cmd_bufs, wait_semaphores, wait_stages, signal_semaphores, signal_fence);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3924,9 +3926,10 @@ void Backend::submit_compute(const std::vector<std::shared_ptr<CommandBuffer>>& 
 void Backend::submit_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
                               const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
                               const std::vector<VkPipelineStageFlags>&           wait_stages,
-                              const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores)
+                              const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores,
+                              const std::shared_ptr<Fence>&                      signal_fence)
 {
-    submit(m_vk_transfer_queue, cmd_bufs, wait_semaphores, wait_stages, signal_semaphores);
+    submit(m_vk_transfer_queue, cmd_bufs, wait_semaphores, wait_stages, signal_semaphores, signal_fence);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3965,7 +3968,8 @@ void Backend::submit(VkQueue                                            queue,
                      const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
                      const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
                      const std::vector<VkPipelineStageFlags>&           wait_stages,
-                     const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores)
+                     const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores,
+                     const std::shared_ptr<Fence>&                      signal_fence)
 {
     VkSemaphore vk_wait_semaphores[16];
 
@@ -4002,9 +4006,7 @@ void Backend::submit(VkQueue                                            queue,
     submit_info.signalSemaphoreCount = signal_semaphores.size();
     submit_info.pSignalSemaphores    = vk_signal_semaphores;
 
-    vkResetFences(m_vk_device, 1, &m_in_flight_fences[m_current_frame]->handle());
-
-    VkResult result = vkQueueSubmit(queue, 1, &submit_info, m_in_flight_fences[m_current_frame]->handle());
+    VkResult result = vkQueueSubmit(queue, 1, &submit_info, signal_fence->handle());
 
     if (result != VK_SUCCESS)
     {
@@ -4049,10 +4051,8 @@ void Backend::flush(VkQueue queue, const std::vector<std::shared_ptr<CommandBuff
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Backend::acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& semaphore)
+bool Backend::acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& semaphore)
 {
-    vkWaitForFences(m_vk_device, 1, &m_in_flight_fences[m_current_frame]->handle(), VK_TRUE, UINT64_MAX);
-
     for (int i = 0; i < MAX_COMMAND_THREADS; i++)
     {
         g_graphics_command_buffers[i]->reset(m_current_frame);
@@ -4062,16 +4062,7 @@ void Backend::acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& se
 
     VkResult result = vkAcquireNextImageKHR(m_vk_device, m_vk_swap_chain, UINT64_MAX, semaphore->handle(), VK_NULL_HANDLE, &m_image_index);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR)
-    {
-        recreate_swapchain(m_vsync);
-        return;
-    }
-    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
-    {
-        DW_LOG_FATAL("(Vulkan) Failed to acquire swap chain image!");
-        throw std::runtime_error("(Vulkan) Failed to acquire swap chain image!");
-    }
+    return result == VK_SUCCESS;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -4102,24 +4093,6 @@ void Backend::present(const std::vector<std::shared_ptr<Semaphore>>& semaphores)
     }
 
     m_current_frame = (m_current_frame + 1) % kMaxFramesInFlight;
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-bool Backend::is_frame_done(uint32_t idx)
-{
-    if (idx < kMaxFramesInFlight)
-        return vkGetFenceStatus(m_vk_device, m_in_flight_fences[idx]->handle()) == VK_SUCCESS;
-    else
-        return false;
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Backend::wait_for_frame(uint32_t idx)
-{
-    if (idx < kMaxFramesInFlight)
-        vkWaitForFences(m_vk_device, 1, &m_in_flight_fences[idx]->handle(), VK_TRUE, 100000000000);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -4278,29 +4251,6 @@ VkFormat Backend::find_supported_format(const std::vector<VkFormat>& candidates,
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Backend::process_deletion_queue()
-{
-    while (!m_deletion_queue.empty())
-    {
-        auto front = m_deletion_queue.front();
-
-        if (is_frame_done(front.second))
-            m_deletion_queue.pop_front();
-        else
-            return;
-    }
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Backend::queue_object_deletion(std::shared_ptr<Object> object)
-{
-    if (object)
-        m_deletion_queue.push_back({ object, m_current_frame });
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
 VkFormat Backend::find_depth_format()
 {
     return find_supported_format({ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT }, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
@@ -4399,8 +4349,7 @@ std::vector<const char*> Backend::required_extensions(bool enable_validation_lay
 
     std::vector<const char*> extensions(glfw_extensions, glfw_extensions + glfw_extension_count);
 
-    if (enable_validation_layers)
-        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
     return extensions;
 }
@@ -4940,11 +4889,6 @@ bool Backend::create_swapchain()
 
         m_swap_chain_framebuffers[i] = Framebuffer::create(shared_from_this(), m_swap_chain_render_pass, views, m_swap_chain_extent.width, m_swap_chain_extent.height, 1);
     }
-
-    m_in_flight_fences.resize(kMaxFramesInFlight);
-
-    for (size_t i = 0; i < kMaxFramesInFlight; i++)
-        m_in_flight_fences[i] = Fence::create(shared_from_this());
 
     return true;
 }
