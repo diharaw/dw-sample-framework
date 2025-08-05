@@ -276,20 +276,32 @@ bool Application::init_base(int argc, const char* argv[])
 #    if defined(DWSF_VULKAN)
     ImGui_ImplGlfw_InitForVulkan(m_window, false);
 
+    VkFormat swapchain_format = m_vk_backend->swap_chain_image_format();
+
+    VkPipelineRenderingCreateInfoKHR pipeline_rendering_info = {};
+
+    pipeline_rendering_info.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    pipeline_rendering_info.colorAttachmentCount    = 1;
+    pipeline_rendering_info.pColorAttachmentFormats = &swapchain_format;
+    pipeline_rendering_info.depthAttachmentFormat   = VK_FORMAT_UNDEFINED;
+    pipeline_rendering_info.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
+
     ImGui_ImplVulkan_InitInfo init_info = {};
 
-    init_info.Instance           = m_vk_backend->instance();
-    init_info.PhysicalDevice     = m_vk_backend->physical_device();
-    init_info.Device             = m_vk_backend->device();
-    init_info.QueueFamily        = m_vk_backend->queue_infos().graphics_queue_index;
-    init_info.Queue              = m_vk_backend->graphics_queue();
-    init_info.PipelineCache      = nullptr;
-    init_info.DescriptorPoolSize = 32;
-    init_info.RenderPass         = m_vk_backend->swapchain_render_pass()->handle();
-    init_info.Allocator          = nullptr;
-    init_info.MinImageCount      = 2;
-    init_info.ImageCount         = m_vk_backend->swap_image_count();
-    init_info.CheckVkResultFn    = nullptr;
+    init_info.Instance                    = m_vk_backend->instance();
+    init_info.PhysicalDevice              = m_vk_backend->physical_device();
+    init_info.Device                      = m_vk_backend->device();
+    init_info.QueueFamily                 = m_vk_backend->queue_infos().graphics_queue_index;
+    init_info.Queue                       = m_vk_backend->graphics_queue();
+    init_info.PipelineCache               = nullptr;
+    init_info.DescriptorPoolSize          = 32;
+    init_info.RenderPass                  = nullptr;
+    init_info.Allocator                   = nullptr;
+    init_info.MinImageCount               = 2;
+    init_info.ImageCount                  = m_vk_backend->swap_image_count();
+    init_info.CheckVkResultFn             = nullptr;
+    init_info.UseDynamicRendering         = true;
+    init_info.PipelineRenderingCreateInfo = pipeline_rendering_info;
 
     ImGui_ImplVulkan_Init(&init_info);
 
@@ -323,7 +335,7 @@ bool Application::init_base(int argc, const char* argv[])
 
     if (!m_debug_draw.init(
 #if defined(DWSF_VULKAN)
-            m_vk_backend, m_vk_backend->swapchain_render_pass()
+            m_vk_backend
 #endif
                 ))
         return false;
@@ -418,7 +430,6 @@ void Application::submit_and_present(const std::vector<vk::CommandBuffer::Ptr>& 
 
     m_vk_backend->submit_graphics(cmd_bufs,
                                   { m_present_complete_semaphores[semaphore_idx] },
-                                  { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
                                   { m_render_complete_semaphores[semaphore_idx] },
                                   m_render_complete_fences[fence_idx]);
 

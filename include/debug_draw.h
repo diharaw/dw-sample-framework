@@ -55,8 +55,7 @@ public:
     // Initialization and shutdown.
     bool init(
 #if defined(DWSF_VULKAN)
-        vk::Backend::Ptr    backend,
-        vk::RenderPass::Ptr render_pass
+        vk::Backend::Ptr backend
 #endif
     );
     void shutdown();
@@ -104,7 +103,7 @@ private:
     void create_descriptor_set(vk::Backend::Ptr backend);
     void create_uniform_buffer(vk::Backend::Ptr backend);
     void create_vertex_buffer(vk::Backend::Ptr backend);
-    void create_pipeline_states(vk::Backend::Ptr backend, vk::RenderPass::Ptr render_pass);
+    void create_pipeline_states(vk::Backend::Ptr backend);
 #endif
 
 private:

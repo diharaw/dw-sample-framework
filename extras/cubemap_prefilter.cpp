@@ -2749,14 +2749,13 @@ void CubemapPrefiler::update(
 )
 {
 #if defined(DWSF_VULKAN)
+    auto backend = cmd_buf->backend().lock();
+
     VkImageSubresourceRange subresource_range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, PREFILTER_MIP_LEVELS, 0, 6 };
 
-    dw::vk::utilities::set_image_layout(
-        cmd_buf->handle(),
-        m_image->handle(),
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_GENERAL,
-        subresource_range);
+    backend->use_resource(VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL, m_image, subresource_range);
+
+    backend->flush_barriers(cmd_buf);
 
     int32_t start_level = (m_size / PREFILTER_MAP_SIZE) - 1;
 
@@ -2780,12 +2779,9 @@ void CubemapPrefiler::update(
         vkCmdDispatch(cmd_buf->handle(), mip_width / PREFILTER_WORK_GROUP_SIZE, mip_height / PREFILTER_WORK_GROUP_SIZE, 6);
     }
 
-    dw::vk::utilities::set_image_layout(
-        cmd_buf->handle(),
-        m_image->handle(),
-        VK_IMAGE_LAYOUT_GENERAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        subresource_range);
+    backend->use_resource(VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR, VK_ACCESS_2_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_image, subresource_range);
+
+    backend->flush_barriers(cmd_buf);
 #else
     m_program->use();
 

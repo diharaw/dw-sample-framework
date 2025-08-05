@@ -192,7 +192,7 @@ void Mesh::initialize_for_ray_tracing(vk::Backend::Ptr backend)
         geometry.geometry.triangles.pNext                    = nullptr;
         geometry.geometry.triangles.vertexData.deviceAddress = m_vbo->device_address();
         geometry.geometry.triangles.vertexStride             = sizeof(Vertex);
-        geometry.geometry.triangles.maxVertex                = m_sub_meshes[i].vertex_count;
+        geometry.geometry.triangles.maxVertex                = m_vertices.size() - 1;
         geometry.geometry.triangles.vertexFormat             = VK_FORMAT_R32G32B32_SFLOAT;
         geometry.geometry.triangles.indexData.deviceAddress  = m_ibo->device_address();
         geometry.geometry.triangles.indexType                = VK_INDEX_TYPE_UINT32;

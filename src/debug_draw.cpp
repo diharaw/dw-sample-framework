@@ -947,8 +947,7 @@ DebugDraw::DebugDraw()
 
 bool DebugDraw::init(
 #if defined(DWSF_VULKAN)
-    vk::Backend::Ptr    backend,
-    vk::RenderPass::Ptr render_pass
+    vk::Backend::Ptr backend
 #endif
 )
 {
@@ -957,7 +956,7 @@ bool DebugDraw::init(
     create_vertex_buffer(backend);
     create_descriptor_set_layout(backend);
     create_descriptor_set(backend);
-    create_pipeline_states(backend, render_pass);
+    create_pipeline_states(backend);
 
     return true;
 #else
@@ -1732,7 +1731,7 @@ void DebugDraw::create_vertex_buffer(vk::Backend::Ptr backend)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void DebugDraw::create_pipeline_states(vk::Backend::Ptr backend, vk::RenderPass::Ptr render_pass)
+void DebugDraw::create_pipeline_states(vk::Backend::Ptr backend)
 {
     // ---------------------------------------------------------------------------
     // Create shader modules
@@ -1872,7 +1871,13 @@ void DebugDraw::create_pipeline_states(vk::Backend::Ptr backend, vk::RenderPass:
     pso_desc.add_dynamic_state(VK_DYNAMIC_STATE_VIEWPORT)
         .add_dynamic_state(VK_DYNAMIC_STATE_SCISSOR);
 
-    pso_desc.set_render_pass(render_pass);
+    // ---------------------------------------------------------------------------
+    // Create rendering state
+    // ---------------------------------------------------------------------------
+
+    pso_desc.add_color_attachment_format(backend->swap_chain_image_format());
+    pso_desc.set_depth_attachment_format(backend->swap_chain_depth_format());
+    pso_desc.set_stencil_attachment_format(VK_FORMAT_UNDEFINED);
 
     // ---------------------------------------------------------------------------
     // Create line list depth test enable pipeline

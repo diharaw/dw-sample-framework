@@ -40,26 +40,35 @@ private:
     void copy_tlas_data();
 
 private:
-    std::weak_ptr<vk::Backend>             m_backend;
-    uint32_t                               m_id = 0;
-    glm::vec3                              m_min_extents;
-    glm::vec3                              m_max_extents;
-    vk::DescriptorPool::Ptr                m_descriptor_pool;
-    vk::DescriptorSetLayout::Ptr           m_ds_layout;
-    vk::DescriptorSet::Ptr                 m_ds;
-    vk::Buffer::Ptr                        m_material_data_buffer;
-    vk::Buffer::Ptr                        m_instance_data_buffer;
-    std::vector<vk::Buffer::Ptr>           m_material_indices_buffers;
-    std::vector<Instance>                  m_instances;
-    std::vector<std::weak_ptr<Mesh>>       m_meshes;
-    bool                                   m_tlas_built = false;
-    vk::AccelerationStructure::Ptr         m_tlas;
-    vk::Buffer::Ptr                        m_tlas_instance_buffer_host;
-    vk::Buffer::Ptr                        m_tlas_instance_buffer_device;
-    vk::Buffer::Ptr                        m_tlas_scratch_buffer;
-    std::unordered_map<uint32_t, uint32_t> m_local_to_global_mat_idx;
-    std::unordered_map<uint32_t, uint32_t> m_local_to_global_texture_idx;
-    std::unordered_map<uint32_t, uint32_t> m_local_to_global_mesh_idx;
+    struct InstanceData
+    {
+        glm::mat4 model_matrix;
+        uint32_t  mesh_index;
+        float     padding[3];
+    };
+
+    std::weak_ptr<vk::Backend>                      m_backend;
+    uint32_t                                        m_id = 0;
+    glm::vec3                                       m_min_extents;
+    glm::vec3                                       m_max_extents;
+    vk::DescriptorPool::Ptr                         m_descriptor_pool;
+    vk::DescriptorSetLayout::Ptr                    m_ds_layout;
+    vk::DescriptorSet::Ptr                          m_ds;
+    vk::Buffer::Ptr                                 m_material_data_buffer;
+    vk::Buffer::Ptr                                 m_instance_data_buffer;
+    std::vector<vk::Buffer::Ptr>                    m_material_indices_buffers;
+    std::vector<Instance>                           m_instances;
+    std::vector<std::weak_ptr<Mesh>>                m_meshes;
+    std::vector<VkAccelerationStructureInstanceKHR> m_rt_instances;
+    std::vector<InstanceData>                       m_instance_datas;
+    bool                                            m_tlas_built = false;
+    vk::AccelerationStructure::Ptr                  m_tlas;
+    vk::Buffer::Ptr                                 m_tlas_instance_buffer_host;
+    vk::Buffer::Ptr                                 m_tlas_instance_buffer_device;
+    vk::Buffer::Ptr                                 m_tlas_scratch_buffer;
+    std::unordered_map<uint32_t, uint32_t>          m_local_to_global_mat_idx;
+    std::unordered_map<uint32_t, uint32_t>          m_local_to_global_texture_idx;
+    std::unordered_map<uint32_t, uint32_t>          m_local_to_global_mesh_idx;
 };
 } // namespace dw
 

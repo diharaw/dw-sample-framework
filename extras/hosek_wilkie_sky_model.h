@@ -33,10 +33,7 @@ public:
         glm::mat4 projection_mat);
 
 #if defined(DWSF_VULKAN)
-    inline vk::Image::Ptr image()
-    {
-        return m_cubemap_image;
-    }
+    inline vk::Image::Ptr     image() { return m_cubemap_image; }
     inline vk::ImageView::Ptr image_view() { return m_cubemap_image_view; }
     inline vk::Buffer::Ptr    cube_vbo() { return m_cube_vbo; }
 #else
@@ -49,17 +46,15 @@ public:
 
 private:
 #if defined(DWSF_VULKAN)
-    vk::Image::Ptr                    m_cubemap_image;
-    vk::ImageView::Ptr                m_cubemap_image_view;
-    std::vector<vk::ImageView::Ptr>   m_face_image_views;
-    std::vector<vk::Framebuffer::Ptr> m_face_framebuffers;
-    vk::RenderPass::Ptr               m_cubemap_renderpass;
-    vk::GraphicsPipeline::Ptr         m_cubemap_pipeline;
-    vk::PipelineLayout::Ptr           m_cubemap_pipeline_layout;
-    vk::Buffer::Ptr                   m_cube_vbo;
-    vk::DescriptorSetLayout::Ptr      m_ds_layout;
-    vk::DescriptorSet::Ptr            m_ds;
-    vk::Buffer::Ptr                   m_ubo;
+    vk::Image::Ptr                  m_cubemap_image;
+    vk::ImageView::Ptr              m_cubemap_image_view;
+    std::vector<vk::ImageView::Ptr> m_face_image_views;
+    vk::GraphicsPipeline::Ptr       m_cubemap_pipeline;
+    vk::PipelineLayout::Ptr         m_cubemap_pipeline_layout;
+    vk::Buffer::Ptr                 m_cube_vbo;
+    vk::DescriptorSetLayout::Ptr    m_ds_layout;
+    vk::DescriptorSet::Ptr          m_ds;
+    vk::Buffer::Ptr                 m_ubo;
 
 #else
     gl::TextureCube::Ptr                  m_cubemap;

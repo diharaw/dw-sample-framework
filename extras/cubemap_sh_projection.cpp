@@ -4852,14 +4852,13 @@ void CubemapSHProjection::update(
 )
 {
 #if defined(DWSF_VULKAN)
+    auto backend = cmd_buf->backend().lock();
+
     VkImageSubresourceRange intermediate_subresource_range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 6 };
 
-    dw::vk::utilities::set_image_layout(
-        cmd_buf->handle(),
-        m_intermediate_image->handle(),
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_GENERAL,
-        intermediate_subresource_range);
+    backend->use_resource(VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL, m_intermediate_image, intermediate_subresource_range);
+
+    backend->flush_barriers(cmd_buf);
 
     vkCmdBindPipeline(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_COMPUTE, m_projection_pipeline->handle());
     vkCmdPushConstants(cmd_buf->handle(), m_projection_pipeline_layout->handle(), VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(float), &m_size);
@@ -4867,33 +4866,22 @@ void CubemapSHProjection::update(
 
     vkCmdDispatch(cmd_buf->handle(), IRRADIANCE_CUBEMAP_SIZE / IRRADIANCE_WORK_GROUP_SIZE, IRRADIANCE_CUBEMAP_SIZE / IRRADIANCE_WORK_GROUP_SIZE, 6);
 
-    dw::vk::utilities::set_image_layout(
-        cmd_buf->handle(),
-        m_intermediate_image->handle(),
-        VK_IMAGE_LAYOUT_GENERAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        intermediate_subresource_range);
+    backend->use_resource(VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR, VK_ACCESS_2_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_intermediate_image, intermediate_subresource_range);
 
     VkImageSubresourceRange sh_subresource_range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
-    dw::vk::utilities::set_image_layout(
-        cmd_buf->handle(),
-        m_image->handle(),
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_GENERAL,
-        sh_subresource_range);
+    backend->use_resource(VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_WRITE_BIT, VK_IMAGE_LAYOUT_GENERAL, m_image, sh_subresource_range);
+
+    backend->flush_barriers(cmd_buf);
 
     vkCmdBindPipeline(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_COMPUTE, m_add_pipeline->handle());
     vkCmdBindDescriptorSets(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_COMPUTE, m_add_pipeline_layout->handle(), 0, 1, &m_add_ds->handle(), 0, nullptr);
 
     vkCmdDispatch(cmd_buf->handle(), 9, 1, 1);
 
-    dw::vk::utilities::set_image_layout(
-        cmd_buf->handle(),
-        m_image->handle(),
-        VK_IMAGE_LAYOUT_GENERAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        sh_subresource_range);
+    backend->use_resource(VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR, VK_ACCESS_2_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_image, sh_subresource_range);
+
+    backend->flush_barriers(cmd_buf);
 #else
     m_projection_program->use();
 

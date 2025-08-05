@@ -991,56 +991,7 @@ EquirectangularToCubemap::EquirectangularToCubemap(
 #if defined(DWSF_VULKAN)
     m_backend = backend;
 
-    VkAttachmentDescription attachment;
-    DW_ZERO_MEMORY(attachment);
-
-    // Color attachment
-    attachment.format         = image_format;
-    attachment.samples        = VK_SAMPLE_COUNT_1_BIT;
-    attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-    attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachment.finalLayout    = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    VkAttachmentReference color_reference;
-    color_reference.attachment = 0;
-    color_reference.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    std::vector<VkSubpassDescription> subpass_description(1);
-
-    subpass_description[0].pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass_description[0].colorAttachmentCount    = 1;
-    subpass_description[0].pColorAttachments       = &color_reference;
-    subpass_description[0].pDepthStencilAttachment = nullptr;
-    subpass_description[0].inputAttachmentCount    = 0;
-    subpass_description[0].pInputAttachments       = nullptr;
-    subpass_description[0].preserveAttachmentCount = 0;
-    subpass_description[0].pPreserveAttachments    = nullptr;
-    subpass_description[0].pResolveAttachments     = nullptr;
-
-    // Subpass dependencies for layout transitions
-    std::vector<VkSubpassDependency> dependencies(2);
-
-    dependencies[0].srcSubpass      = VK_SUBPASS_EXTERNAL;
-    dependencies[0].dstSubpass      = 0;
-    dependencies[0].srcStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    dependencies[0].dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependencies[0].srcAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
-    dependencies[0].dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-    dependencies[1].srcSubpass      = 0;
-    dependencies[1].dstSubpass      = VK_SUBPASS_EXTERNAL;
-    dependencies[1].srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependencies[1].dstStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    dependencies[1].srcAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dependencies[1].dstAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
-    dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-    m_cubemap_renderpass = vk::RenderPass::create(backend, { attachment }, subpass_description, dependencies);
-    m_cube_vbo           = vk::Buffer::create(backend, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(cube_vertices), VMA_MEMORY_USAGE_GPU_ONLY, 0, cube_vertices);
+    m_cube_vbo = vk::Buffer::create(backend, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(cube_vertices), VMA_MEMORY_USAGE_GPU_ONLY, 0, cube_vertices);
 
     vk::DescriptorSetLayout::Desc ds_layout_desc;
 
@@ -1184,7 +1135,13 @@ EquirectangularToCubemap::EquirectangularToCubemap(
     pso_desc.add_dynamic_state(VK_DYNAMIC_STATE_VIEWPORT)
         .add_dynamic_state(VK_DYNAMIC_STATE_SCISSOR);
 
-    pso_desc.set_render_pass(m_cubemap_renderpass);
+    // ---------------------------------------------------------------------------
+    // Create rendering state
+    // ---------------------------------------------------------------------------
+
+    pso_desc.add_color_attachment_format(image_format);
+    pso_desc.set_depth_attachment_format(VK_FORMAT_UNDEFINED);
+    pso_desc.set_stencil_attachment_format(VK_FORMAT_UNDEFINED);
 
     // ---------------------------------------------------------------------------
     // Create line list pipeline
@@ -1270,14 +1227,10 @@ void EquirectangularToCubemap::convert(
 
     vkUpdateDescriptorSets(backend->device(), 1, &write_data, 0, nullptr);
 
-    std::vector<vk::ImageView::Ptr>   face_image_views(6);
-    std::vector<vk::Framebuffer::Ptr> face_framebuffers(6);
+    std::vector<vk::ImageView::Ptr> face_image_views(6);
 
     for (int i = 0; i < 6; i++)
-    {
-        face_image_views[i]  = vk::ImageView::create(backend, output_image, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, i, 1);
-        face_framebuffers[i] = vk::Framebuffer::create(backend, m_cubemap_renderpass, { face_image_views[i] }, output_image->width(), output_image->height(), 1);
-    }
+        face_image_views[i] = vk::ImageView::create(backend, output_image, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, i, 1);
 
     auto cmd_buf = backend->allocate_graphics_command_buffer(true);
 
@@ -1287,25 +1240,35 @@ void EquirectangularToCubemap::convert(
 
     vkCmdBindDescriptorSets(cmd_buf->handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_cubemap_pipeline_layout->handle(), 0, 1, sets, 0, nullptr);
 
+    VkImageSubresourceRange input_subresource_range  = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+    VkImageSubresourceRange output_subresource_range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 6 };
+
+    backend->use_resource(VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, input_image, input_subresource_range);
+    backend->use_resource(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, output_image, output_subresource_range);
+
+    backend->flush_barriers(cmd_buf);
+
     for (int i = 0; i < 6; i++)
     {
-        VkClearValue clear_value;
+        VkRenderingAttachmentInfoKHR color_attachment = {};
 
-        clear_value.color.float32[0] = 0.0f;
-        clear_value.color.float32[1] = 0.0f;
-        clear_value.color.float32[2] = 0.0f;
-        clear_value.color.float32[3] = 1.0f;
+        color_attachment.sType            = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+        color_attachment.imageView        = face_image_views[i]->handle();
+        color_attachment.imageLayout      = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color_attachment.loadOp           = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color_attachment.storeOp          = VK_ATTACHMENT_STORE_OP_STORE;
+        color_attachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-        VkRenderPassBeginInfo info    = {};
-        info.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        info.renderPass               = m_cubemap_renderpass->handle();
-        info.framebuffer              = face_framebuffers[i]->handle();
-        info.renderArea.extent.width  = output_image->width();
-        info.renderArea.extent.height = output_image->height();
-        info.clearValueCount          = 1;
-        info.pClearValues             = &clear_value;
+        VkRenderingInfoKHR rendering_info {};
 
-        vkCmdBeginRenderPass(cmd_buf->handle(), &info, VK_SUBPASS_CONTENTS_INLINE);
+        rendering_info.sType                = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+        rendering_info.renderArea           = { 0, 0, output_image->width(), output_image->height() };
+        rendering_info.layerCount           = 1;
+        rendering_info.colorAttachmentCount = 1;
+        rendering_info.pColorAttachments    = &color_attachment;
+        rendering_info.pDepthAttachment     = nullptr;
+
+        vkCmdBeginRenderingKHR(cmd_buf->handle(), &rendering_info);
 
         VkViewport vp;
 
@@ -1335,13 +1298,21 @@ void EquirectangularToCubemap::convert(
 
         vkCmdDraw(cmd_buf->handle(), 36, 1, 0, 0);
 
-        vkCmdEndRenderPass(cmd_buf->handle());
+        vkCmdEndRenderingKHR(cmd_buf->handle());
     }
+
+    VkImageSubresourceRange subresource_range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 6 };
+
+    backend->use_resource(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, output_image, subresource_range);
+    
+    backend->flush_barriers(cmd_buf);
 
     vkEndCommandBuffer(cmd_buf->handle());
 
     backend->flush_graphics({ cmd_buf });
 #else
+    
+    // TODO: Implement OpenGL version.
 
 #endif
 }

@@ -30,7 +30,6 @@ public:
 private:
 #if defined(DWSF_VULKAN)
     std::weak_ptr<vk::Backend>        m_backend;
-    vk::RenderPass::Ptr               m_cubemap_renderpass;
     vk::GraphicsPipeline::Ptr         m_cubemap_pipeline;
     vk::PipelineLayout::Ptr           m_cubemap_pipeline_layout;
     vk::DescriptorSetLayout::Ptr      m_ds_layout;

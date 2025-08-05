@@ -297,30 +297,7 @@ Image::Image(Backend::Ptr backend, VkImageType type, uint32_t width, uint32_t he
 
     if (data)
     {
-        CommandBuffer::Ptr cmd_buf = backend->allocate_graphics_command_buffer(true);
-
-        VkImageSubresourceRange subresource_range;
-        DW_ZERO_MEMORY(subresource_range);
-
-        subresource_range.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-        subresource_range.baseMipLevel   = 0;
-        subresource_range.levelCount     = m_mip_levels;
-        subresource_range.layerCount     = m_array_size;
-        subresource_range.baseArrayLayer = 0;
-
-        // Image barrier for optimal image (target)
-        // Optimal image will be used as destination for the copy
-        utilities::set_image_layout(cmd_buf->handle(),
-                                    m_vk_image,
-                                    VK_IMAGE_LAYOUT_UNDEFINED,
-                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                    subresource_range);
-
-        vkEndCommandBuffer(cmd_buf->handle());
-
-        backend->flush_graphics({ cmd_buf });
-
-        upload_data(0, 0, data, size, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        upload_data(0, 0, data, size, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         if (m_mip_levels > 1)
             generate_mipmaps();
@@ -350,7 +327,7 @@ Image::~Image()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Image::upload_data(int array_index, int mip_level, void* data, size_t size, VkImageLayout src_layout, VkImageLayout dst_layout)
+void Image::upload_data(int array_index, int mip_level, void* data, size_t size, VkImageLayout dst_layout)
 {
     auto backend = m_vk_backend.lock();
 
@@ -379,16 +356,9 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size,
 
     CommandBuffer::Ptr cmd_buf = backend->allocate_graphics_command_buffer(true);
 
-    if (src_layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-    {
-        // Image barrier for optimal image (target)
-        // Optimal image will be used as destination for the copy
-        utilities::set_image_layout(cmd_buf->handle(),
-                                    m_vk_image,
-                                    src_layout,
-                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                    subresource_range);
-    }
+    backend->use_resource(VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_vk_image, subresource_range, m_array_size, m_mip_levels);
+        
+    backend->flush_barriers(cmd_buf);
 
     // Copy mip levels from staging buffer
     vkCmdCopyBufferToImage(cmd_buf->handle(),
@@ -398,15 +368,9 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size,
                            1,
                            &buffer_copy_region);
 
-    if (dst_layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-    {
-        // Change texture image layout to shader read after all mip levels have been copied
-        utilities::set_image_layout(cmd_buf->handle(),
-                                    m_vk_image,
-                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                    dst_layout,
-                                    subresource_range);
-    }
+    backend->use_resource(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_SHADER_READ_BIT, dst_layout, m_vk_image, subresource_range, m_array_size, m_mip_levels);
+
+    backend->flush_barriers(cmd_buf);
 
     vkEndCommandBuffer(cmd_buf->handle());
 
@@ -415,8 +379,10 @@ void Image::upload_data(int array_index, int mip_level, void* data, size_t size,
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayout src_layout, VkImageLayout dst_layout, VkImageAspectFlags aspect_flags, VkFilter filter)
+void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayout dst_layout, VkImageAspectFlags aspect_flags, VkFilter filter)
 {
+    auto backend = m_vk_backend.lock();
+
     VkImageSubresourceRange initial_subresource_range;
     DW_ZERO_MEMORY(initial_subresource_range);
 
@@ -426,11 +392,9 @@ void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayo
     initial_subresource_range.baseArrayLayer = 0;
     initial_subresource_range.baseMipLevel   = 1;
 
-    utilities::set_image_layout(cmd_buf->handle(),
-                                m_vk_image,
-                                VK_IMAGE_LAYOUT_UNDEFINED,
-                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                initial_subresource_range);
+    backend->use_resource(VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_vk_image, initial_subresource_range, m_array_size, m_mip_levels);
+        
+    backend->flush_barriers(cmd_buf);
 
     VkImageSubresourceRange subresource_range;
     DW_ZERO_MEMORY(subresource_range);
@@ -449,19 +413,9 @@ void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayo
             subresource_range.baseMipLevel   = mip_idx - 1;
             subresource_range.baseArrayLayer = arr_idx;
 
-            VkImageLayout layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            backend->use_resource(VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR, VK_ACCESS_2_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_vk_image, subresource_range, m_array_size, m_mip_levels);
 
-            if (mip_idx == 1)
-                layout = src_layout;
-
-            if (layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-            {
-                utilities::set_image_layout(cmd_buf->handle(),
-                                            m_vk_image,
-                                            layout,
-                                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                            subresource_range);
-            }
+            backend->flush_barriers(cmd_buf);
 
             VkImageBlit blit                   = {};
             blit.srcOffsets[0]                 = { 0, 0, 0 };
@@ -486,11 +440,9 @@ void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayo
                            &blit,
                            filter);
 
-            utilities::set_image_layout(cmd_buf->handle(),
-                                        m_vk_image,
-                                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                        dst_layout,
-                                        subresource_range);
+            backend->use_resource(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_SHADER_READ_BIT, dst_layout, m_vk_image, subresource_range, m_array_size, m_mip_levels);
+
+            backend->flush_barriers(cmd_buf);
 
             if (mip_width > 1) mip_width /= 2;
             if (mip_height > 1) mip_height /= 2;
@@ -498,23 +450,21 @@ void Image::generate_mipmaps(std::shared_ptr<CommandBuffer> cmd_buf, VkImageLayo
 
         subresource_range.baseMipLevel = m_mip_levels - 1;
 
-        utilities::set_image_layout(cmd_buf->handle(),
-                                    m_vk_image,
-                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                    dst_layout,
-                                    subresource_range);
+        backend->use_resource(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_SHADER_READ_BIT, dst_layout, m_vk_image, subresource_range, m_array_size, m_mip_levels);
+
+        backend->flush_barriers(cmd_buf);
     }
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void Image::generate_mipmaps(VkImageLayout src_layout, VkImageLayout dst_layout, VkImageAspectFlags aspect_flags, VkFilter filter)
+void Image::generate_mipmaps(VkImageLayout dst_layout, VkImageAspectFlags aspect_flags, VkFilter filter)
 {
     auto backend = m_vk_backend.lock();
 
     CommandBuffer::Ptr cmd_buf = backend->allocate_graphics_command_buffer(true);
 
-    generate_mipmaps(cmd_buf, src_layout, dst_layout, aspect_flags, filter);
+    generate_mipmaps(cmd_buf, dst_layout, aspect_flags, filter);
 
     vkEndCommandBuffer(cmd_buf->handle());
 
@@ -585,116 +535,6 @@ void ImageView::set_name(const std::string& name)
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
-
-RenderPass::Ptr RenderPass::create(Backend::Ptr backend, std::vector<VkAttachmentDescription> attachment_descs, std::vector<VkSubpassDescription> subpass_descs, std::vector<VkSubpassDependency> subpass_deps)
-{
-    return std::shared_ptr<RenderPass>(new RenderPass(backend, attachment_descs, subpass_descs, subpass_deps));
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-RenderPass::RenderPass(Backend::Ptr backend, std::vector<VkAttachmentDescription> attachment_descs, std::vector<VkSubpassDescription> subpass_descs, std::vector<VkSubpassDependency> subpass_deps) :
-    Object(backend)
-{
-    VkRenderPassCreateInfo render_pass_info;
-    DW_ZERO_MEMORY(render_pass_info);
-
-    render_pass_info.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    render_pass_info.attachmentCount = attachment_descs.size();
-    render_pass_info.pAttachments    = attachment_descs.data();
-    render_pass_info.subpassCount    = subpass_descs.size();
-    render_pass_info.pSubpasses      = subpass_descs.data();
-    render_pass_info.dependencyCount = subpass_deps.size();
-    render_pass_info.pDependencies   = subpass_deps.data();
-
-    if (vkCreateRenderPass(backend->device(), &render_pass_info, nullptr, &m_vk_render_pass) != VK_SUCCESS)
-    {
-        DW_LOG_FATAL("(Vulkan) Failed to create Render Pass.");
-        throw std::runtime_error("(Vulkan) Failed to create Render Pass.");
-    }
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-RenderPass::~RenderPass()
-{
-    if (m_vk_backend.expired())
-    {
-        DW_LOG_FATAL("(Vulkan) Destructing after Device.");
-        throw std::runtime_error("(Vulkan) Destructing after Device.");
-    }
-
-    auto backend = m_vk_backend.lock();
-
-    vkDestroyRenderPass(backend->device(), m_vk_render_pass, nullptr);
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void RenderPass::set_name(const std::string& name)
-{
-    auto backend = m_vk_backend.lock();
-    utilities::set_object_name(backend->device(), (uint64_t)m_vk_render_pass, name, VK_OBJECT_TYPE_RENDER_PASS);
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-Framebuffer::Ptr Framebuffer::create(Backend::Ptr backend, RenderPass::Ptr render_pass, std::vector<ImageView::Ptr> views, uint32_t width, uint32_t height, uint32_t layers)
-{
-    return std::shared_ptr<Framebuffer>(new Framebuffer(backend, render_pass, views, width, height, layers));
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-Framebuffer::Framebuffer(Backend::Ptr backend, RenderPass::Ptr render_pass, std::vector<ImageView::Ptr> views, uint32_t width, uint32_t height, uint32_t layers) :
-    Object(backend)
-{
-    std::vector<VkImageView> attachments(views.size());
-
-    for (int i = 0; i < attachments.size(); i++)
-        attachments[i] = views[i]->handle();
-
-    VkFramebufferCreateInfo frameBuffer_create_info;
-    DW_ZERO_MEMORY(frameBuffer_create_info);
-
-    frameBuffer_create_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    frameBuffer_create_info.pNext           = NULL;
-    frameBuffer_create_info.renderPass      = render_pass->handle();
-    frameBuffer_create_info.attachmentCount = views.size();
-    frameBuffer_create_info.pAttachments    = attachments.data();
-    frameBuffer_create_info.width           = width;
-    frameBuffer_create_info.height          = height;
-    frameBuffer_create_info.layers          = layers;
-
-    if (vkCreateFramebuffer(backend->device(), &frameBuffer_create_info, nullptr, &m_vk_framebuffer) != VK_SUCCESS)
-    {
-        DW_LOG_FATAL("(Vulkan) Failed to create Framebuffer.");
-        throw std::runtime_error("(Vulkan) Failed to create Framebuffer.");
-    }
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-Framebuffer::~Framebuffer()
-{
-    if (m_vk_backend.expired())
-    {
-        DW_LOG_FATAL("(Vulkan) Destructing after Device.");
-        throw std::runtime_error("(Vulkan) Destructing after Device.");
-    }
-
-    auto backend = m_vk_backend.lock();
-
-    vkDestroyFramebuffer(backend->device(), m_vk_framebuffer, nullptr);
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Framebuffer::set_name(const std::string& name)
-{
-    auto backend = m_vk_backend.lock();
-    utilities::set_object_name(backend->device(), (uint64_t)m_vk_framebuffer, name, VK_OBJECT_TYPE_FRAMEBUFFER);
-}
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -1799,14 +1639,6 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_pipeline_layout(const std::s
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_render_pass(const RenderPass::Ptr& render_pass)
-{
-    create_info.renderPass = render_pass->handle();
-    return *this;
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
 GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_sub_pass(const uint32_t& subpass)
 {
     create_info.subpass = subpass;
@@ -1827,133 +1659,6 @@ GraphicsPipeline::Desc& GraphicsPipeline::Desc::set_base_pipeline_index(const in
 {
     create_info.basePipelineIndex = index;
     return *this;
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-GraphicsPipeline::Ptr GraphicsPipeline::create_for_post_process(Backend::Ptr backend, std::string vs, std::string fs, std::shared_ptr<PipelineLayout> pipeline_layout, RenderPass::Ptr render_pass)
-{
-    // ---------------------------------------------------------------------------
-    // Create shader modules
-    // ---------------------------------------------------------------------------
-
-    vk::ShaderModule::Ptr vs_module = vk::ShaderModule::create_from_file(backend, vs);
-    vk::ShaderModule::Ptr fs_module = vk::ShaderModule::create_from_file(backend, fs);
-
-    vk::GraphicsPipeline::Desc pso_desc;
-
-    pso_desc.add_shader_stage(VK_SHADER_STAGE_VERTEX_BIT, vs_module, "main")
-        .add_shader_stage(VK_SHADER_STAGE_FRAGMENT_BIT, fs_module, "main");
-
-    // ---------------------------------------------------------------------------
-    // Vertex input state
-    // ---------------------------------------------------------------------------
-
-    VertexInputStateDesc vs_desc;
-
-    pso_desc.set_vertex_input_state(vs_desc);
-
-    // ---------------------------------------------------------------------------
-    // Create pipeline input assembly state
-    // ---------------------------------------------------------------------------
-
-    vk::InputAssemblyStateDesc input_assembly_state_desc;
-
-    input_assembly_state_desc.set_primitive_restart_enable(false)
-        .set_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-
-    pso_desc.set_input_assembly_state(input_assembly_state_desc);
-
-    // ---------------------------------------------------------------------------
-    // Create viewport state
-    // ---------------------------------------------------------------------------
-
-    vk::ViewportStateDesc vp_desc;
-
-    vp_desc.add_viewport(0.0f, 0.0f, 1, 1, 0.0f, 1.0f)
-        .add_scissor(0, 0, 1, 1);
-
-    pso_desc.set_viewport_state(vp_desc);
-
-    // ---------------------------------------------------------------------------
-    // Create rasterization state
-    // ---------------------------------------------------------------------------
-
-    vk::RasterizationStateDesc rs_state;
-
-    rs_state.set_depth_clamp(VK_FALSE)
-        .set_rasterizer_discard_enable(VK_FALSE)
-        .set_polygon_mode(VK_POLYGON_MODE_FILL)
-        .set_line_width(1.0f)
-        .set_cull_mode(VK_CULL_MODE_NONE)
-        .set_front_face(VK_FRONT_FACE_COUNTER_CLOCKWISE)
-        .set_depth_bias(VK_FALSE);
-
-    pso_desc.set_rasterization_state(rs_state);
-
-    // ---------------------------------------------------------------------------
-    // Create multisample state
-    // ---------------------------------------------------------------------------
-
-    vk::MultisampleStateDesc ms_state;
-
-    ms_state.set_sample_shading_enable(VK_FALSE)
-        .set_rasterization_samples(VK_SAMPLE_COUNT_1_BIT);
-
-    pso_desc.set_multisample_state(ms_state);
-
-    // ---------------------------------------------------------------------------
-    // Create depth stencil state
-    // ---------------------------------------------------------------------------
-
-    vk::DepthStencilStateDesc ds_state;
-
-    ds_state.set_depth_test_enable(VK_FALSE)
-        .set_depth_write_enable(VK_FALSE)
-        .set_depth_compare_op(VK_COMPARE_OP_LESS)
-        .set_depth_bounds_test_enable(VK_FALSE)
-        .set_stencil_test_enable(VK_FALSE);
-
-    pso_desc.set_depth_stencil_state(ds_state);
-
-    // ---------------------------------------------------------------------------
-    // Create color blend state
-    // ---------------------------------------------------------------------------
-
-    vk::ColorBlendAttachmentStateDesc blend_att_desc;
-
-    blend_att_desc.set_color_write_mask(VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT)
-        .set_blend_enable(VK_FALSE);
-
-    vk::ColorBlendStateDesc blend_state;
-
-    blend_state.set_logic_op_enable(VK_FALSE)
-        .set_logic_op(VK_LOGIC_OP_COPY)
-        .set_blend_constants(0.0f, 0.0f, 0.0f, 0.0f)
-        .add_attachment(blend_att_desc);
-
-    pso_desc.set_color_blend_state(blend_state);
-
-    // ---------------------------------------------------------------------------
-    // Create pipeline layout
-    // ---------------------------------------------------------------------------
-
-    pso_desc.set_pipeline_layout(pipeline_layout);
-
-    // ---------------------------------------------------------------------------
-    // Create dynamic state
-    // ---------------------------------------------------------------------------
-
-    pso_desc.add_dynamic_state(VK_DYNAMIC_STATE_VIEWPORT)
-        .add_dynamic_state(VK_DYNAMIC_STATE_SCISSOR);
-
-    // ---------------------------------------------------------------------------
-    // Create pipeline
-    // ---------------------------------------------------------------------------
-
-    pso_desc.set_render_pass(render_pass);
-
-    return vk::GraphicsPipeline::create(backend, pso_desc);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3362,7 +3067,7 @@ void BatchUploader::upload_buffer_data(Buffer::Ptr buffer, void* data, const siz
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-void BatchUploader::upload_image_data(Image::Ptr image, void* data, const std::vector<size_t>& mip_level_sizes, VkImageLayout src_layout, VkImageLayout dst_layout)
+void BatchUploader::upload_image_data(Image::Ptr image, void* data, const std::vector<size_t>& mip_level_sizes, VkImageLayout dst_layout)
 {
     if (!m_backend.expired())
     {
@@ -3416,16 +3121,9 @@ void BatchUploader::upload_image_data(Image::Ptr image, void* data, const std::v
         subresource_range.layerCount     = image->array_size();
         subresource_range.baseArrayLayer = 0;
 
-        if (src_layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-        {
-            // Image barrier for optimal image (target)
-            // Optimal image will be used as destination for the copy
-            utilities::set_image_layout(m_cmd->handle(),
-                                        image->handle(),
-                                        src_layout,
-                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                        subresource_range);
-        }
+        backend->use_resource(VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, image, subresource_range);
+        
+        backend->flush_barriers(m_cmd);
 
         // Copy mip levels from staging buffer
         vkCmdCopyBufferToImage(m_cmd->handle(),
@@ -3435,15 +3133,9 @@ void BatchUploader::upload_image_data(Image::Ptr image, void* data, const std::v
                                copy_regions.size(),
                                copy_regions.data());
 
-        if (dst_layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-        {
-            // Change texture image layout to shader read after all mip levels have been copied
-            utilities::set_image_layout(m_cmd->handle(),
-                                        image->handle(),
-                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                        dst_layout,
-                                        subresource_range);
-        }
+        backend->use_resource(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_SHADER_READ_BIT, dst_layout, image, subresource_range);
+
+        backend->flush_barriers(m_cmd);
     }
 }
 
@@ -3506,6 +3198,7 @@ void BatchUploader::submit()
                 build_info.sType                     = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
                 build_info.type                      = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
                 build_info.flags                     = m_blas_build_requests[i].acceleration_structure->flags();
+                build_info.mode                      = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
                 build_info.srcAccelerationStructure  = VK_NULL_HANDLE;
                 build_info.dstAccelerationStructure  = m_blas_build_requests[i].acceleration_structure->handle();
                 build_info.geometryCount             = (uint32_t)m_blas_build_requests[i].geometries.size();
@@ -3654,6 +3347,7 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enabl
     device_extensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
     device_extensions.push_back(VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME);
     device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+    device_extensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
 
     for (auto ext : additional_device_extensions)
         device_extensions.push_back(ext);
@@ -3687,12 +3381,18 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enabl
         DW_LOG_FATAL("(Vulkan) Failed to create Allocator.");
         throw std::runtime_error("(Vulkan) Failed to create Allocator.");
     }
+
+    m_buffer_memory_barriers.reserve(256);
+    m_image_memory_barriers.reserve(256);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Backend::~Backend()
 {
+    m_image_usage_info.clear();
+    m_buffer_usage_info.clear();
+
     m_default_cubemap_image_view.reset();
     m_default_cubemap_image.reset();
     m_bilinear_sampler.reset();
@@ -3710,12 +3410,8 @@ Backend::~Backend()
         g_descriptor_pools[i].reset();
 
     for (int i = 0; i < m_swap_chain_images.size(); i++)
-    {
-        m_swap_chain_framebuffers[i].reset();
         m_swap_chain_image_views[i].reset();
-    }
 
-    m_swap_chain_render_pass.reset();
     m_swap_chain_depth_view.reset();
     m_swap_chain_depth.reset();
 
@@ -3901,35 +3597,199 @@ std::shared_ptr<DescriptorPool> Backend::thread_local_descriptor_pool()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
+void Backend::use_resource(VkPipelineStageFlags2          _stage,
+                           VkAccessFlags2                 _access,
+                           const std::shared_ptr<Buffer>& _buffer,
+                           size_t                         _offset,
+                           size_t                         _size)
+{
+    use_resource(_stage, _access, _buffer->handle(), _offset, _size);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::use_resource(VkPipelineStageFlags2         _stage,
+                           VkAccessFlags2                _access,
+                           VkImageLayout                 _layout,
+                           const std::shared_ptr<Image>& _image,
+                           VkImageSubresourceRange       _range)
+{
+    use_resource(_stage, _access, _layout, _image->handle(), _range, _image->array_size(), _image->mip_levels());
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::use_resource(VkPipelineStageFlags2   _stage,
+                           VkAccessFlags2          _access,
+                           VkImageLayout           _layout,
+                           VkImage                 _image,
+                           VkImageSubresourceRange _range,
+                           uint32_t                _num_layers,
+                           uint32_t                _num_levels)
+{
+    VkImageMemoryBarrier2 barrier = {};
+
+    barrier.sType            = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    barrier.srcStageMask     = VK_PIPELINE_STAGE_2_NONE;
+    barrier.srcAccessMask    = VK_ACCESS_2_NONE;
+    barrier.dstStageMask     = _stage;
+    barrier.dstAccessMask    = _access;
+    barrier.oldLayout        = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.newLayout        = _layout;
+    barrier.image            = _image;
+    barrier.subresourceRange = _range;
+
+    ImageUsageInfo new_usage = {};
+
+    new_usage.stage  = barrier.dstStageMask;
+    new_usage.access = barrier.dstAccessMask;
+    new_usage.layout = barrier.newLayout;
+
+    if (m_image_usage_info.find((uint64_t)_image) != m_image_usage_info.end())
+    {
+        std::vector<ImageUsageInfo>& usages = m_image_usage_info[(uint64_t)_image];
+
+        VkImageLayout first_old_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        for (uint32_t layer_idx = 0; layer_idx < _range.layerCount; layer_idx++)
+        {
+            for (uint32_t level_idx = 0; level_idx < _range.levelCount; level_idx++)
+            {
+                const uint32_t idx = (_num_levels * (_range.baseArrayLayer + layer_idx)) + (_range.baseMipLevel + level_idx);
+
+                ImageUsageInfo& old_usage = usages[idx];
+
+                // Add up all the old stage masks and access masks.
+                barrier.srcStageMask |= old_usage.stage;
+                barrier.srcAccessMask |= old_usage.access;
+
+                // Use the first encountered old layout as the overall old layout.
+                barrier.oldLayout = old_usage.layout;
+
+                // Make sure the other layers and levels have the same old layout.
+                // If not, we've done something wrong.
+                if (first_old_layout == VK_IMAGE_LAYOUT_UNDEFINED)
+                    first_old_layout = old_usage.layout;
+                else if (first_old_layout != old_usage.layout)
+                    throw std::runtime_error("(Vulkan) Attempting an Image Layout Transition across multiple subresources that have different old layouts! Transition them to a common layout before attempting this!");
+
+                old_usage = new_usage;
+            }
+        }
+    }
+    else
+    {
+        std::vector<ImageUsageInfo> usages;
+
+        usages.resize(_num_levels * _num_layers);
+
+        for (uint32_t layer_idx = 0; layer_idx < _range.layerCount; layer_idx++)
+        {
+            for (uint32_t level_idx = 0; level_idx < _range.levelCount; level_idx++)
+            {
+                const uint32_t idx = (_num_levels * (_range.baseArrayLayer + layer_idx)) + (_range.baseMipLevel + level_idx);
+
+                usages[idx] = new_usage;
+            }
+        }
+
+        m_image_usage_info[(uint64_t)_image] = usages;
+    }
+
+    m_image_memory_barriers.emplace_back(barrier);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::use_resource(VkPipelineStageFlags2 _stage,
+                           VkAccessFlags2        _access,
+                           VkBuffer              _buffer,
+                           size_t                _offset,
+                           size_t                _size)
+{
+    VkBufferMemoryBarrier2 barrier = {};
+
+    barrier.sType         = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+    barrier.srcStageMask  = VK_PIPELINE_STAGE_2_NONE;
+    barrier.srcAccessMask = VK_ACCESS_2_NONE;
+    barrier.dstStageMask  = _stage;
+    barrier.dstAccessMask = _access;
+    barrier.buffer        = _buffer;
+    barrier.offset        = _offset;
+    barrier.size          = _size == 0 ? VK_WHOLE_SIZE : _size;
+
+    BufferUsageInfo new_usage = {};
+
+    new_usage.stage  = barrier.dstStageMask;
+    new_usage.access = barrier.dstAccessMask;
+
+    if (m_buffer_usage_info.find((uint64_t)_buffer) != m_buffer_usage_info.end())
+    {
+        BufferUsageInfo& old_usage = m_buffer_usage_info[(uint64_t)_buffer];
+
+        barrier.srcStageMask  = old_usage.stage;
+        barrier.srcAccessMask = old_usage.access;
+
+        old_usage = new_usage;
+    }
+    else
+        m_buffer_usage_info[(uint64_t)_buffer] = new_usage;
+
+    m_buffer_memory_barriers.emplace_back(barrier);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+void Backend::flush_barriers(const std::shared_ptr<CommandBuffer>& _cmd_buf)
+{
+    if (m_buffer_memory_barriers.size() > 0 || m_image_memory_barriers.size() > 0)
+    {
+        VkDependencyInfo dependency_info = {};
+
+        dependency_info.sType                    = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        dependency_info.dependencyFlags          = VK_DEPENDENCY_BY_REGION_BIT;
+        dependency_info.memoryBarrierCount       = 0;
+        dependency_info.pMemoryBarriers          = nullptr;
+        dependency_info.bufferMemoryBarrierCount = m_buffer_memory_barriers.size();
+        dependency_info.pBufferMemoryBarriers    = m_buffer_memory_barriers.data();
+        dependency_info.imageMemoryBarrierCount  = m_image_memory_barriers.size();
+        dependency_info.pImageMemoryBarriers     = m_image_memory_barriers.data();
+
+        vkCmdPipelineBarrier2(_cmd_buf->handle(), &dependency_info);
+    }
+
+    m_buffer_memory_barriers.clear();
+    m_image_memory_barriers.clear();
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
 void Backend::submit_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
                               const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
-                              const std::vector<VkPipelineStageFlags>&           wait_stages,
                               const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores,
                               const std::shared_ptr<Fence>&                      signal_fence)
 {
-    submit(m_vk_graphics_queue, cmd_bufs, wait_semaphores, wait_stages, signal_semaphores, signal_fence);
+    submit(m_vk_graphics_queue, cmd_bufs, wait_semaphores, signal_semaphores, signal_fence);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Backend::submit_compute(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
                              const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
-                             const std::vector<VkPipelineStageFlags>&           wait_stages,
                              const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores,
                              const std::shared_ptr<Fence>&                      signal_fence)
 {
-    submit(m_vk_compute_queue, cmd_bufs, wait_semaphores, wait_stages, signal_semaphores, signal_fence);
+    submit(m_vk_compute_queue, cmd_bufs, wait_semaphores, signal_semaphores, signal_fence);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 void Backend::submit_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
                               const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
-                              const std::vector<VkPipelineStageFlags>&           wait_stages,
                               const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores,
                               const std::shared_ptr<Fence>&                      signal_fence)
 {
-    submit(m_vk_transfer_queue, cmd_bufs, wait_semaphores, wait_stages, signal_semaphores, signal_fence);
+    submit(m_vk_transfer_queue, cmd_bufs, wait_semaphores, signal_semaphores, signal_fence);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3967,46 +3827,64 @@ void Backend::flush_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& 
 void Backend::submit(VkQueue                                            queue,
                      const std::vector<std::shared_ptr<CommandBuffer>>& cmd_bufs,
                      const std::vector<std::shared_ptr<Semaphore>>&     wait_semaphores,
-                     const std::vector<VkPipelineStageFlags>&           wait_stages,
                      const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores,
                      const std::shared_ptr<Fence>&                      signal_fence)
 {
-    VkSemaphore vk_wait_semaphores[16];
+
+    VkSemaphoreSubmitInfo vk_wait_semaphores[16];
 
     for (int i = 0; i < wait_semaphores.size(); i++)
-        vk_wait_semaphores[i] = wait_semaphores[i]->handle();
+    {
+        VkSemaphoreSubmitInfo& info = vk_wait_semaphores[i];
 
-    VkSemaphore vk_signal_semaphores[16];
+        info.sType         = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        info.pNext         = nullptr;
+        info.semaphore     = wait_semaphores[i]->handle();
+        info.value         = 0;
+        info.stageMask     = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+        info.deviceIndex   = 0;
+    }
 
-    for (int i = 0; i < signal_semaphores.size(); i++)
-        vk_signal_semaphores[i] = signal_semaphores[i]->handle();
-
-    VkCommandBuffer vk_cmd_bufs[32];
+    VkCommandBufferSubmitInfo vk_cmd_bufs[32];
 
     for (int i = 0; i < cmd_bufs.size(); i++)
-        vk_cmd_bufs[i] = cmd_bufs[i]->handle();
+    {
+        VkCommandBufferSubmitInfo& info = vk_cmd_bufs[i];
 
-    VkPipelineStageFlags vk_wait_stages[16];
+        info.sType         = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+        info.pNext         = nullptr;
+        info.commandBuffer = cmd_bufs[i]->handle();
+        info.deviceMask    = 0;
+    }
 
-    for (int i = 0; i < wait_semaphores.size(); i++)
-        vk_wait_stages[i] = wait_stages[i];
+    VkSemaphoreSubmitInfo vk_signal_semaphores[16];
 
-    VkSubmitInfo submit_info;
-    DW_ZERO_MEMORY(submit_info);
+    for (int i = 0; i < signal_semaphores.size(); i++)
+    {
+        VkSemaphoreSubmitInfo& info = vk_signal_semaphores[i];
 
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        info.sType       = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        info.pNext       = nullptr;
+        info.semaphore   = signal_semaphores[i]->handle();
+        info.value       = 0;
+        info.stageMask   = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+        info.deviceIndex = 0;
+    }
 
-    submit_info.waitSemaphoreCount = wait_semaphores.size();
-    submit_info.pWaitSemaphores    = vk_wait_semaphores;
-    submit_info.pWaitDstStageMask  = vk_wait_stages;
+    VkSubmitInfo2 submit_info = {};
 
-    submit_info.commandBufferCount = cmd_bufs.size();
-    submit_info.pCommandBuffers    = &vk_cmd_bufs[0];
+    submit_info.sType                    = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+    submit_info.pNext                    = nullptr;
+    submit_info.flags                    = 0;
+    submit_info.waitSemaphoreInfoCount   = wait_semaphores.size();
+    submit_info.pWaitSemaphoreInfos      = vk_wait_semaphores;
+    submit_info.commandBufferInfoCount   = cmd_bufs.size();
+    submit_info.pCommandBufferInfos      = vk_cmd_bufs;
+    submit_info.signalSemaphoreInfoCount = signal_semaphores.size();
+    submit_info.pSignalSemaphoreInfos    = vk_signal_semaphores;
 
-    submit_info.signalSemaphoreCount = signal_semaphores.size();
-    submit_info.pSignalSemaphores    = vk_signal_semaphores;
-
-    VkResult result = vkQueueSubmit(queue, 1, &submit_info, signal_fence->handle());
+    // Submit to queue
+    VkResult result = vkQueueSubmit2(queue, 1, &submit_info, signal_fence->handle());
 
     if (result != VK_SUCCESS)
     {
@@ -4128,20 +4006,6 @@ std::shared_ptr<Image> Backend::swapchain_depth_image()
 std::shared_ptr<ImageView> Backend::swapchain_depth_image_view()
 {
     return m_swap_chain_depth_view;
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-Framebuffer::Ptr Backend::swapchain_framebuffer()
-{
-    return m_swap_chain_framebuffers[m_current_frame];
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-RenderPass::Ptr Backend::swapchain_render_pass()
-{
-    return m_swap_chain_render_pass;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -4682,10 +4546,18 @@ bool Backend::is_queue_compatible(VkQueueFlags current_queue_flags, int32_t grap
 bool Backend::create_logical_device(std::vector<const char*> extensions, bool require_ray_tracing)
 {
     // Dynamic Rendering Features.
+    VkPhysicalDeviceSynchronization2Features sync2_features;
+    DW_ZERO_MEMORY(sync2_features);
+
+    sync2_features.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES;
+    sync2_features.synchronization2 = VK_TRUE;
+
+    // Dynamic Rendering Features.
     VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_features;
     DW_ZERO_MEMORY(dynamic_rendering_features);
     
     dynamic_rendering_features.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
+    dynamic_rendering_features.pNext            = &sync2_features;
     dynamic_rendering_features.dynamicRendering = VK_TRUE;
 
     VkPhysicalDeviceRayQueryFeaturesKHR device_ray_query_features;
@@ -4851,7 +4723,6 @@ bool Backend::create_swapchain()
     vkGetSwapchainImagesKHR(m_vk_device, m_vk_swap_chain, &swap_image_count, nullptr);
     m_swap_chain_images.resize(swap_image_count);
     m_swap_chain_image_views.resize(swap_image_count);
-    m_swap_chain_framebuffers.resize(swap_image_count);
 
     VkImage images[32];
 
@@ -4874,20 +4745,10 @@ bool Backend::create_swapchain()
 
     m_swap_chain_depth_view = ImageView::create(shared_from_this(), m_swap_chain_depth, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-    create_render_pass();
-
-    std::vector<ImageView::Ptr> views(2);
-
-    views[1] = m_swap_chain_depth_view;
-
     for (int i = 0; i < swap_image_count; i++)
     {
         m_swap_chain_images[i]      = Image::create_from_swapchain(shared_from_this(), images[i], VK_IMAGE_TYPE_2D, m_swap_chain_extent.width, m_swap_chain_extent.height, 1, 1, 1, m_swap_chain_image_format, VMA_MEMORY_USAGE_UNKNOWN, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_SAMPLE_COUNT_1_BIT);
         m_swap_chain_image_views[i] = ImageView::create(shared_from_this(), m_swap_chain_images[i], VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT);
-
-        views[0] = m_swap_chain_image_views[i];
-
-        m_swap_chain_framebuffers[i] = Framebuffer::create(shared_from_this(), m_swap_chain_render_pass, views, m_swap_chain_extent.width, m_swap_chain_extent.height, 1);
     }
 
     return true;
@@ -4905,7 +4766,6 @@ void Backend::recreate_swapchain(bool vsync)
     for (int i = 0; i < m_swap_chain_images.size(); i++)
     {
         m_swap_chain_images[i].reset();
-        m_swap_chain_framebuffers[i].reset();
         m_swap_chain_image_views[i].reset();
     }
 
@@ -4916,74 +4776,6 @@ void Backend::recreate_swapchain(bool vsync)
         DW_LOG_FATAL("(Vulkan) Failed to create swap chain!");
         throw std::runtime_error("(Vulkan) Failed to create swap chain!");
     }
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void Backend::create_render_pass()
-{
-    std::vector<VkAttachmentDescription> attachments(2);
-
-    // Color attachment
-    attachments[0].format         = m_swap_chain_image_format;
-    attachments[0].samples        = VK_SAMPLE_COUNT_1_BIT;
-    attachments[0].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachments[0].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-    attachments[0].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachments[0].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachments[0].finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-    // Depth attachment
-    attachments[1].format         = m_swap_chain_depth_format;
-    attachments[1].samples        = VK_SAMPLE_COUNT_1_BIT;
-    attachments[1].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachments[1].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-    attachments[1].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachments[1].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachments[1].finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference color_reference;
-    color_reference.attachment = 0;
-    color_reference.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference depth_reference;
-    depth_reference.attachment = 1;
-    depth_reference.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    std::vector<VkSubpassDescription> subpass_description(1);
-
-    subpass_description[0].pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass_description[0].colorAttachmentCount    = 1;
-    subpass_description[0].pColorAttachments       = &color_reference;
-    subpass_description[0].pDepthStencilAttachment = &depth_reference;
-    subpass_description[0].inputAttachmentCount    = 0;
-    subpass_description[0].pInputAttachments       = nullptr;
-    subpass_description[0].preserveAttachmentCount = 0;
-    subpass_description[0].pPreserveAttachments    = nullptr;
-    subpass_description[0].pResolveAttachments     = nullptr;
-
-    // Subpass dependencies for layout transitions
-    std::vector<VkSubpassDependency> dependencies(2);
-
-    dependencies[0].srcSubpass      = VK_SUBPASS_EXTERNAL;
-    dependencies[0].dstSubpass      = 0;
-    dependencies[0].srcStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    dependencies[0].dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependencies[0].srcAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
-    dependencies[0].dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-    dependencies[1].srcSubpass      = 0;
-    dependencies[1].dstSubpass      = VK_SUBPASS_EXTERNAL;
-    dependencies[1].srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependencies[1].dstStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    dependencies[1].srcAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dependencies[1].dstAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
-    dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-    m_swap_chain_render_pass = RenderPass::create(shared_from_this(), attachments, subpass_description, dependencies);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -5051,143 +4843,16 @@ VkExtent2D Backend::choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilit
 
 namespace utilities
 {
-void set_image_layout(VkCommandBuffer         cmdbuffer,
-                      VkImage                 image,
-                      VkImageLayout           oldImageLayout,
-                      VkImageLayout           newImageLayout,
-                      VkImageSubresourceRange subresourceRange,
-                      VkPipelineStageFlags    srcStageMask,
-                      VkPipelineStageFlags    dstStageMask)
-{
-    // Create an image barrier object
-    VkImageMemoryBarrier image_memory_barrier;
-    DW_ZERO_MEMORY(image_memory_barrier);
-
-    image_memory_barrier.sType            = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    image_memory_barrier.oldLayout        = oldImageLayout;
-    image_memory_barrier.newLayout        = newImageLayout;
-    image_memory_barrier.image            = image;
-    image_memory_barrier.subresourceRange = subresourceRange;
-
-    // Source layouts (old)
-    // Source access mask controls actions that have to be finished on the old layout
-    // before it will be transitioned to the new layout
-    switch (oldImageLayout)
-    {
-        case VK_IMAGE_LAYOUT_UNDEFINED:
-            // Image layout is undefined (or does not matter)
-            // Only valid as initial layout
-            // No flags required, listed only for completeness
-            image_memory_barrier.srcAccessMask = 0;
-            break;
-
-        case VK_IMAGE_LAYOUT_PREINITIALIZED:
-            // Image is preinitialized
-            // Only valid as initial layout for linear images, preserves memory contents
-            // Make sure host writes have been finished
-            image_memory_barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            // Image is a color attachment
-            // Make sure any writes to the color buffer have been finished
-            image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            // Image is a depth/stencil attachment
-            // Make sure any writes to the depth/stencil buffer have been finished
-            image_memory_barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            // Image is a transfer source
-            // Make sure any reads from the image have been finished
-            image_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            // Image is a transfer destination
-            // Make sure any writes to the image have been finished
-            image_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            // Image is read by a shader
-            // Make sure any shader reads from the image have been finished
-            image_memory_barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            break;
-        default:
-            // Other source layouts aren't handled (yet)
-            break;
-    }
-
-    // Target layouts (new)
-    // Destination access mask controls the dependency for the new image layout
-    switch (newImageLayout)
-    {
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            // Image will be used as a transfer destination
-            // Make sure any writes to the image have been finished
-            image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            // Image will be used as a transfer source
-            // Make sure any reads from the image have been finished
-            image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            // Image will be used as a color attachment
-            // Make sure any writes to the color buffer have been finished
-            image_memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            // Image layout will be used as a depth/stencil attachment
-            // Make sure any writes to depth/stencil buffer have been finished
-            image_memory_barrier.dstAccessMask = image_memory_barrier.dstAccessMask | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            break;
-
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            // Image will be read in a shader (sampler, input attachment)
-            // Make sure any writes to the image have been finished
-            if (image_memory_barrier.srcAccessMask == 0)
-            {
-                image_memory_barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
-            }
-            image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            break;
-        default:
-            // Other source layouts aren't handled (yet)
-            break;
-    }
-
-    // Put barrier inside setup command buffer
-    vkCmdPipelineBarrier(
-        cmdbuffer,
-        srcStageMask,
-        dstStageMask,
-        0,
-        0,
-        nullptr,
-        0,
-        nullptr,
-        1,
-        &image_memory_barrier);
-}
-
 void blitt_image(vk::CommandBuffer::Ptr cmd_buf,
                  vk::Image::Ptr         src,
                  vk::Image::Ptr         dst,
-                 VkImageLayout          src_img_src_layout,
                  VkImageLayout          src_img_dst_layout,
-                 VkImageLayout          dst_img_src_layout,
                  VkImageLayout          dst_img_dst_layout,
                  VkImageAspectFlags     aspect_flags,
                  VkFilter               filter)
 {
+    auto backend = cmd_buf->backend().lock();
+
     VkImageSubresourceRange initial_subresource_range;
     DW_ZERO_MEMORY(initial_subresource_range);
 
@@ -5197,20 +4862,10 @@ void blitt_image(vk::CommandBuffer::Ptr cmd_buf,
     initial_subresource_range.baseArrayLayer = 0;
     initial_subresource_range.baseMipLevel   = 0;
 
-    if (src_img_src_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-    {
-        vk::utilities::set_image_layout(cmd_buf->handle(),
-                                        src->handle(),
-                                        src_img_src_layout,
-                                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                        initial_subresource_range);
-    }
+    backend->use_resource(VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR, VK_ACCESS_2_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, src, initial_subresource_range);
+    backend->use_resource(VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, dst, initial_subresource_range);
 
-    vk::utilities::set_image_layout(cmd_buf->handle(),
-                                    dst->handle(),
-                                    dst_img_src_layout,
-                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                    initial_subresource_range);
+    backend->flush_barriers(cmd_buf);
 
     VkImageBlit blit                   = {};
     blit.srcOffsets[0]                 = { 0, 0, 0 };
@@ -5235,17 +4890,10 @@ void blitt_image(vk::CommandBuffer::Ptr cmd_buf,
                    &blit,
                    filter);
 
-    vk::utilities::set_image_layout(cmd_buf->handle(),
-                                    src->handle(),
-                                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                    src_img_dst_layout,
-                                    initial_subresource_range);
+    backend->use_resource(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_SHADER_READ_BIT, src_img_dst_layout, src, initial_subresource_range);
+    backend->use_resource(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_SHADER_READ_BIT, dst_img_dst_layout, dst, initial_subresource_range);
 
-    vk::utilities::set_image_layout(cmd_buf->handle(),
-                                    dst->handle(),
-                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                    dst_img_dst_layout,
-                                    initial_subresource_range);
+    backend->flush_barriers(cmd_buf);
 }
 
 uint32_t get_memory_type(VkPhysicalDevice device, uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound)
