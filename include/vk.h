@@ -193,6 +193,7 @@ private:
         VkPipelineStageFlags2 stage;
         VkAccessFlags2        access;
         VkImageLayout         layout;
+        uint32_t              last_frame_idx;
     };
 
     GLFWwindow*                                               m_window                = nullptr;
@@ -223,6 +224,7 @@ private:
     std::shared_ptr<ImageView>                                m_default_cubemap_image_view;
     uint32_t                                                  m_image_index   = 0;
     uint32_t                                                  m_current_frame = 0;
+    uint32_t                                                  m_frame_idx             = 0;
     std::shared_ptr<Image>                                    m_swap_chain_depth      = nullptr;
     std::shared_ptr<ImageView>                                m_swap_chain_depth_view = nullptr;
     VkPhysicalDeviceProperties                                m_device_properties;

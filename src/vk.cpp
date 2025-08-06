@@ -3641,9 +3641,21 @@ void Backend::use_resource(VkPipelineStageFlags2   _stage,
 
     ImageUsageInfo new_usage = {};
 
-    new_usage.stage  = barrier.dstStageMask;
-    new_usage.access = barrier.dstAccessMask;
-    new_usage.layout = barrier.newLayout;
+    new_usage.stage          = barrier.dstStageMask;
+    new_usage.access         = barrier.dstAccessMask;
+    new_usage.layout         = barrier.newLayout;
+    new_usage.last_frame_idx = m_frame_idx;
+
+    bool is_swap_chain_image = false;
+
+    for (auto& swap_chain_image : m_swap_chain_images)
+    {
+        if (_image == swap_chain_image->handle())
+        {
+            is_swap_chain_image = true;
+            break;
+        }
+    }
 
     if (m_image_usage_info.find((uint64_t)_image) != m_image_usage_info.end())
     {
@@ -3666,13 +3678,18 @@ void Backend::use_resource(VkPipelineStageFlags2   _stage,
                 // Use the first encountered old layout as the overall old layout.
                 barrier.oldLayout = old_usage.layout;
 
-                // Make sure the other layers and levels have the same old layout.
-                // If not, we've done something wrong.
-                if (first_old_layout == VK_IMAGE_LAYOUT_UNDEFINED)
-                    first_old_layout = old_usage.layout;
-                else if (first_old_layout != old_usage.layout)
-                    throw std::runtime_error("(Vulkan) Attempting an Image Layout Transition across multiple subresources that have different old layouts! Transition them to a common layout before attempting this!");
-
+                if (is_swap_chain_image && old_usage.last_frame_idx != m_frame_idx)
+                    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                else
+                {
+                    // Make sure the other layers and levels have the same old layout.
+                    // If not, we've done something wrong.
+                    if (first_old_layout == VK_IMAGE_LAYOUT_UNDEFINED)
+                        first_old_layout = old_usage.layout;
+                    else if (first_old_layout != old_usage.layout)
+                        throw std::runtime_error("(Vulkan) Attempting an Image Layout Transition across multiple subresources that have different old layouts! Transition them to a common layout before attempting this!");
+                }
+                
                 old_usage = new_usage;
             }
         }
@@ -3830,7 +3847,6 @@ void Backend::submit(VkQueue                                            queue,
                      const std::vector<std::shared_ptr<Semaphore>>&     signal_semaphores,
                      const std::shared_ptr<Fence>&                      signal_fence)
 {
-
     VkSemaphoreSubmitInfo vk_wait_semaphores[16];
 
     for (int i = 0; i < wait_semaphores.size(); i++)
@@ -3970,21 +3986,23 @@ void Backend::present(const std::vector<std::shared_ptr<Semaphore>>& semaphores)
         throw std::runtime_error("failed to present swap chain image!");
     }
 
-    m_current_frame = (m_current_frame + 1) % kMaxFramesInFlight;
+    m_frame_idx++;
+
+    m_current_frame = m_frame_idx % kMaxFramesInFlight;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 Image::Ptr Backend::swapchain_image()
 {
-    return m_swap_chain_images[m_current_frame];
+    return m_swap_chain_images[m_image_index];
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 ImageView::Ptr Backend::swapchain_image_view()
 {
-    return m_swap_chain_image_views[m_current_frame];
+    return m_swap_chain_image_views[m_image_index];
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -4672,7 +4690,7 @@ bool Backend::create_swapchain()
 {
     m_current_frame                   = 0;
     VkSurfaceFormatKHR surface_format = choose_swap_surface_format(m_swapchain_details.format);
-    VkPresentModeKHR   present_mode   = m_vsync ? VK_PRESENT_MODE_FIFO_KHR : choose_swap_present_mode(m_swapchain_details.present_modes);
+    VkPresentModeKHR   present_mode   = choose_swap_present_mode(m_swapchain_details.present_modes);
     VkExtent2D         extent         = choose_swap_extent(m_swapchain_details.capabilities);
 
     uint32_t image_count = m_swapchain_details.capabilities.minImageCount + 1;
@@ -4743,12 +4761,21 @@ bool Backend::create_swapchain()
                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                                        VK_SAMPLE_COUNT_1_BIT);
 
+    m_swap_chain_depth->set_name("Swap Chain Depth Image");
+
     m_swap_chain_depth_view = ImageView::create(shared_from_this(), m_swap_chain_depth, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    m_swap_chain_depth_view->set_name("Swap Chain Depth Image View");
 
     for (int i = 0; i < swap_image_count; i++)
     {
-        m_swap_chain_images[i]      = Image::create_from_swapchain(shared_from_this(), images[i], VK_IMAGE_TYPE_2D, m_swap_chain_extent.width, m_swap_chain_extent.height, 1, 1, 1, m_swap_chain_image_format, VMA_MEMORY_USAGE_UNKNOWN, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_SAMPLE_COUNT_1_BIT);
+        m_swap_chain_images[i] = Image::create_from_swapchain(shared_from_this(), images[i], VK_IMAGE_TYPE_2D, m_swap_chain_extent.width, m_swap_chain_extent.height, 1, 1, 1, m_swap_chain_image_format, VMA_MEMORY_USAGE_UNKNOWN, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_SAMPLE_COUNT_1_BIT);
+
+        m_swap_chain_images[i]->set_name("Swap Chain Image " + std::to_string(i));
+
         m_swap_chain_image_views[i] = ImageView::create(shared_from_this(), m_swap_chain_images[i], VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT);
+
+        m_swap_chain_image_views[i]->set_name("Swap Chain Image View " + std::to_string(i));
     }
 
     return true;
@@ -4806,17 +4833,22 @@ VkSurfaceFormatKHR Backend::choose_swap_surface_format(const std::vector<VkSurfa
 
 VkPresentModeKHR Backend::choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_modes)
 {
-    VkPresentModeKHR best_mode = VK_PRESENT_MODE_FIFO_KHR;
-
-    for (const auto& available_mode : available_modes)
+    if (!m_vsync)
     {
-        if (available_mode == VK_PRESENT_MODE_MAILBOX_KHR)
-            best_mode = available_mode;
-        else if (available_mode == VK_PRESENT_MODE_IMMEDIATE_KHR)
-            best_mode = available_mode;
+        for (const auto& available_mode : available_modes)
+        {
+            if (available_mode == VK_PRESENT_MODE_MAILBOX_KHR)
+                return VK_PRESENT_MODE_MAILBOX_KHR;
+        }
+
+        for (const auto& available_mode : available_modes)
+        {
+            if (available_mode == VK_PRESENT_MODE_IMMEDIATE_KHR)
+                return VK_PRESENT_MODE_IMMEDIATE_KHR;
+        }
     }
 
-    return best_mode;
+    return VK_PRESENT_MODE_FIFO_KHR;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
