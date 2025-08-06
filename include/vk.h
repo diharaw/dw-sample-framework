@@ -73,14 +73,15 @@ public:
 
     ~Backend();
 
-    std::shared_ptr<DescriptorSet>          allocate_descriptor_set(std::shared_ptr<DescriptorSetLayout> layout);
     std::shared_ptr<CommandBuffer>          allocate_graphics_command_buffer(bool begin = false);
     std::shared_ptr<CommandBuffer>          allocate_compute_command_buffer(bool begin = false);
     std::shared_ptr<CommandBuffer>          allocate_transfer_command_buffer(bool begin = false);
-    std::shared_ptr<CommandPool>            thread_local_graphics_command_pool();
-    std::shared_ptr<CommandPool>            thread_local_compute_command_pool();
-    std::shared_ptr<CommandPool>            thread_local_transfer_command_pool();
-    std::shared_ptr<DescriptorPool>         thread_local_descriptor_pool();
+    void                                    reset_command_pools();
+    std::shared_ptr<CommandPool>            graphics_command_pool();
+    std::shared_ptr<CommandPool>            compute_command_pool();
+    std::shared_ptr<CommandPool>            transfer_command_pool();
+    std::shared_ptr<DescriptorSet>          allocate_descriptor_set(std::shared_ptr<DescriptorSetLayout> layout);
+    std::shared_ptr<DescriptorPool>         descriptor_pool();
     void                                    use_resource(VkPipelineStageFlags2          _stage,
                                                          VkAccessFlags2                 _access,
                                                          const std::shared_ptr<Buffer>& _buffer,
@@ -215,6 +216,13 @@ private:
     VkExtent2D                                                m_swap_chain_extent;
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR           m_ray_tracing_pipeline_properties;
     VkPhysicalDeviceAccelerationStructurePropertiesKHR        m_acceleration_structure_properties;
+    std::shared_ptr<DescriptorPool>                           m_descriptor_pool;
+    std::vector<std::shared_ptr<CommandPool>>                 m_graphics_command_pools;
+    std::vector<std::shared_ptr<CommandPool>>                 m_compute_command_pools;
+    std::vector<std::shared_ptr<CommandPool>>                 m_transfer_command_pools;
+    std::vector<std::shared_ptr<CommandBuffer>>               m_graphics_command_buffers;
+    std::vector<std::shared_ptr<CommandBuffer>>               m_compute_command_buffers;
+    std::vector<std::shared_ptr<CommandBuffer>>               m_transfer_command_buffers;
     std::vector<std::shared_ptr<Image>>                       m_swap_chain_images;
     std::vector<std::shared_ptr<ImageView>>                   m_swap_chain_image_views;
     std::shared_ptr<Sampler>                                  m_bilinear_sampler;
@@ -390,7 +398,6 @@ public:
 
     void set_name(const std::string& name);
 
-    void                          reset();
     inline const VkCommandBuffer& handle() { return m_vk_command_buffer; }
 
 private:

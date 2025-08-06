@@ -79,68 +79,6 @@ const char* get_vendor_name(uint32_t id)
     }
 }
 
-#    define MAX_DESCRIPTOR_POOL_THREADS 32
-#    define MAX_COMMAND_THREADS 32
-#    define MAX_THREAD_LOCAL_COMMAND_BUFFERS 8
-
-struct ThreadLocalCommandBuffers
-{
-    CommandPool::Ptr   command_pool[Backend::kMaxFramesInFlight];
-    CommandBuffer::Ptr command_buffers[Backend::kMaxFramesInFlight][MAX_THREAD_LOCAL_COMMAND_BUFFERS];
-    uint32_t           allocated_buffers = 0;
-
-    ThreadLocalCommandBuffers(Backend::Ptr backend, uint32_t queue_family)
-    {
-        for (int i = 0; i < Backend::kMaxFramesInFlight; i++)
-        {
-            command_pool[i] = CommandPool::create(backend, queue_family);
-
-            for (int j = 0; j < MAX_THREAD_LOCAL_COMMAND_BUFFERS; j++)
-                command_buffers[i][j] = CommandBuffer::create(backend, command_pool[i]);
-        }
-    }
-
-    ~ThreadLocalCommandBuffers()
-    {
-    }
-
-    void reset(uint32_t frame_index)
-    {
-        allocated_buffers = 0;
-        command_pool[frame_index]->reset();
-    }
-
-    CommandBuffer::Ptr allocate(uint32_t frame_index, bool begin)
-    {
-        if (allocated_buffers >= MAX_THREAD_LOCAL_COMMAND_BUFFERS)
-        {
-            DW_LOG_FATAL("(Vulkan) Max thread local command buffer count reached!");
-            throw std::runtime_error("(Vulkan) Max thread local command buffer count reached!");
-        }
-
-        auto cmd_buf = command_buffers[frame_index][allocated_buffers++];
-
-        if (begin)
-        {
-            VkCommandBufferBeginInfo begin_info;
-            DW_ZERO_MEMORY(begin_info);
-
-            begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-            vkBeginCommandBuffer(cmd_buf->handle(), &begin_info);
-        }
-
-        return cmd_buf;
-    }
-};
-
-std::atomic<uint32_t>                                   g_thread_counter = 0;
-thread_local uint32_t                                   g_thread_idx     = g_thread_counter++;
-thread_local std::shared_ptr<ThreadLocalCommandBuffers> g_graphics_command_buffers[MAX_COMMAND_THREADS];
-thread_local std::shared_ptr<ThreadLocalCommandBuffers> g_compute_command_buffers[MAX_COMMAND_THREADS];
-thread_local std::shared_ptr<ThreadLocalCommandBuffers> g_transfer_command_buffers[MAX_COMMAND_THREADS];
-thread_local DescriptorPool::Ptr                        g_descriptor_pools[MAX_DESCRIPTOR_POOL_THREADS];
-
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
@@ -824,13 +762,6 @@ void CommandBuffer::set_name(const std::string& name)
 {
     auto backend = m_vk_backend.lock();
     utilities::set_object_name(backend->device(), (uint64_t)m_vk_command_buffer, name, VK_OBJECT_TYPE_COMMAND_BUFFER);
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-void CommandBuffer::reset()
-{
-    vkResetCommandBuffer(m_vk_command_buffer, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3253,15 +3184,15 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enabl
         throw std::runtime_error("Failed to initialize Volk.");
     }
 
-    VkApplicationInfo appInfo;
-    DW_ZERO_MEMORY(appInfo);
+    VkApplicationInfo app_info;
+    DW_ZERO_MEMORY(app_info);
 
-    appInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName   = "dwSampleFramework";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName        = "dwSampleFramework";
-    appInfo.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion         = VK_API_VERSION_1_3;
+    app_info.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    app_info.pApplicationName   = "dwSampleFramework";
+    app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.pEngineName        = "dwSampleFramework";
+    app_info.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
+    app_info.apiVersion         = VK_API_VERSION_1_3;
 
     std::vector<const char*> extensions = required_extensions(enable_validation_layers);
 
@@ -3271,7 +3202,7 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enabl
     DW_ZERO_MEMORY(create_info);
 
     create_info.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    create_info.pApplicationInfo        = &appInfo;
+    create_info.pApplicationInfo        = &app_info;
     create_info.enabledExtensionCount   = extensions.size();
     create_info.ppEnabledExtensionNames = extensions.data();
 
@@ -3399,15 +3330,15 @@ Backend::~Backend()
     m_trilinear_sampler.reset();
     m_nearest_sampler.reset();
 
-    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
-    {
-        g_graphics_command_buffers[i].reset();
-        g_compute_command_buffers[i].reset();
-        g_transfer_command_buffers[i].reset();
-    }
+    m_graphics_command_buffers.clear();
+    m_compute_command_buffers.clear();
+    m_transfer_command_buffers.clear();
 
-    for (int i = 0; i < MAX_DESCRIPTOR_POOL_THREADS; i++)
-        g_descriptor_pools[i].reset();
+    m_graphics_command_pools.clear();
+    m_compute_command_pools.clear();
+    m_transfer_command_pools.clear();
+
+    m_descriptor_pool.reset();
 
     for (int i = 0; i < m_swap_chain_images.size(); i++)
         m_swap_chain_image_views[i].reset();
@@ -3470,14 +3401,25 @@ void Backend::initialize()
         .add_pool_size(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 16)
         .add_pool_size(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 32);
 
-    for (int i = 0; i < MAX_DESCRIPTOR_POOL_THREADS; i++)
-        g_descriptor_pools[i] = DescriptorPool::create(shared_from_this(), dp_desc);
+    m_descriptor_pool = DescriptorPool::create(shared_from_this(), dp_desc);
 
-    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
+    m_graphics_command_pools.resize(m_swap_chain_images.size());
+    m_compute_command_pools.resize(m_swap_chain_images.size());
+    m_transfer_command_pools.resize(m_swap_chain_images.size());
+
+    m_graphics_command_buffers.resize(m_swap_chain_images.size());
+    m_compute_command_buffers.resize(m_swap_chain_images.size());
+    m_transfer_command_buffers.resize(m_swap_chain_images.size());
+
+    for (int i = 0; i < m_swap_chain_images.size(); i++)
     {
-        g_graphics_command_buffers[i] = std::make_shared<ThreadLocalCommandBuffers>(shared_from_this(), m_selected_queues.graphics_queue_index);
-        g_compute_command_buffers[i]  = std::make_shared<ThreadLocalCommandBuffers>(shared_from_this(), m_selected_queues.compute_queue_index);
-        g_transfer_command_buffers[i] = std::make_shared<ThreadLocalCommandBuffers>(shared_from_this(), m_selected_queues.transfer_queue_index);
+        m_graphics_command_pools[i] = CommandPool::create(shared_from_this(), m_selected_queues.graphics_queue_index);
+        m_compute_command_pools[i] = CommandPool::create(shared_from_this(), m_selected_queues.compute_queue_index);
+        m_transfer_command_pools[i] = CommandPool::create(shared_from_this(), m_selected_queues.transfer_queue_index);
+
+        m_graphics_command_buffers[i] = CommandBuffer::create(shared_from_this(), m_graphics_command_pools[i]);
+        m_compute_command_buffers[i]  = CommandBuffer::create(shared_from_this(), m_compute_command_pools[i]);
+        m_transfer_command_buffers[i] = CommandBuffer::create(shared_from_this(), m_transfer_command_pools[i]);
     }
 
     Sampler::Desc sampler_desc;
@@ -3541,58 +3483,103 @@ void Backend::initialize()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-std::shared_ptr<DescriptorSet> Backend::allocate_descriptor_set(std::shared_ptr<DescriptorSetLayout> layout)
-{
-    return DescriptorSet::create(shared_from_this(), layout, g_descriptor_pools[g_thread_idx]);
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
 std::shared_ptr<CommandBuffer> Backend::allocate_graphics_command_buffer(bool begin)
 {
-    return g_graphics_command_buffers[g_thread_idx]->allocate(m_current_frame, begin);
+    auto cmd = m_graphics_command_buffers[m_frame_idx % m_graphics_command_buffers.size()];
+
+    if (begin)
+    {
+        VkCommandBufferBeginInfo begin_info;
+        DW_ZERO_MEMORY(begin_info);
+
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        vkBeginCommandBuffer(cmd->handle(), &begin_info);
+    }
+
+    return cmd;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 std::shared_ptr<CommandBuffer> Backend::allocate_compute_command_buffer(bool begin)
 {
-    return g_compute_command_buffers[g_thread_idx]->allocate(m_current_frame, begin);
+    auto cmd = m_compute_command_buffers[m_frame_idx % m_compute_command_buffers.size()];
+
+    if (begin)
+    {
+        VkCommandBufferBeginInfo begin_info;
+        DW_ZERO_MEMORY(begin_info);
+
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        vkBeginCommandBuffer(cmd->handle(), &begin_info);
+    }
+
+    return cmd;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
 std::shared_ptr<CommandBuffer> Backend::allocate_transfer_command_buffer(bool begin)
 {
-    return g_transfer_command_buffers[g_thread_idx]->allocate(m_current_frame, begin);
+    auto cmd = m_transfer_command_buffers[m_frame_idx % m_transfer_command_buffers.size()];
+
+    if (begin)
+    {
+        VkCommandBufferBeginInfo begin_info;
+        DW_ZERO_MEMORY(begin_info);
+
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        vkBeginCommandBuffer(cmd->handle(), &begin_info);
+    }
+
+    return cmd;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-std::shared_ptr<CommandPool> Backend::thread_local_graphics_command_pool()
+void Backend::reset_command_pools()
 {
-    return g_graphics_command_buffers[g_thread_idx]->command_pool[m_current_frame];
+    graphics_command_pool()->reset();
+    compute_command_pool()->reset();
+    transfer_command_pool()->reset();
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-std::shared_ptr<CommandPool> Backend::thread_local_compute_command_pool()
+std::shared_ptr<CommandPool> Backend::graphics_command_pool()
 {
-    return g_compute_command_buffers[g_thread_idx]->command_pool[m_current_frame];
+    return m_graphics_command_pools[m_frame_idx % m_transfer_command_buffers.size()];
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-std::shared_ptr<CommandPool> Backend::thread_local_transfer_command_pool()
+std::shared_ptr<CommandPool> Backend::compute_command_pool()
 {
-    return g_transfer_command_buffers[g_thread_idx]->command_pool[m_current_frame];
+    return m_compute_command_pools[m_frame_idx % m_transfer_command_buffers.size()];
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-std::shared_ptr<DescriptorPool> Backend::thread_local_descriptor_pool()
+std::shared_ptr<CommandPool> Backend::transfer_command_pool()
 {
-    return g_descriptor_pools[g_thread_idx];
+    return m_transfer_command_pools[m_frame_idx % m_transfer_command_buffers.size()];
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+std::shared_ptr<DescriptorSet> Backend::allocate_descriptor_set(std::shared_ptr<DescriptorSetLayout> layout)
+{
+    return DescriptorSet::create(shared_from_this(), layout, m_descriptor_pool);
+}
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+std::shared_ptr<DescriptorPool> Backend::descriptor_pool()
+{
+    return m_descriptor_pool;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3815,8 +3802,7 @@ void Backend::flush_graphics(const std::vector<std::shared_ptr<CommandBuffer>>& 
 {
     flush(m_vk_graphics_queue, cmd_bufs);
 
-    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
-        g_graphics_command_buffers[i]->reset(m_current_frame);
+    m_graphics_command_pools[m_frame_idx % m_graphics_command_pools.size()]->reset();
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3825,8 +3811,7 @@ void Backend::flush_compute(const std::vector<std::shared_ptr<CommandBuffer>>& c
 {
     flush(m_vk_compute_queue, cmd_bufs);
 
-    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
-        g_compute_command_buffers[i]->reset(m_current_frame);
+    m_compute_command_pools[m_frame_idx % m_compute_command_pools.size()]->reset();
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3835,8 +3820,7 @@ void Backend::flush_transfer(const std::vector<std::shared_ptr<CommandBuffer>>& 
 {
     flush(m_vk_transfer_queue, cmd_bufs);
 
-    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
-        g_transfer_command_buffers[i]->reset(m_current_frame);
+    m_transfer_command_pools[m_frame_idx % m_transfer_command_pools.size()]->reset();
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -3947,13 +3931,6 @@ void Backend::flush(VkQueue queue, const std::vector<std::shared_ptr<CommandBuff
 
 bool Backend::acquire_next_swap_chain_image(const std::shared_ptr<Semaphore>& semaphore)
 {
-    for (int i = 0; i < MAX_COMMAND_THREADS; i++)
-    {
-        g_graphics_command_buffers[i]->reset(m_current_frame);
-        g_compute_command_buffers[i]->reset(m_current_frame);
-        g_transfer_command_buffers[i]->reset(m_current_frame);
-    }
-
     VkResult result = vkAcquireNextImageKHR(m_vk_device, m_vk_swap_chain, UINT64_MAX, semaphore->handle(), VK_NULL_HANDLE, &m_image_index);
 
     return result == VK_SUCCESS;
@@ -4563,26 +4540,11 @@ bool Backend::is_queue_compatible(VkQueueFlags current_queue_flags, int32_t grap
 
 bool Backend::create_logical_device(std::vector<const char*> extensions, bool require_ray_tracing)
 {
-    // Dynamic Rendering Features.
-    VkPhysicalDeviceSynchronization2Features sync2_features;
-    DW_ZERO_MEMORY(sync2_features);
-
-    sync2_features.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES;
-    sync2_features.synchronization2 = VK_TRUE;
-
-    // Dynamic Rendering Features.
-    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_features;
-    DW_ZERO_MEMORY(dynamic_rendering_features);
-    
-    dynamic_rendering_features.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
-    dynamic_rendering_features.pNext            = &sync2_features;
-    dynamic_rendering_features.dynamicRendering = VK_TRUE;
-
+    // Ray Query Features
     VkPhysicalDeviceRayQueryFeaturesKHR device_ray_query_features;
     DW_ZERO_MEMORY(device_ray_query_features);
 
     device_ray_query_features.sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
-    device_ray_query_features.pNext    = &dynamic_rendering_features;
     device_ray_query_features.rayQuery = VK_TRUE;
 
     // Acceleration Structure Features
@@ -4601,20 +4563,43 @@ bool Backend::create_logical_device(std::vector<const char*> extensions, bool re
     device_ray_tracing_pipeline_features.pNext              = &device_acceleration_structure_features;
     device_ray_tracing_pipeline_features.rayTracingPipeline = VK_TRUE;
 
-    // Vulkan 1.1/1.2 Features
-    VkPhysicalDeviceVulkan11Features features11;
-    VkPhysicalDeviceVulkan12Features features12;
+    // Synchronization 2  Features
+    VkPhysicalDeviceSynchronization2Features sync2_features;
+    DW_ZERO_MEMORY(sync2_features);
 
-    DW_ZERO_MEMORY(features11);
+    sync2_features.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES;
+    sync2_features.pNext = require_ray_tracing ? & device_ray_tracing_pipeline_features : nullptr;
+    sync2_features.synchronization2 = VK_TRUE;
+
+    // Dynamic Rendering Features
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_features;
+    DW_ZERO_MEMORY(dynamic_rendering_features);
+
+    dynamic_rendering_features.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
+    dynamic_rendering_features.pNext            = &sync2_features;
+    dynamic_rendering_features.dynamicRendering = VK_TRUE;
+
+    // Vulkan 1.3 Features
+    VkPhysicalDeviceVulkan13Features features13;
+    DW_ZERO_MEMORY(features13);
+
+    features13.sType                          = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    features13.pNext                          = &dynamic_rendering_features;
+    features13.shaderDemoteToHelperInvocation = VK_TRUE;
+
+    // Vulkan 1.2 Features
+    VkPhysicalDeviceVulkan12Features features12;
     DW_ZERO_MEMORY(features12);
+
+    features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    features12.pNext = &features13;
+
+    // Vulkan 1.1 Features
+    VkPhysicalDeviceVulkan11Features features11;
+    DW_ZERO_MEMORY(features11);
 
     features11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
     features11.pNext = &features12;
-
-    features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-
-    if (require_ray_tracing)
-        features12.pNext = &device_ray_tracing_pipeline_features;
 
     // Physical Device Features 2
     VkPhysicalDeviceFeatures2 physical_device_features_2;
