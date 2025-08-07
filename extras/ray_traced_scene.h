@@ -63,8 +63,7 @@ private:
     std::vector<InstanceData>                       m_instance_datas;
     bool                                            m_tlas_built = false;
     vk::AccelerationStructure::Ptr                  m_tlas;
-    vk::Buffer::Ptr                                 m_tlas_instance_buffer_host;
-    vk::Buffer::Ptr                                 m_tlas_instance_buffer_device;
+    vk::Buffer::Ptr                                 m_tlas_instance_buffer;
     vk::Buffer::Ptr                                 m_tlas_scratch_buffer;
     std::unordered_map<uint32_t, uint32_t>          m_local_to_global_mat_idx;
     std::unordered_map<uint32_t, uint32_t>          m_local_to_global_texture_idx;

@@ -672,14 +672,14 @@ public:
         };
 
     public:
-        std::vector<VkPipelineShaderStageCreateInfo> ray_gen_stages;
+        VkPipelineShaderStageCreateInfo              ray_gen_stage;
         std::vector<VkPipelineShaderStageCreateInfo> hit_stages;
         std::vector<VkPipelineShaderStageCreateInfo> miss_stages;
         std::vector<HitGroupDesc>                    hit_groups;
         std::vector<std::string>                     entry_point_names;
 
         Desc();
-        Desc& add_ray_gen_group(ShaderModule::Ptr shader, const std::string& entry_point);
+        Desc& set_ray_gen_stage(ShaderModule::Ptr shader, const std::string& entry_point);
         Desc& add_hit_group(ShaderModule::Ptr  closest_hit_shader,
                             const std::string& closest_hit_entry_point,
                             ShaderModule::Ptr  any_hit_shader           = nullptr,
@@ -693,8 +693,12 @@ public:
 
     inline const std::vector<VkPipelineShaderStageCreateInfo>&      stages() { return m_stages; }
     inline const std::vector<VkRayTracingShaderGroupCreateInfoKHR>& groups() { return m_groups; }
-    VkDeviceSize                                                    hit_group_offset();
-    VkDeviceSize                                                    miss_group_offset();
+    inline VkDeviceSize                                             aligned_handle_size() { return m_aligned_handle_size; }
+    inline VkDeviceSize                                             hit_group_size() { return m_hit_group_size; }
+    inline VkDeviceSize                                             miss_group_size() { return m_miss_group_size; }
+    inline VkDeviceSize                                             hit_group_offset() { return m_aligned_handle_size + m_miss_group_size; }
+    inline VkDeviceSize                                             miss_group_offset() { return m_aligned_handle_size; }
+
 
     ~ShaderBindingTable();
 
@@ -702,7 +706,7 @@ private:
     ShaderBindingTable(Backend::Ptr backend, Desc desc);
 
 private:
-    VkDeviceSize                                      m_ray_gen_size;
+    VkDeviceSize                                      m_aligned_handle_size;     
     VkDeviceSize                                      m_hit_group_size;
     VkDeviceSize                                      m_miss_group_size;
     std::vector<std::string>                          m_entry_point_names;

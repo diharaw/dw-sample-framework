@@ -52,15 +52,11 @@ RayTracedScene::RayTracedScene(vk::Backend::Ptr backend, std::vector<Instance> i
     m_backend(backend), m_instances(instances), m_id(g_last_scene_idx++)
 {
     // Allocate device instance buffer
-    m_tlas_instance_buffer_device = vk::Buffer::create_with_alignment(backend, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, sizeof(VkAccelerationStructureInstanceKHR) * MAX_INSTANCES, 16, VMA_MEMORY_USAGE_GPU_ONLY, 0);
-    m_tlas_instance_buffer_device->set_name("TLAS Instance Buffer Device");
+    m_tlas_instance_buffer = vk::Buffer::create_with_alignment(backend, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, sizeof(VkAccelerationStructureInstanceKHR) * MAX_INSTANCES, 16, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+    m_tlas_instance_buffer->set_name("TLAS Instance Buffer");
 
     VkDeviceOrHostAddressConstKHR instance_device_address {};
-    instance_device_address.deviceAddress = m_tlas_instance_buffer_device->device_address();
-
-    // Allocate host instance buffer
-    m_tlas_instance_buffer_host = vk::Buffer::create(backend, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, sizeof(VkAccelerationStructureInstanceKHR) * MAX_INSTANCES, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
-    m_tlas_instance_buffer_host->set_name("TLAS Instance Buffer Host");
+    instance_device_address.deviceAddress = m_tlas_instance_buffer->device_address();
 
     // Create TLAS
     VkAccelerationStructureGeometryKHR tlas_geometry;
@@ -190,8 +186,7 @@ RayTracedScene::~RayTracedScene()
     m_material_data_buffer.reset();
     m_instance_data_buffer.reset();
     m_material_indices_buffers.clear();
-    m_tlas_instance_buffer_host.reset();
-    m_tlas_instance_buffer_device.reset();
+    m_tlas_instance_buffer.reset();
     m_tlas_scratch_buffer.reset();
     m_tlas.reset();
 }
@@ -206,26 +201,10 @@ void RayTracedScene::build_tlas(vk::CommandBuffer::Ptr cmd_buf)
 
     copy_tlas_data();
 
-    if (m_instances.size() > 0)
-    {
-        backend->use_resource(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, m_tlas_instance_buffer_device);
-
-        backend->flush_barriers(cmd_buf);
-
-        VkBufferCopy copy_region;
-        DW_ZERO_MEMORY(copy_region);
-
-        copy_region.dstOffset = 0;
-        copy_region.size      = sizeof(VkAccelerationStructureInstanceKHR) * m_instances.size();
-
-        vkCmdCopyBuffer(cmd_buf->handle(), m_tlas_instance_buffer_host->handle(), m_tlas_instance_buffer_device->handle(), 1, &copy_region);
-
-        backend->use_resource(VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_2_SHADER_READ_BIT, m_tlas_instance_buffer_device);
-    }
-
     backend->use_resource(VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR, m_tlas->buffer());
     backend->use_resource(VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR, m_tlas_scratch_buffer);
-
+    backend->use_resource(VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_2_SHADER_READ_BIT, m_tlas_instance_buffer);
+    
     backend->flush_barriers(cmd_buf);
 
     VkAccelerationStructureGeometryKHR geometry;
@@ -235,7 +214,7 @@ void RayTracedScene::build_tlas(vk::CommandBuffer::Ptr cmd_buf)
     geometry.geometryType                          = VK_GEOMETRY_TYPE_INSTANCES_KHR;
     geometry.geometry.instances.sType              = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
     geometry.geometry.instances.arrayOfPointers    = VK_FALSE;
-    geometry.geometry.instances.data.deviceAddress = m_tlas_instance_buffer_device->device_address();
+    geometry.geometry.instances.data.deviceAddress = m_tlas_instance_buffer->device_address();
 
     VkAccelerationStructureBuildGeometryInfoKHR build_info;
     DW_ZERO_MEMORY(build_info);
@@ -631,7 +610,7 @@ void RayTracedScene::copy_tlas_data()
     }
 
     memcpy(m_instance_data_buffer->mapped_ptr(), m_instance_datas.data(), sizeof(InstanceData) * m_instance_datas.size());
-    memcpy(m_tlas_instance_buffer_host->mapped_ptr(), m_rt_instances.data(), sizeof(VkAccelerationStructureInstanceKHR) * m_rt_instances.size());
+    memcpy(m_tlas_instance_buffer->mapped_ptr(), m_rt_instances.data(), sizeof(VkAccelerationStructureInstanceKHR) * m_rt_instances.size());
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------

@@ -1878,7 +1878,6 @@ void ComputePipeline::set_name(const std::string& name)
 ShaderBindingTable::Desc::Desc()
 {
     entry_point_names.reserve(32);
-    ray_gen_stages.reserve(32);
     hit_stages.reserve(32);
     miss_stages.reserve(32);
     hit_groups.reserve(32);
@@ -1886,7 +1885,7 @@ ShaderBindingTable::Desc::Desc()
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-ShaderBindingTable::Desc& ShaderBindingTable::Desc::add_ray_gen_group(ShaderModule::Ptr shader, const std::string& entry_point)
+ShaderBindingTable::Desc& ShaderBindingTable::Desc::set_ray_gen_stage(ShaderModule::Ptr shader, const std::string& entry_point)
 {
     VkPipelineShaderStageCreateInfo stage;
     DW_ZERO_MEMORY(stage);
@@ -1898,7 +1897,7 @@ ShaderBindingTable::Desc& ShaderBindingTable::Desc::add_ray_gen_group(ShaderModu
     stage.stage  = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     stage.pName  = entry_point_names.back().c_str();
 
-    ray_gen_stages.push_back(stage);
+    ray_gen_stage = stage;
 
     return *this;
 }
@@ -1995,20 +1994,6 @@ ShaderBindingTable::Ptr ShaderBindingTable::create(Backend::Ptr backend, Desc de
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-VkDeviceSize ShaderBindingTable::hit_group_offset()
-{
-    return m_ray_gen_size + m_miss_group_size;
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
-VkDeviceSize ShaderBindingTable::miss_group_offset()
-{
-    return m_ray_gen_size;
-}
-
-// -----------------------------------------------------------------------------------------------------------------------------------
-
 ShaderBindingTable::~ShaderBindingTable()
 {
 }
@@ -2023,26 +2008,23 @@ ShaderBindingTable::ShaderBindingTable(Backend::Ptr backend, Desc desc) :
     auto& rt_pipeline_props = backend->ray_tracing_pipeline_properties();
 
     // Ray gen shaders
-    for (auto& stage : desc.ray_gen_stages)
-    {
-        VkRayTracingShaderGroupCreateInfoKHR group_info;
-        DW_ZERO_MEMORY(group_info);
+    VkRayTracingShaderGroupCreateInfoKHR group_info;
+    DW_ZERO_MEMORY(group_info);
 
-        m_entry_point_names.push_back(std::string(stage.pName));
+    m_entry_point_names.push_back(std::string(desc.ray_gen_stage.pName));
 
-        stage.pName = m_entry_point_names[m_entry_point_names.size() - 1].c_str();
+    desc.ray_gen_stage.pName = m_entry_point_names[m_entry_point_names.size() - 1].c_str();
 
-        group_info.sType              = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
-        group_info.pNext              = nullptr;
-        group_info.type               = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
-        group_info.generalShader      = m_stages.size();
-        group_info.closestHitShader   = VK_SHADER_UNUSED_KHR;
-        group_info.anyHitShader       = VK_SHADER_UNUSED_KHR;
-        group_info.intersectionShader = VK_SHADER_UNUSED_KHR;
+    group_info.sType              = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+    group_info.pNext              = nullptr;
+    group_info.type               = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+    group_info.generalShader      = m_stages.size();
+    group_info.closestHitShader   = VK_SHADER_UNUSED_KHR;
+    group_info.anyHitShader       = VK_SHADER_UNUSED_KHR;
+    group_info.intersectionShader = VK_SHADER_UNUSED_KHR;
 
-        m_stages.push_back(stage);
-        m_groups.push_back(group_info);
-    }
+    m_stages.push_back(desc.ray_gen_stage);
+    m_groups.push_back(group_info);
 
     // Ray miss shaders
     for (auto& stage : desc.miss_stages)
@@ -2113,11 +2095,10 @@ ShaderBindingTable::ShaderBindingTable(Backend::Ptr backend, Desc desc) :
         m_groups.push_back(group_info);
     }
 
-    uint32_t group_size_aligned = utilities::aligned_size(rt_pipeline_props.shaderGroupHandleSize, rt_pipeline_props.shaderGroupBaseAlignment);
+    m_aligned_handle_size = utilities::aligned_size(rt_pipeline_props.shaderGroupHandleSize, rt_pipeline_props.shaderGroupHandleAlignment);
 
-    m_ray_gen_size    = desc.ray_gen_stages.size() * group_size_aligned;
-    m_hit_group_size  = desc.hit_groups.size() * group_size_aligned;
-    m_miss_group_size = desc.miss_stages.size() * group_size_aligned;
+    m_hit_group_size  = desc.hit_groups.size() * m_aligned_handle_size;
+    m_miss_group_size = desc.miss_stages.size() * m_aligned_handle_size;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
