@@ -4,6 +4,7 @@
 #include <fstream>
 #include <glm.hpp>
 #include <utility.h>
+#include "aftermath_callbacks.h"
 
 #define VMA_IMPLEMENTATION
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
@@ -16,6 +17,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+
+#include <GFSDK_Aftermath_GpuCrashDump.h>
 
 #if defined(DWSF_VULKAN)
 
@@ -43,6 +46,15 @@ const char* kDeviceTypes[] = {
     "VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU",
     "VK_PHYSICAL_DEVICE_TYPE_CPU"
 };
+
+// -----------------------------------------------------------------------------------------------------------------------------------
+
+#    define VENDOR_ID_AMD 0x1002
+#    define VENDOR_ID_IMAGINATION 0x1010
+#    define VENDOR_ID_NVIDIA 0x10DE
+#    define VENDOR_ID_ARM 0x13B5
+#    define VENDOR_ID_QUALCOMM 0x5143
+#    define VENDOR_ID_INTEL 0x8086
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -3144,9 +3156,9 @@ void BatchUploader::add_staging_buffer(const size_t& size)
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Backend::Ptr Backend::create(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions)
+Backend::Ptr Backend::create(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enable_validation_layers, bool enable_nsight_aftermath, bool require_ray_tracing, std::vector<const char*> additional_device_extensions)
 {
-    std::shared_ptr<Backend> backend = std::shared_ptr<Backend>(new Backend(window, vsync, srgb_swapchain, enable_validation_layers, require_ray_tracing, additional_device_extensions));
+    std::shared_ptr<Backend> backend = std::shared_ptr<Backend>(new Backend(window, vsync, srgb_swapchain, enable_validation_layers, enable_nsight_aftermath, require_ray_tracing, additional_device_extensions));
     backend->initialize();
 
     return backend;
@@ -3154,7 +3166,7 @@ Backend::Ptr Backend::create(GLFWwindow* window, bool vsync, bool srgb_swapchain
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions) :
+Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enable_validation_layers, bool enable_nsight_aftermath, bool require_ray_tracing, std::vector<const char*> additional_device_extensions) :
     m_vsync(vsync), m_srgb_swapchain(srgb_swapchain), m_window(window)
 {
     m_ray_tracing_enabled = require_ray_tracing;
@@ -3270,7 +3282,7 @@ Backend::Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enabl
         throw std::runtime_error("(Vulkan) Failed to find a suitable GPU.");
     }
 
-    if (!create_logical_device(device_extensions, require_ray_tracing))
+    if (!create_logical_device(device_extensions, require_ray_tracing, enable_nsight_aftermath))
     {
         DW_LOG_FATAL("(Vulkan) Failed to create logical device.");
         throw std::runtime_error("(Vulkan) Failed to create logical device.");
@@ -4519,7 +4531,7 @@ bool Backend::is_queue_compatible(VkQueueFlags current_queue_flags, int32_t grap
 
 // -----------------------------------------------------------------------------------------------------------------------------------
 
-bool Backend::create_logical_device(std::vector<const char*> extensions, bool require_ray_tracing)
+bool Backend::create_logical_device(std::vector<const char*> extensions, bool require_ray_tracing, bool _use_nsight_aftermath)
 {
     // Ray Query Features
     VkPhysicalDeviceRayQueryFeaturesKHR device_ray_query_features;
@@ -4544,29 +4556,15 @@ bool Backend::create_logical_device(std::vector<const char*> extensions, bool re
     device_ray_tracing_pipeline_features.pNext              = &device_acceleration_structure_features;
     device_ray_tracing_pipeline_features.rayTracingPipeline = VK_TRUE;
 
-    // Synchronization 2  Features
-    VkPhysicalDeviceSynchronization2Features sync2_features;
-    DW_ZERO_MEMORY(sync2_features);
-
-    sync2_features.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES;
-    sync2_features.pNext = require_ray_tracing ? & device_ray_tracing_pipeline_features : nullptr;
-    sync2_features.synchronization2 = VK_TRUE;
-
-    // Dynamic Rendering Features
-    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_features;
-    DW_ZERO_MEMORY(dynamic_rendering_features);
-
-    dynamic_rendering_features.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
-    dynamic_rendering_features.pNext            = &sync2_features;
-    dynamic_rendering_features.dynamicRendering = VK_TRUE;
-
     // Vulkan 1.3 Features
     VkPhysicalDeviceVulkan13Features features13;
     DW_ZERO_MEMORY(features13);
 
     features13.sType                          = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-    features13.pNext                          = &dynamic_rendering_features;
+    features13.pNext                          = require_ray_tracing ? &device_ray_tracing_pipeline_features : nullptr;
     features13.shaderDemoteToHelperInvocation = VK_TRUE;
+    features13.dynamicRendering               = VK_TRUE;
+    features13.synchronization2               = VK_TRUE;
 
     // Vulkan 1.2 Features
     VkPhysicalDeviceVulkan12Features features12;
@@ -4581,13 +4579,37 @@ bool Backend::create_logical_device(std::vector<const char*> extensions, bool re
 
     features11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
     features11.pNext = &features12;
-
+    
     // Physical Device Features 2
     VkPhysicalDeviceFeatures2 physical_device_features_2;
     DW_ZERO_MEMORY(physical_device_features_2);
 
     physical_device_features_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     physical_device_features_2.pNext = &features11;
+
+    if (_use_nsight_aftermath && m_device_properties.vendorID == VENDOR_ID_NVIDIA)
+    {
+        VkDeviceDiagnosticsConfigCreateInfoNV device_diagnostics_config_create_info_nv;
+        DW_ZERO_MEMORY(device_diagnostics_config_create_info_nv);
+
+        device_diagnostics_config_create_info_nv.sType = VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV;
+        device_diagnostics_config_create_info_nv.flags = VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_RESOURCE_TRACKING_BIT_NV | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_ERROR_REPORTING_BIT_NV;
+
+        if (GFSDK_Aftermath_EnableGpuCrashDumps(GFSDK_Aftermath_Version_API,
+                                                GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_Vulkan,
+                                                GFSDK_Aftermath_GpuCrashDumpFeatureFlags_DeferDebugInfoCallbacks,
+                                                aftermath::gpu_crash_dump_callback,
+                                                aftermath::shader_debug_info_callback,
+                                                nullptr,
+                                                nullptr,
+                                                nullptr)
+            != GFSDK_Aftermath_Result_Success)
+            DW_LOG_FATAL("Failed to enable Nsight Aftermath GPU crash dumps!");
+
+        device_diagnostics_config_create_info_nv.pNext = features13.pNext;
+
+        features13.pNext = &device_diagnostics_config_create_info_nv;
+    }
 
     vkGetPhysicalDeviceFeatures2(m_vk_physical_device, &physical_device_features_2);
 

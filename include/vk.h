@@ -69,7 +69,7 @@ public:
 
     using Ptr = std::shared_ptr<Backend>;
 
-    static Backend::Ptr create(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enable_validation_layers = false, bool require_ray_tracing = false, std::vector<const char*> additional_device_extensions = std::vector<const char*>());
+    static Backend::Ptr create(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enable_validation_layers = false, bool enable_nsight_aftermath = false, bool require_ray_tracing = false, std::vector<const char*> additional_device_extensions = std::vector<const char*>());
 
     ~Backend();
 
@@ -156,7 +156,7 @@ public:
     inline std::shared_ptr<ImageView>                         default_cubemap() { return m_default_cubemap_image_view; }
 
 private:
-    Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enable_validation_layers, bool require_ray_tracing, std::vector<const char*> additional_device_extensions);
+    Backend(GLFWwindow* window, bool vsync, bool srgb_swapchain, bool enable_validation_layers, bool enable_nsight_aftermath, bool require_ray_tracing, std::vector<const char*> additional_device_extensions);
     void                     initialize();
     VkFormat                 find_depth_format();
     bool                     check_validation_layer_support(std::vector<const char*> layers);
@@ -170,7 +170,7 @@ private:
     bool                     is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType type, QueueInfos& infos, SwapChainSupportDetails& details, std::vector<const char*> extensions, bool require_ray_tracing);
     bool                     find_queues(VkPhysicalDevice device, QueueInfos& infos);
     bool                     is_queue_compatible(VkQueueFlags current_queue_flags, int32_t graphics, int32_t compute, int32_t transfer);
-    bool                     create_logical_device(std::vector<const char*> extensions, bool require_ray_tracing);
+    bool                     create_logical_device(std::vector<const char*> extensions, bool require_ray_tracing, bool _use_nsight_aftermath);
     bool                     create_swapchain();
     VkSurfaceFormatKHR       choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats);
     VkPresentModeKHR         choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_modes);

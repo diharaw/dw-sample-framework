@@ -41,7 +41,9 @@ struct AppSettings
 
 #if defined(DWSF_VULKAN)
     std::vector<const char*> device_extensions;
-    bool                     ray_tracing = false;
+    bool                     enable_validation       = false;
+    bool                     enable_nsight_aftermath = false;
+    bool                     ray_tracing             = false;
 #else
     int  major_ver             = 4;
     bool enable_debug_callback = false;
