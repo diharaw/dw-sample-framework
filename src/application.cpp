@@ -235,12 +235,8 @@ bool Application::init_base(int argc, const char* argv[])
     m_vk_backend = vk::Backend::create(m_window,
                                        m_vsync,
                                        settings.srgb,
-#    if defined(_DEBUG)
-                                       true
-#    else
-                                       false
-#    endif
-                                       ,
+                                       settings.enable_validation,
+                                       settings.enable_nsight_aftermath,
                                        settings.ray_tracing,
                                        settings.device_extensions);
 
