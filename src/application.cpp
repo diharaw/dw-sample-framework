@@ -240,6 +240,10 @@ bool Application::init_base(int argc, const char* argv[])
                                        settings.ray_tracing,
                                        settings.device_extensions);
 
+    m_title += " - " + std::string(m_vk_backend->physical_device_properties().deviceName);
+
+    glfwSetWindowTitle(m_window, m_title.c_str());
+
     const uint32_t max_frames_in_flights = m_vk_backend->swap_image_count();
 
     for (uint32_t i = 0; i < max_frames_in_flights; i++)

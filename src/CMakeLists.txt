@@ -28,6 +28,7 @@ set(DWSFW_SOURCE ${PROJECT_SOURCE_DIR}/external/imgui/imgui.cpp
 				 ${PROJECT_SOURCE_DIR}/src/application.cpp
 				 ${PROJECT_SOURCE_DIR}/src/profiler.cpp
 				 ${PROJECT_SOURCE_DIR}/src/demo_player.cpp
+				 ${PROJECT_SOURCE_DIR}/src/aftermath_callbacks.cpp
 				 ${PROJECT_SOURCE_DIR}/external/imgui/backends/imgui_impl_glfw.cpp)
 
 set(DWSFW_HEADERS ${PROJECT_SOURCE_DIR}/include/macros.h
@@ -79,7 +80,18 @@ else()
 
 	if (USE_VULKAN)
 		target_link_libraries(dwSampleFramework volk)
+		target_link_libraries(dwSampleFramework ${PROJECT_SOURCE_DIR}/external/nsight-aftermath-sdk/lib/GFSDK_Aftermath_Lib.x64.lib)
 	else()
 		target_link_libraries(dwSampleFramework ${OPENGL_LIBRARIES})
 	endif()
 endif()
+
+set(NSIGHT_AFTERMATH_DLL ${PROJECT_SOURCE_DIR}/external/nsight-aftermath-sdk/bin/GFSDK_Aftermath_Lib.x64.dll)
+
+set(DLL_COPY_DIR ${CMAKE_SOURCE_DIR}/bin/$(Configuration))
+
+add_custom_command(
+	TARGET dwSampleFramework POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${NSIGHT_AFTERMATH_DLL}" "${DLL_COPY_DIR}"
+    COMMENT "Copying GFSDK_Aftermath_Lib.x64.dll to output directory"
+)

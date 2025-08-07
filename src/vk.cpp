@@ -2036,7 +2036,8 @@ ShaderBindingTable::ShaderBindingTable(Backend::Ptr backend, Desc desc) :
     group_info.intersectionShader = VK_SHADER_UNUSED_KHR;
 
     m_stages.push_back(desc.ray_gen_stage);
-    m_groups.push_back(group_info);
+
+    m_ray_gen_group = group_info;
 
     // Ray miss shaders
     for (auto& stage : desc.miss_stages)
@@ -2056,7 +2057,7 @@ ShaderBindingTable::ShaderBindingTable(Backend::Ptr backend, Desc desc) :
         stage.pName = m_entry_point_names[m_entry_point_names.size() - 1].c_str();
 
         m_stages.push_back(stage);
-        m_groups.push_back(group_info);
+        m_miss_groups.push_back(group_info);
     }
 
     // Ray hit shaders
@@ -2104,13 +2105,8 @@ ShaderBindingTable::ShaderBindingTable(Backend::Ptr backend, Desc desc) :
             m_stages.push_back(*group.intersection_stage);
         }
 
-        m_groups.push_back(group_info);
+        m_hit_groups.push_back(group_info);
     }
-
-    m_aligned_handle_size = utilities::aligned_size(rt_pipeline_props.shaderGroupHandleSize, rt_pipeline_props.shaderGroupHandleAlignment);
-
-    m_hit_group_size  = desc.hit_groups.size() * m_aligned_handle_size;
-    m_miss_group_size = desc.miss_stages.size() * m_aligned_handle_size;
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------
@@ -2127,15 +2123,7 @@ RayTracingPipeline::Desc::Desc()
 
 RayTracingPipeline::Desc& RayTracingPipeline::Desc::set_shader_binding_table(ShaderBindingTable::Ptr table)
 {
-    sbt                                                             = table;
-    const std::vector<VkPipelineShaderStageCreateInfo>&      stages = table->stages();
-    const std::vector<VkRayTracingShaderGroupCreateInfoKHR>& groups = table->groups();
-
-    create_info.groupCount = groups.size();
-    create_info.pGroups    = groups.data();
-
-    create_info.stageCount = stages.size();
-    create_info.pStages    = stages.data();
+    sbt = table;
 
     return *this;
 }
@@ -2211,8 +2199,20 @@ RayTracingPipeline::RayTracingPipeline(Backend::Ptr backend, Desc desc) :
 {
     m_sbt = desc.sbt;
 
-    desc.create_info.pGroups = m_sbt->groups().data();
-    desc.create_info.pStages = m_sbt->stages().data();
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> groups;
+
+    groups.push_back(m_sbt->ray_gen_group());
+
+    for (const auto& miss_group : m_sbt->miss_groups())
+        groups.push_back(miss_group);
+
+    for (const auto& hit_group : m_sbt->hit_groups())
+        groups.push_back(hit_group);
+
+    desc.create_info.groupCount = groups.size();
+    desc.create_info.pGroups    = groups.data();
+    desc.create_info.stageCount = m_sbt->stages().size();
+    desc.create_info.pStages    = m_sbt->stages().data();
 
     if (vkCreateRayTracingPipelinesKHR(backend->device(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &desc.create_info, VK_NULL_HANDLE, &m_vk_pipeline) != VK_SUCCESS)
     {
@@ -2222,29 +2222,64 @@ RayTracingPipeline::RayTracingPipeline(Backend::Ptr backend, Desc desc) :
 
     const auto& rt_pipeline_props = backend->ray_tracing_pipeline_properties();
 
-    uint32_t group_handle_size  = rt_pipeline_props.shaderGroupHandleSize;
-    uint32_t group_size_aligned = utilities::aligned_size(rt_pipeline_props.shaderGroupHandleSize, rt_pipeline_props.shaderGroupBaseAlignment);
-    size_t   sbt_size           = m_sbt->groups().size() * group_size_aligned;
+    uint32_t handle_size         = rt_pipeline_props.shaderGroupHandleSize;
+    uint32_t handle_aligned_size = utilities::aligned_size(rt_pipeline_props.shaderGroupHandleSize, rt_pipeline_props.shaderGroupHandleAlignment);
+
+    m_ray_gen_region.stride = utilities::aligned_size(handle_aligned_size, rt_pipeline_props.shaderGroupBaseAlignment);
+    m_ray_gen_region.size   = m_ray_gen_region.stride;
+                             
+    m_miss_group_region.stride = handle_aligned_size;
+    m_miss_group_region.size   = utilities::aligned_size(m_sbt->miss_groups().size() * handle_aligned_size, rt_pipeline_props.shaderGroupBaseAlignment);
+                             
+    m_hit_group_region.stride = handle_aligned_size;
+    m_hit_group_region.size   = utilities::aligned_size(m_sbt->hit_groups().size() * handle_aligned_size, rt_pipeline_props.shaderGroupBaseAlignment);
+
+    const size_t sbt_size = m_ray_gen_region.size + m_miss_group_region.size + m_hit_group_region.size;
 
     m_vk_buffer = vk::Buffer::create_with_alignment(backend, VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, sbt_size, rt_pipeline_props.shaderGroupBaseAlignment, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-    std::vector<uint8_t> scratch_mem(sbt_size);
+    m_ray_gen_region.deviceAddress    = m_vk_buffer->device_address();
+    m_miss_group_region.deviceAddress = m_vk_buffer->device_address() + m_ray_gen_region.size;
+    m_hit_group_region.deviceAddress  = m_vk_buffer->device_address() + m_ray_gen_region.size + m_miss_group_region.size;
+ 
+    const size_t scratch_size = handle_size * groups.size();
 
-    if (vkGetRayTracingShaderGroupHandlesKHR(backend->device(), m_vk_pipeline, 0, m_sbt->groups().size(), sbt_size, scratch_mem.data()) != VK_SUCCESS)
+    std::vector<uint8_t> scratch_mem(scratch_size);
+
+    if (vkGetRayTracingShaderGroupHandlesKHR(backend->device(), m_vk_pipeline, 0, groups.size(), scratch_size, scratch_mem.data()) != VK_SUCCESS)
     {
         DW_LOG_FATAL("(Vulkan) Failed to get Shader Group handles.");
         throw std::runtime_error("(Vulkan) Failed to get Shader Group handles.");
     }
 
-    uint8_t* src_ptr = scratch_mem.data();
-    uint8_t* dst_ptr = (uint8_t*)m_vk_buffer->mapped_ptr();
+    uint32_t handle_idx = 0;
 
-    for (int i = 0; i < m_sbt->groups().size(); i++)
+    // Helper to retrieve the handle data
+    auto get_handle = [&](int i) { 
+        return scratch_mem.data() + i * handle_size; 
+    };
+
+    uint8_t* sbt_base_ptr    = (uint8_t*)m_vk_buffer->mapped_ptr();
+    uint8_t* sbt_current_ptr = sbt_base_ptr;
+
+    // Raygen
+    memcpy(sbt_current_ptr, get_handle(handle_idx++), handle_size);
+
+    // Miss
+    sbt_current_ptr = sbt_base_ptr + m_ray_gen_region.size;
+
+    for (uint32_t i = 0; i < m_sbt->miss_groups().size(); i++)
     {
-        memcpy(dst_ptr, src_ptr, group_handle_size);
+        memcpy(sbt_current_ptr, get_handle(handle_idx++), handle_size);
+        sbt_current_ptr += m_miss_group_region.stride;
+    }
+    // Hit
+    sbt_current_ptr = sbt_base_ptr + m_ray_gen_region.size + m_miss_group_region.size;
 
-        dst_ptr += group_size_aligned;
-        src_ptr += group_size_aligned;
+    for (uint32_t i = 0; i < m_sbt->hit_groups().size(); i++)
+    {
+        memcpy(sbt_current_ptr, get_handle(handle_idx++), handle_size);
+        sbt_current_ptr += m_hit_group_region.stride;
     }
 }
 
@@ -3641,6 +3676,29 @@ void Backend::use_resource(VkPipelineStageFlags2   _stage,
     {
         std::vector<ImageUsageInfo>& usages = m_image_usage_info[(uint64_t)_image];
 
+        // If the resource size was changed for some reason, resize the vector and reset the old usages.
+        if (usages.size() != (_num_levels * _num_layers))
+        {
+            usages.resize(_num_levels * _num_layers);
+
+            for (uint32_t layer_idx = 0; layer_idx < _range.layerCount; layer_idx++)
+            {
+                for (uint32_t level_idx = 0; level_idx < _range.levelCount; level_idx++)
+                {
+                    const uint32_t idx = (_num_levels * (_range.baseArrayLayer + layer_idx)) + (_range.baseMipLevel + level_idx);
+
+                    ImageUsageInfo default_usage = {};
+
+                    default_usage.stage          = VK_PIPELINE_STAGE_2_NONE;
+                    default_usage.access         = VK_ACCESS_2_NONE;
+                    default_usage.layout         = VK_IMAGE_LAYOUT_UNDEFINED;
+                    default_usage.last_frame_idx = 0;
+
+                    usages[idx] = default_usage;
+                }
+            }
+        }
+
         VkImageLayout first_old_layout = VK_IMAGE_LAYOUT_UNDEFINED;
 
         for (uint32_t layer_idx = 0; layer_idx < _range.layerCount; layer_idx++)
@@ -4299,11 +4357,6 @@ bool Backend::is_device_suitable(VkPhysicalDevice device, VkPhysicalDeviceType t
 
         if (details.format.size() > 0 && details.present_modes.size() > 0 && extensions_supported)
         {
-            DW_LOG_INFO("(Vulkan) Vendor : " + std::string(get_vendor_name(m_device_properties.vendorID)));
-            DW_LOG_INFO("(Vulkan) Name   : " + std::string(m_device_properties.deviceName));
-            DW_LOG_INFO("(Vulkan) Type   : " + std::string(kDeviceTypes[m_device_properties.deviceType]));
-            DW_LOG_INFO("(Vulkan) Driver : " + std::to_string(m_device_properties.driverVersion));
-
             if (require_ray_tracing)
             {
                 // Get acceleration structure properties
@@ -4335,21 +4388,12 @@ bool Backend::find_queues(VkPhysicalDevice device, QueueInfos& infos)
     uint32_t family_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &family_count, nullptr);
 
-    DW_LOG_INFO("(Vulkan) Number of Queue families: " + std::to_string(family_count));
-
     VkQueueFamilyProperties families[32];
     vkGetPhysicalDeviceQueueFamilyProperties(device, &family_count, &families[0]);
 
     for (uint32_t i = 0; i < family_count; i++)
     {
         VkQueueFlags bits = families[i].queueFlags;
-
-        DW_LOG_INFO("(Vulkan) Family " + std::to_string(i));
-        DW_LOG_INFO("(Vulkan) Supported Bits: ");
-        DW_LOG_INFO("(Vulkan) VK_QUEUE_GRAPHICS_BIT: " + std::to_string((families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) > 0));
-        DW_LOG_INFO("(Vulkan) VK_QUEUE_COMPUTE_BIT: " + std::to_string((families[i].queueFlags & VK_QUEUE_COMPUTE_BIT) > 0));
-        DW_LOG_INFO("(Vulkan) VK_QUEUE_TRANSFER_BIT: " + std::to_string((families[i].queueFlags & VK_QUEUE_TRANSFER_BIT) > 0));
-        DW_LOG_INFO("(Vulkan) Number of Queues: " + std::to_string(families[i].queueCount));
 
         VkBool32 present_support = false;
         vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_vk_surface, &present_support);

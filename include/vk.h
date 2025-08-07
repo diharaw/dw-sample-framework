@@ -142,6 +142,7 @@ public:
     size_t           aligned_dynamic_ubo_size(size_t size);
     VkFormat         find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
+    inline VkPhysicalDeviceProperties                         physical_device_properties() { return m_device_properties; }
     inline VkPhysicalDeviceRayTracingPipelinePropertiesKHR    ray_tracing_pipeline_properties() { return m_ray_tracing_pipeline_properties; }
     inline VkPhysicalDeviceAccelerationStructurePropertiesKHR acceleration_structure_properties() { return m_acceleration_structure_properties; }
     inline VkFormat                                           swap_chain_image_format() { return m_swap_chain_image_format; }
@@ -692,12 +693,9 @@ public:
     static ShaderBindingTable::Ptr create(Backend::Ptr backend, Desc desc);
 
     inline const std::vector<VkPipelineShaderStageCreateInfo>&      stages() { return m_stages; }
-    inline const std::vector<VkRayTracingShaderGroupCreateInfoKHR>& groups() { return m_groups; }
-    inline VkDeviceSize                                             aligned_handle_size() { return m_aligned_handle_size; }
-    inline VkDeviceSize                                             hit_group_size() { return m_hit_group_size; }
-    inline VkDeviceSize                                             miss_group_size() { return m_miss_group_size; }
-    inline VkDeviceSize                                             hit_group_offset() { return m_aligned_handle_size + m_miss_group_size; }
-    inline VkDeviceSize                                             miss_group_offset() { return m_aligned_handle_size; }
+    inline const VkRayTracingShaderGroupCreateInfoKHR&              ray_gen_group() { return m_ray_gen_group; }
+    inline const std::vector<VkRayTracingShaderGroupCreateInfoKHR>& miss_groups() { return m_miss_groups; }
+    inline const std::vector<VkRayTracingShaderGroupCreateInfoKHR>& hit_groups() { return m_hit_groups; }
 
 
     ~ShaderBindingTable();
@@ -706,12 +704,11 @@ private:
     ShaderBindingTable(Backend::Ptr backend, Desc desc);
 
 private:
-    VkDeviceSize                                      m_aligned_handle_size;     
-    VkDeviceSize                                      m_hit_group_size;
-    VkDeviceSize                                      m_miss_group_size;
     std::vector<std::string>                          m_entry_point_names;
     std::vector<VkPipelineShaderStageCreateInfo>      m_stages;
-    std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_groups;
+    VkRayTracingShaderGroupCreateInfoKHR              m_ray_gen_group;
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_miss_groups;
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_hit_groups;
 };
 
 class RayTracingPipeline : public Object
@@ -734,9 +731,12 @@ public:
 
     static RayTracingPipeline::Ptr create(Backend::Ptr backend, Desc desc);
 
-    inline ShaderBindingTable::Ptr shader_binding_table() { return m_sbt; }
-    inline Buffer::Ptr             shader_binding_table_buffer() { return m_vk_buffer; }
-    inline const VkPipeline&       handle() { return m_vk_pipeline; }
+    inline ShaderBindingTable::Ptr         shader_binding_table() { return m_sbt; }
+    inline Buffer::Ptr                     shader_binding_table_buffer() { return m_vk_buffer; }
+    inline VkStridedDeviceAddressRegionKHR ray_gen_region() { return m_ray_gen_region; }
+    inline VkStridedDeviceAddressRegionKHR hit_group_region() { return m_hit_group_region; }
+    inline VkStridedDeviceAddressRegionKHR miss_group_region() { return m_miss_group_region; }
+    inline const VkPipeline&               handle() { return m_vk_pipeline; }
 
     ~RayTracingPipeline();
 
@@ -746,9 +746,12 @@ private:
     RayTracingPipeline(Backend::Ptr backend, Desc desc);
 
 private:
-    VkPipeline              m_vk_pipeline;
-    vk::Buffer::Ptr         m_vk_buffer;
-    ShaderBindingTable::Ptr m_sbt;
+    VkPipeline                      m_vk_pipeline;
+    vk::Buffer::Ptr                 m_vk_buffer;
+    ShaderBindingTable::Ptr         m_sbt;
+    VkStridedDeviceAddressRegionKHR m_ray_gen_region;
+    VkStridedDeviceAddressRegionKHR m_hit_group_region;
+    VkStridedDeviceAddressRegionKHR m_miss_group_region;
 };
 
 class AccelerationStructure : public Object

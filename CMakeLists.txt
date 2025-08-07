@@ -24,6 +24,7 @@ set(ASSIMP_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/assimp/include" "${CMAKE
 set(JSON_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/json/single_include/nlohmann")
 set(VMA_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/VulkanMemoryAllocator/include")
 set(VOLK_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/volk")
+set(NSIGHT_AFTERMATH_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/external/nsight-aftermath-sdk/include")
 
 if (USE_VULKAN)
     find_package(Vulkan)
@@ -41,6 +42,7 @@ set(DW_SAMPLE_FRAMEWORK_INCLUDES ${DWSFW_INCLUDE_DIRS}
                                  ${JSON_INCLUDE_DIRS}
                                  ${VMA_INCLUDE_DIRS}
                                  ${VOLK_INCLUDE_DIRS}
+                                 ${NSIGHT_AFTERMATH_INCLUDE_DIRS}
                                  PARENT_SCOPE)
 
 include_directories(${DWSFW_INCLUDE_DIRS}
@@ -52,7 +54,8 @@ include_directories(${DWSFW_INCLUDE_DIRS}
                     ${ASSIMP_INCLUDE_DIRS}
                     ${JSON_INCLUDE_DIRS}
                     ${VMA_INCLUDE_DIRS}
-                    ${VOLK_INCLUDE_DIRS})
+                    ${VOLK_INCLUDE_DIRS}
+                    ${NSIGHT_AFTERMATH_INCLUDE_DIRS})
 
 if (NOT EMSCRIPTEN)
     add_subdirectory(external/glfw)
